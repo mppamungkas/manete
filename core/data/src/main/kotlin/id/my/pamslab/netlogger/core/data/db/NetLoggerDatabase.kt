@@ -12,6 +12,7 @@ import androidx.room.RoomDatabase
 abstract class NetLoggerDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun measurementDao(): MeasurementDao
+    abstract fun exportDao(): ExportDao
 
     companion object {
         const val VERSION = 1

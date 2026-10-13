@@ -51,3 +51,19 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
       also `-wal`) into `docs/samples/`; check that each tick has at most one `servingInferred` NR cell per NR-ARFCN
       and look at `servingSource`
 - [ ] Release check: `ANDROID_SERIAL=<serial> ./gradlew :core:data:connectedDebugAndroidTest` passes on both phones
+
+## Milestone 5: export
+
+- [ ] Sessions → detail of a stopped session: "Save ZIP…" opens the document picker with the suggested name
+      `netlogger_<model>_<start>_<label or scenario>_<uuid8>.zip`; the file appears where it was saved
+- [ ] "Share ZIP" opens the share sheet with the ZIP attached (cache copy: `adb -s <serial> exec-out run-as
+      id.my.pamslab.netlogger cat cache/exports/<file>.zip`); both buttons are disabled while the session records
+- [ ] Unzip: session.json, measurements.csv, cells.csv, flat.csv, events.csv, warnings.csv, track.geojson
+- [ ] Row counts match the database (`counts` in session.json, and the pulled `netlogger.db`); every CSV row has the
+      header's width; empty fields for missing values, no `NaN`/`-999`/`2147483647`
+- [ ] Times are ISO-8601 with the phone's offset; `timeZone` in session.json
+- [ ] flat.csv: one row per tick, at most one NR cell (`nrServingCount` > 1 only with NR CA), every value has its
+      `*Source`
+- [ ] track.geojson opens in a GeoJSON viewer (e.g. geojson.io) at the right place; coordinates are [lon, lat]
+- [ ] Open flat.csv in a spreadsheet with a comma-decimal locale (e.g. German): numbers still parse with "." when
+      imported as CSV with "." decimal separator

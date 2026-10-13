@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import id.my.pamslab.netlogger.core.data.RoomSessionRepository
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.db.ExportDao
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import javax.inject.Singleton
 
@@ -26,5 +27,8 @@ abstract class DataModule {
         @Singleton
         fun provideDatabase(@ApplicationContext context: Context): NetLoggerDatabase =
             Room.databaseBuilder(context, NetLoggerDatabase::class.java, NetLoggerDatabase.NAME).build()
+
+        @Provides
+        fun provideExportDao(db: NetLoggerDatabase): ExportDao = db.exportDao()
     }
 }

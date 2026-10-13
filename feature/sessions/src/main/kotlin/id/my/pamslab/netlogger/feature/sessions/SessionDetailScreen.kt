@@ -1,5 +1,9 @@
 package id.my.pamslab.netlogger.feature.sessions
 
+import android.content.ActivityNotFoundException
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,11 +21,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun SessionDetailScreen(
@@ -38,16 +46,39 @@ internal fun SessionDetailScreen(
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val exporting by viewModel.exporting.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(viewModel::saveTo)
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.shareIntents.collect { intent ->
+            try {
+                context.startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                Log.w("NetLogger", "no app to share with", e)
+            }
+        }
+    }
     val s = session ?: return PlaceholderScreen("Session", "Loading…", modifier)
-    DetailContent(s, message, viewModel::save, onDelete = { viewModel.delete(onBack) }, onBack, modifier)
+    DetailContent(
+        s, message, exporting, viewModel::save, onDelete = { viewModel.delete(onBack) },
+        onSaveZip = { scope.launch { viewModel.exportFileName()?.let(saveLauncher::launch) } },
+        onShareZip = viewModel::share,
+        onBack = onBack, modifier = modifier,
+    )
 }
 
 @Composable
 private fun DetailContent(
     s: SessionSummary,
     message: String?,
+    exporting: Boolean,
     onSave: (String, String, Scenario?) -> Unit,
     onDelete: () -> Unit,
+    onSaveZip: () -> Unit,
+    onShareZip: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -89,8 +120,13 @@ private fun DetailContent(
             Button(onClick = { onSave(label, notes, scenario) }) { Text("Save") }
             OutlinedButton(onClick = { confirmDelete = true }, enabled = s.endedAtMs != null) { Text("Delete") }
         }
+        val canExport = s.endedAtMs != null && !exporting
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onSaveZip, enabled = canExport) { Text("Save ZIP…") }
+            OutlinedButton(onClick = onShareZip, enabled = canExport) { Text("Share ZIP") }
+        }
+        if (s.endedAtMs == null) Text("Export is available after the session is stopped.", style = MaterialTheme.typography.bodySmall)
         message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        Text("Export arrives in milestone 5.", style = MaterialTheme.typography.bodySmall)
     }
 
     if (confirmDelete) {
