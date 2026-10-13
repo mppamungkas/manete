@@ -1,0 +1,106 @@
+# 001: Cell parsing: NetMonster Core dependency vs. own `CellParser`
+
+- **Status:** Proposed. Waiting for approval.
+- **Date:** 2026-10-13
+- **Milestone:** 2 (Telephony)
+- **Studied:** `reference/netmonster-core` (commit `33063e0`, 2026-10-12), the published artifact
+  `app.netmonster:core:1.3.0`, `reference/network-survey` (`SurveyRecordProcessor`),
+  `reference/tower-collector` (`app/build.gradle`)
+
+## Context
+
+`core:telephony` must turn `CellInfo`, `SignalStrength`, `ServiceState` and `TelephonyDisplayInfo` into
+`cell` / `measurement` rows. CLAUDE.md sets these requirements for it:
+
+1. Public APIs only. No reflection, no hidden APIs.
+2. Every field is nullable. Sentinels (`Int.MAX_VALUE`, `CellInfo.UNAVAILABLE`) become `null`.
+   Parse failures are counted, never thrown.
+3. Traceability: record `source` (CELL_INFO / SIGNAL_STRENGTH), `bandSource` (API / MAPPED),
+   `cellInfoAgeMs`, and the raw NSA inputs, not only the conclusion.
+4. Parsers are pure functions that return nullable fields and a list of warnings, unit-tested on the JVM
+   with fake data.
+5. `TelephonyManager` is called only from `AndroidTelephonySource`.
+
+Our minSdk is **31**, so anything NetMonster does for API < 31 doesn't matter to us.
+
+## What NetMonster Core does well
+
+- **OEM quirks.** It encodes years of field experience (the README cites 50,000+ active users). The fixes
+  that matter on API 31+ are `SamsungEndiannessPostprocessor` (byte-swapped serving-cell IDs on Samsung
+  with Android 12+), `SamsungInvalidValuesPostprocessor` (Samsung's own "N/A" constants, LTE SNR `0.0`),
+  `PixelTensorPostprocessor` (GSM neighbors marked as LTE), `InvalidCellsPostprocessor` (MediaTek NR
+  ghost cell with -44/-3), `NrIdentityFromLtePostprocessor` (Xiaomi copies the LTE ECI into the NR cell,
+  which makes NSA look like SA), and `SubDuplicitiesPostprocessor`.
+- **Band tables.** `BandTableLte` / `BandTableNr` resolve overlapping bands by MCC, e.g. n77/n78.
+- **NSA NR from `SignalStrength`.** `SignalStrength.toCells()` builds an NR secondary cell when both LTE
+  and NR signal are present. This is the same fallback CLAUDE.md asks for.
+- **License.** Apache 2.0. It is compatible with this repo's GPL-3.0 `LICENSE`, and we may port code
+  with attribution.
+
+## Problems for NetLogger
+
+| # | Issue | Evidence | Impact |
+|---|---|---|---|
+| 1 | **Contains reflection on hidden fields and methods** | `util/Reflection.kt` (`getDeclaredField` + `isAccessible` on `mRsrp`, `mRssnr`, …), `PhoneStateListenerPort` (sets hidden `mSubId`), `NetworkOperatorGetter` / `SimOperatorGetter` | On API 31+, these paths appear to be SDK-gated off (`SDK_INT < O/P/Q`, or replaced by `TelephonyCallback`). The code still ships in our APK, though, and proving that it is unreachable on every path and in every future version is up to us. This conflicts with the hard constraint. |
+| 2 | **Published artifact is stale** | Maven Central's latest release is `1.3.0` (2024-03-08). The source is active (last commit 2026-10-12). `NrIdentityFromLtePostprocessor` and the refined NR band definitions are not in 1.3.0. | Taking it as a Gradle dependency gives us 2.5-year-old quirk handling. Getting current code means JitPack or vendoring the source. |
+| 3 | **Silent corrections, no provenance** | Postprocessors swap bytes, drop values ("can eventually also discard valid values"), merge `SignalStrength` into `CellInfo` cells, and derive the LTE band from EARFCN while treating `getBands()` only as hints. `ICell` doesn't record which source a value came from or which fix was applied. | We couldn't fill `source`, `bandSource` or the parse warnings truthfully. For research data, a hidden correction is worse than a flagged one. |
+| 4 | **Not testable on the JVM** | The mappers are `internal` extension functions on `android.telephony.*` classes. | Testing with fake `CellInfo` would need Robolectric or a device. Requirement 4 asks for pure JVM tests. |
+| 5 | **Blocking access model** | `requestPhoneStateUpdate` blocks on a `CountDownLatch` with a 1 s timeout. `getCells()` is synchronous. | This doesn't fit a 1 Hz tick loop built on `TelephonyCallback` → `StateFlow`. We would call only its mappers, not its sources. |
+| 6 | **Model mismatch** | Visitor-based `ICell` with sealed band and connection types | We would need an adapter to our flat `cell` row anyway. |
+
+Network Survey writes its own parsing (`SurveyRecordProcessor`). Tower Collector depends on
+NetMonster `1.3.0`. Its goal is crowd-sourcing tower locations, where silent corrections are acceptable.
+Ours is research data, where they are not.
+
+## Options
+
+**A. NetMonster Core 1.3.0 as a Gradle dependency, plus an adapter.** This is the least code, but it
+takes on problems 1–6. Because of 3, we would also have to re-derive `source` and `bandSource`
+ourselves, which removes most of the saving.
+
+**B. Our own parser, written from scratch.** This meets every requirement, but we would rediscover OEM
+quirks in the field, one drive test at a time.
+
+**C. Our own parser, with selected NetMonster workarounds ported as flagged corrections (recommended).**
+- `AndroidTelephonySource` copies framework objects into plain Kotlin DTOs (`RawCellInfo`,
+  `RawSignalStrength`, …) in `core:model`. This is the only Android-touching step. It extracts each
+  getter in its own try/catch and counts failures.
+- `CellParser` is a pure function from DTOs to `CellSample` plus `List<ParseWarning>`, and is unit-tested
+  on the JVM. It converts sentinels to `null`, applies range checks, records `source`, `bandSource` and
+  `cellInfoAgeMs`, and handles the NSA fallback from `SignalStrength`.
+- Each ported quirk fix is a small named `Correction`. It never overwrites silently: the corrected value
+  goes into the column, the reason goes into the warnings (for example `SAMSUNG_ENDIANNESS_SWAP`,
+  `MTK_GHOST_NR_DROPPED`), and the raw value is kept in the warnings for audit.
+- Port only quirks relevant to API 31+, one at a time, each with a unit test that reproduces the bad input.
+  Start with the five listed above. Add others only when `docs/device-quirks.md` shows we hit them.
+- Write `BandMapper` (milestone 7) from 3GPP TS 36.101 / 38.101. Port NetMonster's MCC-based overlap
+  resolution, with attribution, only if Indonesian operators need it (to check: n40 vs. n41, n77 vs. n78).
+- Porting rules (CLAUDE.md): before porting each piece, I tell you the source file and license, keep the
+  original copyright notice in the file header, and add NetMonster Core to `docs/third-party.md`.
+
+**Optional, debug builds only:** add `debugImplementation("app.netmonster:core:1.3.0")` to a hidden
+"cross-check" screen that shows NetMonster's view of the same moment next to ours, for validation drives.
+It never ships in release builds. I'll propose it separately; it is not part of this decision.
+
+## Recommendation
+
+**Option C.** It keeps NetMonster's main value, its OEM knowledge, without the reflection, stale
+artifact, silent corrections or Robolectric-only tests. The extra cost compared with A is roughly the
+DTO layer and the per-quirk tests, which we would need for requirements 3 and 4 anyway.
+
+## What happens after approval
+
+1. `core:model`: `RawCellInfo` / `RawSignalStrength` / `RawServiceState` DTOs, `CellSample`, `ParseWarning`.
+2. `core:telephony`: `TelephonySource` interface plus `AndroidTelephonySource` (the only `TelephonyManager`
+   user), `CellParser`, `NetworkStateListener` (`TelephonyCallback`: DisplayInfo, ServiceState, SignalStrengths),
+   and NR-from-`SignalStrength` fallback.
+3. Unit tests with fake DTOs: sentinels, NSA without `CellInfoNr`, stale cells, empty `getBands()`, and each ported quirk.
+4. Live screen showing raw values.
+5. On-device check: I'll ask you to compare the Live screen with `adb shell dumpsys telephony.registry`.
+
+## Open questions for you
+
+1. Approve option C? Or do you prefer A for speed and accept the hidden-API and provenance trade-offs?
+2. Which phone(s) will you test on (manufacturer, model, modem: Qualcomm, MediaTek, Exynos, Tensor)?
+   This decides which quirks to port first.
+3. Which Indonesian operators and bands matter (e.g. Telkomsel, Indosat, XL; LTE B1/B3/B5/B8/B40, NR n40/n78)?
