@@ -58,7 +58,7 @@ class DatabaseSmokeTest {
                 0,
                 RadioSnapshot(
                     1_000, 1_000_000, 1, 0, "3", "51089", NetworkType.LTE, NsaInputs(true, false, false, 0, 13),
-                    0, 2, false, listOf(20_000), CellInfoOrigin.FRESH, listOf(cell, cell.copy(isServing = false, pci = 4)),
+                    0, 2, false, listOf(20_000), CellInfoOrigin.FRESH, listOf(cell, cell.copy(servingInferred = false, pci = 4)),
                     listOf(ParseWarning(WarningCode.OUT_OF_RANGE, Rat.LTE, 3, "rsrp", "464")), null,
                 ),
                 null, LocationStatus.WAITING, null,

@@ -16,6 +16,7 @@ import id.my.pamslab.netlogger.core.model.radio.NsaInputs
 import id.my.pamslab.netlogger.core.model.radio.ParseWarning
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.radio.Rat
+import id.my.pamslab.netlogger.core.model.radio.ServingSource
 import id.my.pamslab.netlogger.core.model.radio.WarningCode
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.session.Scenario
@@ -31,22 +32,24 @@ object TestData {
     fun start(uuid: String = "u-1") = SessionStart(uuid, START_MS, START_NS, 1_000, Scenario.STATIC, device)
 
     val lte = CellSample(
-        rat = Rat.LTE, isServing = true, isRegistered = true, connectionStatus = ConnectionStatus.NONE,
+        rat = Rat.LTE, servingInferred = true, isRegistered = true, connectionStatus = ConnectionStatus.NONE,
         cellId = 12_866_878, tac = 19_350, pci = 479, arfcn = 1475, band = 3, bandSource = BandSource.API,
         bandwidthKhz = 10_000, mcc = "510", mnc = "01", rsrpDbm = -96, rsrqDb = -8, sinrDb = null, rssiDbm = -67,
         cqi = null, timingAdvance = 1, csiRsrpDbm = null, csiRsrqDb = null, csiSinrDb = null, rscpDbm = null,
-        ecNoDb = null, source = CellSource.CELL_INFO, cellInfoAgeMs = 995,
+        ecNoDb = null, source = CellSource.CELL_INFO, cellInfoAgeMs = 995, reportedServing = true,
     )
 
     val nr = lte.copy(
         rat = Rat.NR, isRegistered = false, connectionStatus = ConnectionStatus.SECONDARY_SERVING, cellId = null,
         tac = null, pci = null, arfcn = 531_870, band = 41, bandSource = BandSource.MAPPED, bandwidthKhz = null,
         mcc = null, mnc = null, rsrpDbm = null, rsrqDb = null, rssiDbm = null, timingAdvance = null,
+        reportedServing = false, servingSource = ServingSource.NSA_INFERRED,
     )
 
     val nrSignal = nr.copy(
         isRegistered = null, connectionStatus = null, arfcn = null, band = null, bandSource = null,
         rsrpDbm = -100, rsrqDb = -11, sinrDb = 18, source = CellSource.SIGNAL_STRENGTH, cellInfoAgeMs = 2_000,
+        reportedServing = null, servingSource = null,
     )
 
     val bandWarning = ParseWarning(WarningCode.MULTIPLE_BANDS, Rat.NR, null, "mappedBands", "[7, 41, 90]")

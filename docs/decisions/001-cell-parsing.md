@@ -146,3 +146,21 @@ From the moto g45 NSA capture (see `docs/device-quirks.md`), decided with the us
 5. From the two-phone NSA comparison: the inferred NR cell's PCI is blanked too when both PCI and TAC equal the LTE
    anchor's; TAC 0 on an NSA NR secondary is null; a country-preferred band overrides a contradicting `getBands()`
    (`API_BAND_CONFLICT`, `bandSource = MAPPED`); Samsung's NR CSI floor values are null.
+
+## Addendum (2026-10-14): reported vs. inferred serving label, MCC fallback, parse error count
+
+From the A56 field walk (see `docs/device-quirks.md`), decided with the user:
+
+1. Every cell keeps the phone's own label in `reportedServing` (registered, or status PRIMARY/SECONDARY_SERVING),
+   never corrected. The derived flag is `servingInferred` (was `isServing`); consumers, including `flat.csv`, use it.
+2. NR CELL_INFO cells get `servingSource`. Among unregistered NR cells reported SECONDARY_SERVING on the same
+   NR-ARFCN: one candidate → `REPORTED`; several → the only one whose SS-RSRP and SS-RSRQ match a SignalStrength NR
+   entry within 1 dB (`SIGNAL_STRENGTH_MATCH`), else the strictly strongest SS-RSRP (`STRONGEST`), else none is
+   serving (`AMBIGUOUS`). Each candidate that loses its label gets `NR_SERVING_SIGNAL_STRENGTH_MATCH`,
+   `NR_SERVING_STRONGEST` or `NR_SERVING_AMBIGUOUS`. Candidates on different channels are judged separately (NR CA).
+   The NSA inference of the second addendum sets `NSA_INFERRED` (or `AMBIGUOUS` with several candidates), a value
+   added to the four agreed ones because that label was not reported by the phone. `flat.csv` exports
+   `nrServingSource` (milestone 5).
+3. Without a network MCC (first tick, before ServiceState), the registered cell's MCC is used for the country band
+   preference; a band chosen that way has `bandSource = MAPPED_MCC_FALLBACK`.
+4. `measurement.parseErrors` counts getter failures only; `measurement.warningCount` counts all warnings of the tick.

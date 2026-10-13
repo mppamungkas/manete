@@ -6,9 +6,39 @@ enum class Rat { LTE, NR, WCDMA, GSM }
 
 enum class CellSource { CELL_INFO, SIGNAL_STRENGTH }
 
-enum class BandSource { API, MAPPED }
+enum class BandSource {
+    API,
+    MAPPED,
+
+    /**
+     * Mapped from the ARFCN with a country band preference, using the MCC of the registered cell because the network
+     * MCC (ServiceState) was not known yet, e.g. on the first tick of a session.
+     */
+    MAPPED_MCC_FALLBACK,
+}
 
 enum class ConnectionStatus { NONE, PRIMARY_SERVING, SECONDARY_SERVING }
+
+/**
+ * How [CellSample.servingInferred] was decided for an NR CELL_INFO cell. Null for other RATs, for SIGNAL_STRENGTH rows,
+ * and for NR cells that neither reported nor were given a serving label.
+ */
+enum class ServingSource {
+    /** The phone's own label, kept: the only serving candidate on its channel, or registered. */
+    REPORTED,
+
+    /** Not reported as serving; labelled by the NSA rule (one unregistered NR cell under an NSA override). */
+    NSA_INFERRED,
+
+    /** Several candidates on one channel; the only one whose SS-RSRP/SS-RSRQ match the SignalStrength NR values. */
+    SIGNAL_STRENGTH_MATCH,
+
+    /** Several candidates on one channel, no unique SignalStrength match; the one with the strongest SS-RSRP. */
+    STRONGEST,
+
+    /** Several candidates and no basis to choose: none is taken as serving. */
+    AMBIGUOUS,
+}
 
 enum class NetworkType { LTE, NR_NSA, NR_SA, WCDMA, GSM, NONE }
 
@@ -18,7 +48,11 @@ enum class NetworkType { LTE, NR_NSA, NR_SA, WCDMA, GSM, NONE }
  */
 data class CellSample(
     val rat: Rat,
-    val isServing: Boolean,
+    /**
+     * Derived serving flag used by consumers (Live, flat.csv). May differ from [reportedServing] after a flagged
+     * correction; SIGNAL_STRENGTH rows are always serving.
+     */
+    val servingInferred: Boolean,
     val isRegistered: Boolean?,
     val connectionStatus: ConnectionStatus?,
     /** LTE ECI (28 bit), NR NCI (36 bit), WCDMA/GSM CID. */
@@ -52,6 +86,9 @@ data class CellSample(
     val source: CellSource,
     /** Tick time minus the cell's own timestamp. Large values mean the modem served cached data. */
     val cellInfoAgeMs: Long?,
+    /** The phone's own label, never corrected: registered, or status PRIMARY/SECONDARY_SERVING. Null for SIGNAL_STRENGTH rows. */
+    val reportedServing: Boolean? = null,
+    val servingSource: ServingSource? = null,
 )
 
 enum class WarningCode {
@@ -90,6 +127,18 @@ enum class WarningCode {
      * real NR PCI was 440). The PCI is treated as copied: the column is null, `rawValue` holds the reported PCI.
      */
     NR_PCI_FROM_LTE,
+
+    /**
+     * Several NR cells on one channel are reported as serving (A56: neighbors 438/161 next to 440); this one is not taken
+     * as serving because another matches the SignalStrength NR values. `rawValue` holds the reported status.
+     */
+    NR_SERVING_SIGNAL_STRENGTH_MATCH,
+
+    /** As NR_SERVING_SIGNAL_STRENGTH_MATCH, but another candidate was kept because it has the strongest SS-RSRP. */
+    NR_SERVING_STRONGEST,
+
+    /** As NR_SERVING_SIGNAL_STRENGTH_MATCH, but there is no basis to choose, so no candidate is taken as serving. */
+    NR_SERVING_AMBIGUOUS,
 
     /** An NSA NR secondary reports TAC 0 (NSA NR cells broadcast no TAC); null, `rawValue` = "0". */
     NR_NSA_TAC_ZERO,
@@ -151,5 +200,9 @@ data class RadioSnapshot(
     /** Why the TelephonyCallback could not be registered, if it could not. */
     val listenerError: String?,
 ) {
-    val parseErrors: Int get() = warnings.size
+    /** Getter calls that threw (EXTRACTION_FAILED counts): real parse failures, not corrections. */
+    val parseErrors: Int get() = warnings.filter { it.code == WarningCode.EXTRACTION_FAILED }.sumOf { it.rawValue?.toIntOrNull() ?: 1 }
+
+    /** All warnings of this tick, including flagged OEM corrections. */
+    val warningCount: Int get() = warnings.size
 }

@@ -190,7 +190,7 @@ class LoggingEngine @Inject constructor(
 
         fun add(tick: Tick) {
             origins.merge(tick.radio.cellInfoOrigin, 1, Int::plus)
-            tick.radio.cells.filter { it.source == CellSource.CELL_INFO && it.isServing }
+            tick.radio.cells.filter { it.source == CellSource.CELL_INFO && it.servingInferred }
                 .mapNotNull { it.cellInfoAgeMs }.maxOrNull()?.let { maxCellAgeMs = maxOf(maxCellAgeMs, it) }
             tick.locationAgeMs?.let { maxLocationAgeMs = maxOf(maxLocationAgeMs, it) }
             if (tick.device.screenOn == false) screenOff++

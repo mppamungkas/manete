@@ -47,4 +47,7 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] Kill test: start a session, `adb -s <serial> shell am force-stop id.my.pamslab.netlogger`, reopen the app.
       The session shows "closed after the app was killed (end = last tick)" and its end time equals the last tick
 - [ ] Delete with confirmation removes the session (the recording session cannot be deleted)
+- [ ] Pull the database (`adb -s <serial> exec-out run-as id.my.pamslab.netlogger cat databases/netlogger.db`,
+      also `-wal`) into `docs/samples/`; check that each tick has at most one `servingInferred` NR cell per NR-ARFCN
+      and look at `servingSource`
 - [ ] Release check: `ANDROID_SERIAL=<serial> ./gradlew :core:data:connectedDebugAndroidTest` passes on both phones

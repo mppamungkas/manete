@@ -242,6 +242,37 @@ Sessions started 23:26 (phone time), 1 s interval, screens off, phones lying sti
 - The moto's system log rolled over, so per-minute summaries were lost; persistence in milestone 4 removes the
   dependency on logcat.
 
+### Samsung A56, Tri (510-89), field walk with the persistence build, 2026-10-14 (milestone 4)
+
+Three walk sessions (148, 15 and 931 ticks, the long one 15.5 min with 836 ticks screen off), checked from the
+pulled database and logcat. Raw database backed up in `docs/samples/` (gitignored, contains locations).
+
+- **Recording:** 100 % of expected ticks in every session, max write 51 ms, all 6 markers (Live button and
+  notification) stored with a location. The long session was force-stopped from Settings → App info; on the next
+  app start it was closed as `RECOVERED_AFTER_KILL` with `endedAt` = last tick (05:15:51). Milestone 4 checks pass on
+  the unrooted phone.
+- **NR neighbors labelled as serving.** The A56 reports *every* NR cell on the NSA carrier (NR-ARFCN 531870) as
+  unregistered `SECONDARY_SERVING`, same-channel neighbors included: PCIs 438, 161, 169 and 439 next to the real
+  NSA secondary 440 (PhysicalChannelConfig). 115 ticks had two or more such cells. The SignalStrength NR values
+  matched exactly one candidate within 1 dB (RSRP and RSRQ) in 42 of them; in the rest the two samples were too far
+  apart in time. Fixed in the parser: the phone's label stays in `reportedServing`, the derived `servingInferred` and
+  `servingSource` (`SIGNAL_STRENGTH_MATCH` / `STRONGEST` / `AMBIGUOUS`) pick one per channel, losers get a
+  `NR_SERVING_*` warning. Replayed on this log: 42 by match, 73 by strongest, 0 ambiguous, and PCI 440 every time.
+- **First tick of a session has no network MCC.** ServiceState arrives after the first CellInfo, so the country
+  band rule could not replace the reported n7 and 3 rows were stored as band 7 (`API`). The registered LTE cell
+  carries its MCC (510) already, so it now stands in; such bands get `bandSource = MAPPED_MCC_FALLBACK`.
+- **LTE cell PLMN 510-01 while the operator is 510-89.** The registered LTE cell reports MNC 01 (Indosat) under the
+  Tri SIM, consistent with IOH network sharing. Use `operatorNumeric` (measurement) for the operator, not the cell's
+  MCC/MNC.
+- **Warnings per tick:** about 8 on average, all flagged Samsung corrections (neighbor placeholders, LTE SNR 0, NR
+  TAC 0, CSI floor, band conflict). These were counted in `parseErrors`, which made the data look broken;
+  `parseErrors` now counts only getter failures (0 here) and `warningCount` holds the warnings.
+- **NR with the screen off:** NR in 71 of 836 screen-off ticks vs. 85 of 95 screen-on ticks; screen-off traffic was
+  small (~190 KiB), and the override agreed (`0` = LTE). Same pattern as the milestone 3 runs: the network releases
+  the NR leg on low traffic.
+- Cell data age ≤ 2 s with the screen on, up to ~10 s with it off (as before). GPS age > 5 s in 6 ticks (max 7.3 s).
+- logcat kept only the last ~20 minutes; the database is the record.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

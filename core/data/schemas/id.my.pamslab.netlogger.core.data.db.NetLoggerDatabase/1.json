@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "826aa783f763427ebc5e4bca6e340535",
+    "identityHash": "7cfccff31cac8265b12a37f848fa4cfc",
     "entities": [
       {
         "tableName": "session",
@@ -153,7 +153,7 @@
       },
       {
         "tableName": "measurement",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `seq` INTEGER NOT NULL, `wallTimeMs` INTEGER NOT NULL, `elapsedRealtimeNs` INTEGER NOT NULL, `lat` REAL, `lon` REAL, `altitude` REAL, `speedMps` REAL, `bearing` REAL, `gpsAccuracy` REAL, `locationAgeMs` INTEGER, `locationStatus` TEXT NOT NULL, `networkType` TEXT NOT NULL, `overrideNetworkType` INTEGER, `dataNetworkType` INTEGER, `nsaLteServing` INTEGER NOT NULL, `nsaNrCellInfo` INTEGER NOT NULL, `nsaNrSignal` INTEGER NOT NULL, `serviceState` INTEGER, `dataState` INTEGER, `isRoaming` INTEGER, `operatorNumeric` TEXT, `cellInfoOrigin` TEXT NOT NULL, `cellBandwidthsJson` TEXT NOT NULL, `batteryLevel` INTEGER, `batteryCurrentUa` INTEGER, `batteryVoltageMv` INTEGER, `batteryTempC` REAL, `isCharging` INTEGER, `rxBytesTotal` INTEGER, `txBytesTotal` INTEGER, `rxBytesApp` INTEGER, `txBytesApp` INTEGER, `screenOn` INTEGER, `thermalStatus` INTEGER, `parseErrors` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `seq` INTEGER NOT NULL, `wallTimeMs` INTEGER NOT NULL, `elapsedRealtimeNs` INTEGER NOT NULL, `lat` REAL, `lon` REAL, `altitude` REAL, `speedMps` REAL, `bearing` REAL, `gpsAccuracy` REAL, `locationAgeMs` INTEGER, `locationStatus` TEXT NOT NULL, `networkType` TEXT NOT NULL, `overrideNetworkType` INTEGER, `dataNetworkType` INTEGER, `nsaLteServing` INTEGER NOT NULL, `nsaNrCellInfo` INTEGER NOT NULL, `nsaNrSignal` INTEGER NOT NULL, `serviceState` INTEGER, `dataState` INTEGER, `isRoaming` INTEGER, `operatorNumeric` TEXT, `cellInfoOrigin` TEXT NOT NULL, `cellBandwidthsJson` TEXT NOT NULL, `batteryLevel` INTEGER, `batteryCurrentUa` INTEGER, `batteryVoltageMv` INTEGER, `batteryTempC` REAL, `isCharging` INTEGER, `rxBytesTotal` INTEGER, `txBytesTotal` INTEGER, `rxBytesApp` INTEGER, `txBytesApp` INTEGER, `screenOn` INTEGER, `thermalStatus` INTEGER, `parseErrors` INTEGER NOT NULL, `warningCount` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -352,6 +352,12 @@
             "columnName": "parseErrors",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "warningCount",
+            "columnName": "warningCount",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -388,7 +394,7 @@
       },
       {
         "tableName": "cell",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `measurementId` INTEGER NOT NULL, `rat` TEXT NOT NULL, `isServing` INTEGER NOT NULL, `isRegistered` INTEGER, `connectionStatus` TEXT, `ciOrNci` INTEGER, `tac` INTEGER, `pci` INTEGER, `arfcn` INTEGER, `band` INTEGER, `bandSource` TEXT, `bandwidthKhz` INTEGER, `mcc` TEXT, `mnc` TEXT, `rsrp` INTEGER, `rsrq` INTEGER, `sinr` INTEGER, `rssi` INTEGER, `cqi` INTEGER, `ta` INTEGER, `csiRsrp` INTEGER, `csiRsrq` INTEGER, `csiSinr` INTEGER, `rscp` INTEGER, `ecNo` INTEGER, `source` TEXT NOT NULL, `cellInfoAgeMs` INTEGER, FOREIGN KEY(`measurementId`) REFERENCES `measurement`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `measurementId` INTEGER NOT NULL, `rat` TEXT NOT NULL, `servingInferred` INTEGER NOT NULL, `reportedServing` INTEGER, `servingSource` TEXT, `isRegistered` INTEGER, `connectionStatus` TEXT, `ciOrNci` INTEGER, `tac` INTEGER, `pci` INTEGER, `arfcn` INTEGER, `band` INTEGER, `bandSource` TEXT, `bandwidthKhz` INTEGER, `mcc` TEXT, `mnc` TEXT, `rsrp` INTEGER, `rsrq` INTEGER, `sinr` INTEGER, `rssi` INTEGER, `cqi` INTEGER, `ta` INTEGER, `csiRsrp` INTEGER, `csiRsrq` INTEGER, `csiSinr` INTEGER, `rscp` INTEGER, `ecNo` INTEGER, `source` TEXT NOT NULL, `cellInfoAgeMs` INTEGER, FOREIGN KEY(`measurementId`) REFERENCES `measurement`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -409,10 +415,20 @@
             "notNull": true
           },
           {
-            "fieldPath": "isServing",
-            "columnName": "isServing",
+            "fieldPath": "servingInferred",
+            "columnName": "servingInferred",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "reportedServing",
+            "columnName": "reportedServing",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "servingSource",
+            "columnName": "servingSource",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "isRegistered",
@@ -785,7 +801,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '826aa783f763427ebc5e4bca6e340535')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7cfccff31cac8265b12a37f848fa4cfc')"
     ]
   }
 }

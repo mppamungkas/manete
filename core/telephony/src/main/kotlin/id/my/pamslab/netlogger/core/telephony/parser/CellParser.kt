@@ -6,6 +6,7 @@ import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
 import id.my.pamslab.netlogger.core.model.radio.ParseWarning
 import id.my.pamslab.netlogger.core.model.radio.Rat
+import id.my.pamslab.netlogger.core.model.radio.ServingSource
 import id.my.pamslab.netlogger.core.model.radio.WarningCode
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.raw.DeviceTraits
@@ -19,6 +20,7 @@ import id.my.pamslab.netlogger.core.model.raw.RawNrCell
 import id.my.pamslab.netlogger.core.model.raw.RawNrSignal
 import id.my.pamslab.netlogger.core.model.raw.RawSignalStrength
 import id.my.pamslab.netlogger.core.model.raw.RawWcdmaCell
+import kotlin.math.abs
 
 data class ParseInput(
     val cellInfo: RawCellInfoResult,
@@ -56,7 +58,10 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
     fun parse(input: ParseInput): ParseResult {
         val warnings = mutableListOf<ParseWarning>()
-        val ctx = Ctx(warnings, input.nowElapsedMs, input.registeredMcc)
+        // Before ServiceState arrives (first tick of a session) the network MCC is unknown; the registered cell's
+        // own MCC stands in for the band preference, and bands chosen with it are marked MAPPED_MCC_FALLBACK.
+        val fallbackMcc = if (input.registeredMcc == null) registeredCellMcc(input.cellInfo.cells) else null
+        val ctx = Ctx(warnings, input.nowElapsedMs, input.registeredMcc ?: fallbackMcc, fallbackMcc != null)
 
         if (input.cellInfo.extractionFailures > 0) {
             warnings += ParseWarning(WarningCode.EXTRACTION_FAILED, rawValue = input.cellInfo.extractionFailures.toString())
@@ -82,6 +87,12 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
         cells = demoteFalseSecondaries(cells, input, warnings)
         cells = inferNsaSecondary(cells, input, warnings)
+
+        // Always kept next to the CELL_INFO rows, never merged or deduplicated: the two sources arrive at
+        // different times and fill different fields (moto g45: RSSNR only in SignalStrength), and their
+        // differences are useful for validation. Consumers pick per field (CELL_INFO first).
+        val ssCells = signalStrengthCells(input.signalStrength, ctx, input.device)
+        cells = selectNrServing(cells, ssCells.filter { it.rat == Rat.NR }, warnings)
         cells = blankNsaTacZero(cells, warnings)
 
         var latched = input.samsungTacSwapLatched
@@ -92,10 +103,6 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             cells = SamsungQuirks.dropPlaceholders(cells, warnings)
         }
 
-        // Always kept next to the CELL_INFO rows, never merged or deduplicated: the two sources arrive at
-        // different times and fill different fields (moto g45: RSSNR only in SignalStrength), and their
-        // differences are useful for validation. Consumers pick per field (CELL_INFO first).
-        val ssCells = signalStrengthCells(input.signalStrength, ctx, input.device)
         val nrSsPresent = ssCells.any { it.rat == Rat.NR }
         cells = cells + ssCells
 
@@ -124,7 +131,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             val sameCarrier = cell.arfcn != null && cell.arfcn == primary.arfcn
             if (!suspect || !(sameCarrier || (caKnown && !caShown))) return@map cell
             warnings += ParseWarning(WarningCode.SECONDARY_SERVING_WITHOUT_CA, cell.rat, cell.pci, "connectionStatus", CONNECTION_SECONDARY_SERVING.toString())
-            cell.copy(isServing = false, connectionStatus = ConnectionStatus.NONE)
+            cell.copy(servingInferred = false, connectionStatus = ConnectionStatus.NONE)
         }
     }
 
@@ -142,11 +149,11 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         val anchor = cells.firstOrNull { it.source == CellSource.CELL_INFO && it.rat == Rat.LTE && it.isRegistered == true }
             ?: return cells
         val nr = cells.filter { it.source == CellSource.CELL_INFO && it.rat == Rat.NR }
-        if (nr.any { it.isServing }) return cells
+        if (nr.any { it.servingInferred }) return cells
         val candidates = nr.filter { it.isRegistered != true }
         if (candidates.size > 1) {
             warnings += ParseWarning(WarningCode.NR_NSA_SECONDARY_AMBIGUOUS, Rat.NR, field = "nrCells", rawValue = candidates.size.toString())
-            return cells
+            return cells.map { if (it in candidates) it.copy(servingSource = ServingSource.AMBIGUOUS) else it }
         }
         val target = candidates.singleOrNull() ?: return cells
         return cells.map { cell ->
@@ -163,8 +170,79 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
                 warnings += ParseWarning(WarningCode.NR_PCI_FROM_LTE, Rat.NR, cell.pci, "pci", pci.toString())
                 pci = null
             }
-            cell.copy(isServing = true, connectionStatus = ConnectionStatus.SECONDARY_SERVING, tac = tac, pci = pci)
+            cell.copy(
+                servingInferred = true, connectionStatus = ConnectionStatus.SECONDARY_SERVING, tac = tac, pci = pci,
+                servingSource = ServingSource.NSA_INFERRED,
+            )
         }
+    }
+
+    /**
+     * Some modems (Samsung A56) report every NR cell on the NSA carrier as SECONDARY_SERVING, neighbors included
+     * (PCI 438/161/169/439 next to the real 440). [CellSample.reportedServing] keeps the phone's label; per NR
+     * channel, [CellSample.servingInferred] is decided as follows: a single candidate keeps its label (REPORTED); of
+     * several, the only one whose SS-RSRP and SS-RSRQ match a SignalStrength NR entry within [MATCH_TOLERANCE_DB]
+     * (SIGNAL_STRENGTH_MATCH), else the one with the strictly strongest SS-RSRP (STRONGEST), else none (AMBIGUOUS).
+     * Candidates on different channels can all be serving (NR CA) and are judged separately. Every candidate that
+     * loses its label gets a warning naming the case.
+     */
+    private fun selectNrServing(cells: List<CellSample>, ssNr: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> {
+        val result = cells.toMutableList()
+        val candidates = cells.indices.filter { i ->
+            val c = cells[i]
+            c.source == CellSource.CELL_INFO && c.rat == Rat.NR && c.reportedServing == true && c.isRegistered != true &&
+                c.connectionStatus == ConnectionStatus.SECONDARY_SERVING
+        }
+        candidates.groupBy { cells[it].arfcn }.forEach { (arfcn, group) ->
+            if (group.size == 1) return@forEach
+            val matching = group.filter { i -> ssNr.any { matches(cells[i], it) } }
+            val strongest = group.filter { cells[it].rsrpDbm != null }.let { measured ->
+                val best = measured.maxOfOrNull { cells[it].rsrpDbm ?: Int.MIN_VALUE }
+                measured.filter { cells[it].rsrpDbm == best }
+            }
+            val (winner, source, code) = when {
+                matching.size == 1 -> Triple(matching.single(), ServingSource.SIGNAL_STRENGTH_MATCH, WarningCode.NR_SERVING_SIGNAL_STRENGTH_MATCH)
+                arfcn != null && strongest.size == 1 -> Triple(strongest.single(), ServingSource.STRONGEST, WarningCode.NR_SERVING_STRONGEST)
+                else -> Triple(null, ServingSource.AMBIGUOUS, WarningCode.NR_SERVING_AMBIGUOUS)
+            }
+            group.forEach { i ->
+                val c = cells[i]
+                if (i == winner) {
+                    result[i] = c.copy(servingSource = source)
+                } else {
+                    warnings += ParseWarning(code, Rat.NR, c.pci, "connectionStatus", CONNECTION_SECONDARY_SERVING.toString())
+                    result[i] = c.copy(servingInferred = false, connectionStatus = ConnectionStatus.NONE, servingSource = source)
+                }
+            }
+        }
+        // Everything else the phone labelled serving and we kept: registered NR (SA), single NSA candidates.
+        return result.map { c ->
+            if (c.source == CellSource.CELL_INFO && c.rat == Rat.NR && c.servingSource == null && c.reportedServing == true && c.servingInferred) {
+                c.copy(servingSource = ServingSource.REPORTED)
+            } else {
+                c
+            }
+        }
+    }
+
+    private fun matches(cell: CellSample, ss: CellSample): Boolean {
+        val rsrp = cell.rsrpDbm ?: return false
+        val ssRsrp = ss.rsrpDbm ?: return false
+        if (abs(rsrp - ssRsrp) > MATCH_TOLERANCE_DB) return false
+        val rsrq = cell.rsrqDb
+        val ssRsrq = ss.rsrqDb
+        return rsrq == null || ssRsrq == null || abs(rsrq - ssRsrq) <= MATCH_TOLERANCE_DB
+    }
+
+    private fun registeredCellMcc(raw: List<RawCell>): String? = raw.firstNotNullOfOrNull { cell ->
+        if (cell.isRegistered != true) return@firstNotNullOfOrNull null
+        val mcc = when (cell) {
+            is RawLteCell -> cell.mcc
+            is RawNrCell -> cell.mcc
+            is RawWcdmaCell -> cell.mcc
+            is RawGsmCell -> cell.mcc
+        }
+        mcc?.takeIf { it.length == 3 && it.all { ch -> ch in '0'..'9' } }
     }
 
     /** An NSA NR secondary (LTE anchor registered) has no TAC of its own; A56 reports 0 there. */
@@ -202,7 +280,13 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             .filter { it.hasSignal() }
     }
 
-    private inner class Ctx(val warnings: MutableList<ParseWarning>, private val nowElapsedMs: Long, private val mcc: String?) {
+    private inner class Ctx(
+        val warnings: MutableList<ParseWarning>,
+        private val nowElapsedMs: Long,
+        private val mcc: String?,
+        /** [mcc] is the registered cell's MCC, not the network's (ServiceState not known yet). */
+        private val mccIsFallback: Boolean,
+    ) {
 
         fun lte(raw: RawLteCell): CellSample {
             val v = Validator(warnings, Rat.LTE, raw.pci)
@@ -303,11 +387,11 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
                 status == ConnectionStatus.PRIMARY_SERVING ||
                 status == ConnectionStatus.SECONDARY_SERVING
             return emptyCell(rat, CellSource.CELL_INFO, age(raw.timestampMillis))
-                .copy(isServing = serving, isRegistered = raw.isRegistered, connectionStatus = status)
+                .copy(servingInferred = serving, reportedServing = serving, isRegistered = raw.isRegistered, connectionStatus = status)
         }
 
         private fun emptyCell(rat: Rat, source: CellSource, age: Long?) = CellSample(
-            rat = rat, isServing = source == CellSource.SIGNAL_STRENGTH, isRegistered = null, connectionStatus = null,
+            rat = rat, servingInferred = source == CellSource.SIGNAL_STRENGTH, isRegistered = null, connectionStatus = null,
             cellId = null, tac = null, pci = null, arfcn = null, band = null, bandSource = null, bandwidthKhz = null,
             mcc = null, mnc = null, rsrpDbm = null, rsrqDb = null, sinrDb = null, rssiDbm = null, cqi = null,
             timingAdvance = null, csiRsrpDbm = null, csiRsrqDb = null, csiSinrDb = null, rscpDbm = null,
@@ -342,14 +426,17 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
                 if (mapped == null || !mapped.countryPreferred) return valid.first() to BandSource.API
                 if (mapped.band in valid) return mapped.band to BandSource.API
                 warnings += ParseWarning(WarningCode.API_BAND_CONFLICT, rat, pci, "bands", valid.toString())
-                return mapped.band to BandSource.MAPPED
+                return mapped.band to mappedSource(mapped)
             }
             if (mapped == null) return null to null
             if (mapped.candidates.size > 1) {
                 warnings += ParseWarning(WarningCode.MULTIPLE_BANDS, rat, pci, "mappedBands", mapped.candidates.toString())
             }
-            return mapped.band to BandSource.MAPPED
+            return mapped.band to mappedSource(mapped)
         }
+
+        private fun mappedSource(mapped: BandMapping) =
+            if (mapped.countryPreferred && mccIsFallback) BandSource.MAPPED_MCC_FALLBACK else BandSource.MAPPED
     }
 
     private companion object {
@@ -364,6 +451,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         // LTE channel bandwidths, 3GPP TS 36.101 Table 5.6-1.
         val LTE_BANDWIDTHS_KHZ = setOf(1_400, 3_000, 5_000, 10_000, 15_000, 20_000)
         val NSA_OVERRIDES = setOf(3, 4, 5) // NR_NSA, NR_NSA_MMWAVE, NR_ADVANCED
+
+        // CellInfo and SignalStrength are sampled at different moments; 1 dB absorbs rounding and that offset.
+        const val MATCH_TOLERANCE_DB = 1
     }
 }
 

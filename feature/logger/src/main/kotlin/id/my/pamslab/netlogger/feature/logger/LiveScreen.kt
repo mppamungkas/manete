@@ -92,8 +92,8 @@ private fun SnapshotView(
     modifier: Modifier = Modifier,
 ) {
     val snapshot = ui.snapshot
-    val serving = snapshot.cells.filter { it.isServing }
-    val neighbors = snapshot.cells.filterNot { it.isServing }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
+    val serving = snapshot.cells.filter { it.servingInferred }
+    val neighbors = snapshot.cells.filterNot { it.servingInferred }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -203,7 +203,7 @@ private fun NetworkCard(s: RadioSnapshot) {
                 Field("Display", "dataNetworkType=${dataNetworkType.orDash()} override=${overrideNetworkType.orDash()}")
             }
             Field("Bandwidths kHz", s.cellBandwidthsKhz.ifEmpty { null }?.joinToString().orDash())
-            Field("Cell info", "${s.cellInfoOrigin} · ${s.cells.size} cells · ${s.parseErrors} warnings")
+            Field("Cell info", "${s.cellInfoOrigin} · ${s.cells.size} cells · ${s.warningCount} warnings" + if (s.parseErrors > 0) " · ${s.parseErrors} parse errors" else "")
             s.listenerError?.let { Text("Listener: $it", color = MaterialTheme.colorScheme.error) }
         }
     }

@@ -70,7 +70,7 @@ internal object SamsungQuirks {
     fun dropPlaceholders(cells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> =
         cells.map { cell ->
             var c = fixNrCsiFloor(fixLteSnrZero(cell, warnings), warnings)
-            if (c.isServing) return@map c
+            if (c.servingInferred) return@map c
             fun drop(field: String, raw: Int): Nothing? {
                 warnings += ParseWarning(WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER, c.rat, c.pci, field, raw.toString())
                 return null

@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.4** · last updated 2026-10-13
+**CLAUDE.md version 1.5.5** · last updated 2026-10-14
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–3 implemented and tested on both phones (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto). Next: milestone 4 (persistence).
+- Milestones 1–4 implemented and tested on both phones (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery). Next: milestone 5 (export).
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.5:** Schema v1 frozen from the first real field session on. Data model: `cell.reportedServing`, `servingInferred` (was `isServing`), `servingSource`; `measurement.warningCount`; `bandSource` `MAPPED_MCC_FALLBACK`.
 - **1.5.4:** Definition of done: instrumented database smoke test must pass on both phones before a release.
 - **1.5.3:** Package / application ID renamed to `id.my.pamslab.netlogger` everywhere (root safety rules updated).
 - **1.5.2:** Added Samsung Galaxy A56 (unrooted, serial `RRGYB06DN2T`) as the unrooted reference phone; always use `adb -s <serial>` with two phones attached.
@@ -201,6 +202,7 @@ NSA detection: LTE serving cell registered **and** (NR cell or NR signal present
 
 ## Data model (Room)
 Normalized, long format. Keep a schema version and export the schema JSON for migrations.
+Schema v1 is frozen from the first real field session on; after that, every schema change needs a version bump, migration and migration test.
 
 **`session`**
 `id, uuid, startedAt, endedAt, label, scenario (drive/walk/static/indoor), notes, intervalMs,`
@@ -214,11 +216,11 @@ Normalized, long format. Keep a schema version and export the schema JSON for mi
 `cellBandwidthsJson,`
 `batteryLevel, batteryCurrentUa, batteryVoltageMv, batteryTempC, isCharging,`
 `rxBytesTotal, txBytesTotal, rxBytesApp, txBytesApp,`
-`screenOn, thermalStatus, parseErrors`
+`screenOn, thermalStatus, parseErrors (getter failures only), warningCount`
 
 **`cell`** (many rows per measurement: serving + neighbors)
-`id, measurementId, rat (LTE/NR/WCDMA/GSM), isServing, isRegistered, connectionStatus,`
-`ci_or_nci, tac, pci, arfcn, band, bandSource, bandwidthKhz,`
+`id, measurementId, rat (LTE/NR/WCDMA/GSM), reportedServing (phone's label), servingInferred (derived), servingSource (NR: REPORTED/NSA_INFERRED/SIGNAL_STRENGTH_MATCH/STRONGEST/AMBIGUOUS), isRegistered, connectionStatus,`
+`ci_or_nci, tac, pci, arfcn, band, bandSource (API/MAPPED/MAPPED_MCC_FALLBACK), bandwidthKhz,`
 `rsrp, rsrq, sinr, rssi, cqi, ta,`
 `csiRsrp, csiRsrq, csiSinr,`
 `source (CELL_INFO/SIGNAL_STRENGTH), cellInfoAgeMs`

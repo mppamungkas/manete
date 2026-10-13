@@ -39,8 +39,8 @@ object NetworkClassifier {
         overrideNetworkType: Int?,
         dataNetworkType: Int?,
     ) = NsaInputs(
-        lteServing = cells.any { it.rat == Rat.LTE && it.isServing && it.source == CellSource.CELL_INFO },
-        nrServingCellInfo = cells.any { it.rat == Rat.NR && it.isServing && it.source == CellSource.CELL_INFO },
+        lteServing = cells.any { it.rat == Rat.LTE && it.servingInferred && it.source == CellSource.CELL_INFO },
+        nrServingCellInfo = cells.any { it.rat == Rat.NR && it.servingInferred && it.source == CellSource.CELL_INFO },
         nrSignalStrength = nrSignalStrengthPresent,
         overrideNetworkType = overrideNetworkType,
         dataNetworkType = dataNetworkType,
@@ -52,7 +52,7 @@ object NetworkClassifier {
      */
     fun classify(inputs: NsaInputs, cells: List<CellSample>, serviceState: Int?): NetworkType {
         val dataType = inputs.dataNetworkType
-        val servingCells = cells.filter { it.isServing && it.source == CellSource.CELL_INFO }
+        val servingCells = cells.filter { it.servingInferred && it.source == CellSource.CELL_INFO }
         val inService = serviceState == null || serviceState == STATE_IN_SERVICE || serviceState == STATE_EMERGENCY_ONLY
         if (!inService && servingCells.isEmpty()) return NetworkType.NONE
 

@@ -24,7 +24,20 @@ class TickMapperTest {
         assertNull(m.lat)
         assertNull(m.locationAgeMs)
         assertEquals("WAITING", m.locationStatus)
-        assertEquals(2, m.parseErrors)
+        assertEquals("corrections are warnings, not parse errors", 0, m.parseErrors)
+        assertEquals(2, m.warningCount)
+    }
+
+    @Test
+    fun `parseErrors counts only getter failures`() {
+        val failures = listOf(
+            ParseWarning(WarningCode.EXTRACTION_FAILED, rawValue = "3"),
+            ParseWarning(WarningCode.EXTRACTION_FAILED, field = "signalStrength", rawValue = "1"),
+            TestData.tacWarning,
+        )
+        val m = TickMapper.measurement(1, TestData.tick(0, failures))
+        assertEquals(4, m.parseErrors)
+        assertEquals(3, m.warningCount)
     }
 
     @Test
@@ -38,7 +51,13 @@ class TickMapperTest {
         assertNull(c.tac)
         assertNull(c.rsrpDbm)
         assertEquals("CELL_INFO", c.source)
-        assertEquals("SIGNAL_STRENGTH", TickMapper.cell(TestData.nrSignal).source)
+        assertTrue(c.servingInferred)
+        assertEquals(false, c.reportedServing)
+        assertEquals("NSA_INFERRED", c.servingSource)
+        val ss = TickMapper.cell(TestData.nrSignal)
+        assertEquals("SIGNAL_STRENGTH", ss.source)
+        assertNull(ss.reportedServing)
+        assertNull(ss.servingSource)
     }
 
     @Test

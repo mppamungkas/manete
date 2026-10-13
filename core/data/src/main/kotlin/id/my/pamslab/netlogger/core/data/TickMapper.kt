@@ -52,6 +52,7 @@ internal object TickMapper {
             screenOn = d.screenOn,
             thermalStatus = d.thermalStatus,
             parseErrors = r.parseErrors,
+            warningCount = r.warningCount,
         )
     }
 
@@ -59,7 +60,9 @@ internal object TickMapper {
     fun cell(c: CellSample) = CellEntity(
         measurementId = 0,
         rat = c.rat.name,
-        isServing = c.isServing,
+        servingInferred = c.servingInferred,
+        reportedServing = c.reportedServing,
+        servingSource = c.servingSource?.name,
         isRegistered = c.isRegistered,
         connectionStatus = c.connectionStatus?.name,
         ciOrNci = c.cellId,

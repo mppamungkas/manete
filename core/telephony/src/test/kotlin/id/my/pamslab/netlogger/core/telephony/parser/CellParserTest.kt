@@ -5,6 +5,7 @@ import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.Rat
+import id.my.pamslab.netlogger.core.model.radio.ServingSource
 import id.my.pamslab.netlogger.core.model.radio.WarningCode
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.raw.RawCell
@@ -40,7 +41,7 @@ class CellParserTest {
         val cell = parse(cellInfo(lteCell())).cells.single()
 
         assertEquals(Rat.LTE, cell.rat)
-        assertTrue(cell.isServing)
+        assertTrue(cell.servingInferred)
         assertEquals(true, cell.isRegistered)
         assertEquals(ConnectionStatus.PRIMARY_SERVING, cell.connectionStatus)
         assertEquals(12_345_678L, cell.cellId)
@@ -117,7 +118,7 @@ class CellParserTest {
     fun `neighbors are not serving`() {
         val result = parse(cellInfo(lteCell(), lteCell(registered = false, pci = 102)))
         val neighbor = result.cells.single { it.pci == 102 }
-        assertFalse(neighbor.isServing)
+        assertFalse(neighbor.servingInferred)
         assertEquals(ConnectionStatus.NONE, neighbor.connectionStatus)
     }
 
@@ -127,7 +128,7 @@ class CellParserTest {
 
         val nr = result.cells.single { it.rat == Rat.NR }
         assertEquals(CellSource.SIGNAL_STRENGTH, nr.source)
-        assertTrue(nr.isServing)
+        assertTrue(nr.servingInferred)
         assertNull(nr.isRegistered)
         assertNull(nr.pci)
         assertEquals(-100, nr.rsrpDbm)
@@ -166,7 +167,7 @@ class CellParserTest {
         assertEquals(-101, fromCellInfo.rsrpDbm)
         assertEquals(986L, fromCellInfo.cellInfoAgeMs)
 
-        assertTrue(fromSs.isServing)
+        assertTrue(fromSs.servingInferred)
         assertEquals(11, fromSs.sinrDb)
         assertEquals("both RSRP values are kept", -103, fromSs.rsrpDbm)
         assertEquals("age from SignalStrength.getTimestampMillis()", 300L, fromSs.cellInfoAgeMs)
@@ -308,12 +309,12 @@ class CellParserTest {
         val primary = lteCell(ci = 158_896_673, tac = 11_550, pci = 140, earfcn = 500, bands = listOf(1), bandwidthKhz = UNAVAILABLE, signal = lteSignal(-101, -14, 5, -79, 12, 1))
         val result = parse(cellInfo(primary, fake(139, -99), fake(138, -100), fake(290, -107)), device = SAMSUNG, bandwidths = listOf(20_000), override = 0)
 
-        val serving = result.cells.single { it.isServing }
+        val serving = result.cells.single { it.servingInferred }
         assertEquals(140, serving.pci)
         assertEquals(12, serving.cqi)
         assertEquals(1, serving.timingAdvance)
         assertEquals(5, serving.sinrDb)
-        val neighbors = result.cells.filterNot { it.isServing }
+        val neighbors = result.cells.filterNot { it.servingInferred }
         assertEquals(listOf(139, 138, 290), neighbors.map { it.pci })
         neighbors.forEach { n ->
             assertEquals(ConnectionStatus.NONE, n.connectionStatus)
@@ -342,7 +343,7 @@ class CellParserTest {
             parse(cellInfo(primary, scell)), // CA unknown: keep what the phone says
         ).forEach { result ->
             assertEquals(ConnectionStatus.SECONDARY_SERVING, result.cells.single { it.pci == 200 }.connectionStatus)
-            assertTrue(result.cells.single { it.pci == 200 }.isServing)
+            assertTrue(result.cells.single { it.pci == 200 }.servingInferred)
             assertTrue(result.warnings.none { it.code == WarningCode.SECONDARY_SERVING_WITHOUT_CA })
         }
     }
@@ -351,9 +352,9 @@ class CellParserTest {
     fun `secondary without CA is demoted on every manufacturer, on the same carrier even if CA is unknown`() {
         val primary = lteCell(earfcn = 500)
         val noCa = parse(cellInfo(primary, lteCell(registered = false, status = 2, pci = 200, earfcn = 1850)), bandwidths = listOf(20_000))
-        assertFalse(noCa.cells.single { it.pci == 200 }.isServing)
+        assertFalse(noCa.cells.single { it.pci == 200 }.servingInferred)
         val sameCarrier = parse(cellInfo(primary, lteCell(registered = false, status = 2, pci = 200, earfcn = 500)))
-        assertFalse(sameCarrier.cells.single { it.pci == 200 }.isServing)
+        assertFalse(sameCarrier.cells.single { it.pci == 200 }.servingInferred)
         // Placeholder rules stay Samsung-only.
         assertEquals(0, noCa.warnings.count { it.code == WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER })
     }
@@ -364,18 +365,18 @@ class CellParserTest {
         val primary = lteCell(earfcn = 1475)
         val scell = lteCell(registered = false, status = 2, pci = 200, earfcn = 1850)
         val a56 = parse(cellInfo(primary, scell), bandwidths = listOf(10_000, 60_000), override = 0)
-        assertFalse(a56.cells.single { it.pci == 200 }.isServing)
+        assertFalse(a56.cells.single { it.pci == 200 }.servingInferred)
         assertEquals(1, a56.warnings.count { it.code == WarningCode.SECONDARY_SERVING_WITHOUT_CA })
         // Two LTE-sized carriers are still CA evidence.
         val ca = parse(cellInfo(primary, scell), bandwidths = listOf(10_000, 10_000, 60_000), override = 0)
-        assertTrue(ca.cells.single { it.pci == 200 }.isServing)
+        assertTrue(ca.cells.single { it.pci == 200 }.servingInferred)
     }
 
     @Test
     fun `NR secondary under an LTE primary is EN-DC and is never demoted`() {
         val result = parse(cellInfo(lteCell(), nrCell()), bandwidths = listOf(20_000), override = 0)
         val nr = result.cells.single { it.rat == Rat.NR }
-        assertTrue(nr.isServing)
+        assertTrue(nr.servingInferred)
         assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
     }
 
@@ -402,7 +403,7 @@ class CellParserTest {
         ).forEach { ssNr ->
             val result = motoNsa(ssNr)
             val nrCell = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
-            assertTrue(nrCell.isServing)
+            assertTrue(nrCell.servingInferred)
             assertEquals(ConnectionStatus.SECONDARY_SERVING, nrCell.connectionStatus)
             assertNull("PCI copied from LTE together with the TAC is blanked", nrCell.pci)
             assertEquals(531_870, nrCell.arfcn)
@@ -410,6 +411,8 @@ class CellParserTest {
             assertEquals(BandSource.MAPPED, nrCell.bandSource)
             assertNull("TAC copied from LTE is blanked", nrCell.tac)
             assertNull("signal is not copied from SignalStrength", nrCell.rsrpDbm)
+            assertEquals(false, nrCell.reportedServing)
+            assertEquals(ServingSource.NSA_INFERRED, nrCell.servingSource)
 
             val nrSs = result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }
             assertEquals(ssNr.ssRsrp, nrSs.rsrpDbm)
@@ -434,7 +437,7 @@ class CellParserTest {
         listOf(null, 0, 1).forEach { override ->
             val result = motoNsa(nrSignal(), override = override)
             val nrCell = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
-            assertFalse(nrCell.isServing)
+            assertFalse(nrCell.servingInferred)
             assertEquals(19_350, nrCell.tac)
             assertTrue(result.warnings.none { it.code == WarningCode.NR_NSA_SECONDARY_INFERRED || it.code == WarningCode.NR_TAC_FROM_LTE })
         }
@@ -444,7 +447,9 @@ class CellParserTest {
     fun `several unregistered NR cells in NSA are not guessed`() {
         val second = motoNr.copy(pci = 480, tac = UNAVAILABLE)
         val result = motoNsa(nrSignal(), 3, second)
-        assertTrue(result.cells.filter { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }.none { it.isServing })
+        val nr = result.cells.filter { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+        assertTrue(nr.none { it.servingInferred })
+        assertTrue(nr.all { it.servingSource == ServingSource.AMBIGUOUS })
         assertEquals("2", result.warnings.single { it.code == WarningCode.NR_NSA_SECONDARY_AMBIGUOUS }.rawValue)
     }
 
@@ -487,7 +492,7 @@ class CellParserTest {
     fun `A56 NSA - band n7 from getBands is replaced by n41, TAC 0 and CSI floor blanked`() {
         val result = a56Nsa()
         val nr = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
-        assertTrue(nr.isServing)
+        assertTrue(nr.servingInferred)
         assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
         assertEquals(440, nr.pci)
         assertEquals(41, nr.band)
@@ -498,6 +503,8 @@ class CellParserTest {
         assertNull(nr.csiRsrpDbm)
         assertNull(nr.csiRsrqDb)
         assertNull(nr.csiSinrDb)
+        assertEquals(true, nr.reportedServing)
+        assertEquals("single candidate keeps the phone's label", ServingSource.REPORTED, nr.servingSource)
 
         val codes = result.warnings.groupingBy { it.code }.eachCount()
         assertEquals(1, codes[WarningCode.API_BAND_CONFLICT])
@@ -537,6 +544,123 @@ class CellParserTest {
         assertEquals(41, nr.band)
         assertEquals(BandSource.API, nr.bandSource)
         assertTrue(result.warnings.none { it.code == WarningCode.API_BAND_CONFLICT })
+    }
+
+    // A56, Tri, walk 2026-10-14: every NR cell on NR-ARFCN 531870 is reported as SECONDARY_SERVING, unregistered. PCI 440
+    // is the real NSA secondary (PhysicalChannelConfig); 438, 161, 169 and 439 are neighbors. Values from the field log.
+    private fun a56Nr(pci: Int, rsrp: Int, rsrq: Int, sinr: Int, arfcn: Int = 531_870) =
+        RawNrCell(false, 2, NOW_MS - 13, Long.MAX_VALUE, 0, pci, arfcn, listOf(7), null, null, RawNrSignal(rsrp, rsrq, sinr, -140, -20, -23))
+
+    private fun a56Multi(vararg nr: RawNrCell, ssNr: RawNrSignal? = null) = parse(
+        cellInfo(lteCell(ci = 12_866_888, tac = 19_350, pci = 477, earfcn = 1625, bandwidthKhz = UNAVAILABLE), *nr),
+        signalStrength(lte = listOf(lteSignal()), nr = listOfNotNull(ssNr)),
+        device = SAMSUNG, bandwidths = listOf(20_000, 60_000), override = 3, mcc = "510", parser = nsaParser,
+    )
+
+    private fun ParseResult.nrCells() = cells.filter { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }.associateBy { it.pci }
+
+    @Test
+    fun `A56 - the candidate matching SignalStrength NR is serving, the same-channel neighbor is not`() {
+        val result = a56Multi(a56Nr(440, -101, -11, 7), a56Nr(438, -109, -18, -7), ssNr = RawNrSignal(-101, -11, 9, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+        val nr = result.nrCells()
+        assertTrue(nr.getValue(440).servingInferred)
+        assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.getValue(440).connectionStatus)
+        assertFalse(nr.getValue(438).servingInferred)
+        assertEquals(ConnectionStatus.NONE, nr.getValue(438).connectionStatus)
+        nr.values.forEach {
+            assertEquals("the phone's label is kept", true, it.reportedServing)
+            assertEquals(ServingSource.SIGNAL_STRENGTH_MATCH, it.servingSource)
+        }
+        val w = result.warnings.single { it.code == WarningCode.NR_SERVING_SIGNAL_STRENGTH_MATCH }
+        assertEquals(438, w.pci)
+        assertEquals("2", w.rawValue)
+        assertEquals("TAC 0 only blanked on the kept cell", listOf(440), result.warnings.filter { it.code == WarningCode.NR_NSA_TAC_ZERO }.map { it.pci })
+        assertNull("as a neighbor its TAC 0 is a Samsung placeholder", nr.getValue(438).tac)
+        assertTrue(result.warnings.any { it.code == WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER && it.pci == 438 && it.field == "tac" })
+    }
+
+    @Test
+    fun `A56 - SignalStrength 1 dB off still matches, more than 1 dB does not`() {
+        val near = a56Multi(a56Nr(440, -106, -12, 5), a56Nr(438, -111, -17, -5), ssNr = RawNrSignal(-105, -11, 6, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+        assertEquals(ServingSource.SIGNAL_STRENGTH_MATCH, near.nrCells().getValue(440).servingSource)
+        val far = a56Multi(a56Nr(440, -106, -12, 5), a56Nr(438, -111, -17, -5), ssNr = RawNrSignal(-108, -12, 6, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+        assertEquals(ServingSource.STRONGEST, far.nrCells().getValue(440).servingSource)
+    }
+
+    @Test
+    fun `A56 - without a SignalStrength match the strongest of PCIs 440, 438, 161, 169, 439 is serving`() {
+        val result = a56Multi(
+            a56Nr(438, -111, -17, -5), a56Nr(440, -85, -11, 6), a56Nr(161, -113, -19, 1), a56Nr(169, -115, -19, -2), a56Nr(439, -112, -18, -3),
+            ssNr = RawNrSignal(-101, -11, 9, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE), // stale, matches none
+        )
+        val nr = result.nrCells()
+        assertEquals(listOf(440), nr.values.filter { it.servingInferred }.map { it.pci })
+        assertTrue(nr.values.all { it.servingSource == ServingSource.STRONGEST && it.reportedServing == true })
+        assertEquals(listOf(438, 161, 169, 439), result.warnings.filter { it.code == WarningCode.NR_SERVING_STRONGEST }.map { it.pci })
+
+        val noSignalStrength = a56Multi(a56Nr(440, -101, -11, 7), a56Nr(438, -109, -18, -7))
+        assertEquals(ServingSource.STRONGEST, noSignalStrength.nrCells().getValue(440).servingSource)
+        assertTrue(noSignalStrength.nrCells().getValue(440).servingInferred)
+
+        val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 3, 13)
+        assertTrue(inputs.nrServingCellInfo)
+    }
+
+    @Test
+    fun `A56 - two SignalStrength matches fall back to the strongest`() {
+        val result = a56Multi(a56Nr(440, -101, -11, 7), a56Nr(438, -102, -12, 3), ssNr = RawNrSignal(-101, -11, 9, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+        assertEquals(ServingSource.STRONGEST, result.nrCells().getValue(440).servingSource)
+        assertTrue(result.nrCells().getValue(440).servingInferred)
+    }
+
+    @Test
+    fun `equal strongest candidates without a match are ambiguous and none is serving`() {
+        val result = a56Multi(a56Nr(440, -105, -11, 6), a56Nr(438, -105, -17, -5))
+        val nr = result.nrCells()
+        assertTrue(nr.values.none { it.servingInferred })
+        assertTrue(nr.values.all { it.servingSource == ServingSource.AMBIGUOUS && it.reportedServing == true })
+        assertEquals(setOf(440, 438), result.warnings.filter { it.code == WarningCode.NR_SERVING_AMBIGUOUS }.map { it.pci }.toSet())
+        assertTrue("no serving NR left for TAC blanking", result.warnings.none { it.code == WarningCode.NR_NSA_TAC_ZERO })
+    }
+
+    @Test
+    fun `candidates on different NR channels are all kept as reported`() {
+        val result = a56Multi(a56Nr(440, -101, -11, 7), a56Nr(438, -109, -18, -7, arfcn = 643_334))
+        assertTrue(result.nrCells().values.all { it.servingInferred && it.servingSource == ServingSource.REPORTED })
+        assertTrue(result.warnings.none { it.code.name.startsWith("NR_SERVING_") })
+    }
+
+    @Test
+    fun `LTE cells and SignalStrength rows carry no serving source`() {
+        val result = a56Multi(a56Nr(440, -101, -11, 7), ssNr = RawNrSignal(-101, -11, 9, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+        val lte = result.cells.single { it.rat == Rat.LTE && it.source == CellSource.CELL_INFO }
+        assertEquals(true, lte.reportedServing)
+        assertNull(lte.servingSource)
+        result.cells.filter { it.source == CellSource.SIGNAL_STRENGTH }.forEach {
+            assertTrue(it.servingInferred)
+            assertNull(it.reportedServing)
+            assertNull(it.servingSource)
+        }
+    }
+
+    @Test
+    fun `A56 first tick - without the network MCC the registered cell's MCC picks n41, marked MAPPED_MCC_FALLBACK`() {
+        val nr = a56Nsa(mcc = null).cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+        assertEquals(41, nr.band)
+        assertEquals(BandSource.MAPPED_MCC_FALLBACK, nr.bandSource)
+
+        // The fallback only marks bands the MCC chose: an unambiguous mapped band stays MAPPED.
+        val plain = parse(cellInfo(lteCell(), nrCell(arfcn = 643_334, bands = emptyList())), parser = nsaParser)
+            .cells.single { it.rat == Rat.NR }
+        assertEquals(BandSource.MAPPED, plain.bandSource)
+
+        // No MCC anywhere: getBands() is kept.
+        val noMcc = parse(
+            cellInfo(lteCell().copy(mcc = null), RawNrCell(false, 2, NOW_MS, Long.MAX_VALUE, 0, 440, 531_870, listOf(7), null, null, nrSignal())),
+            parser = nsaParser,
+        ).cells.single { it.rat == Rat.NR }
+        assertEquals(7, noMcc.band)
+        assertEquals(BandSource.API, noMcc.bandSource)
     }
 
     @Test

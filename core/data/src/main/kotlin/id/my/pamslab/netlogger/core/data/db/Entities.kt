@@ -88,8 +88,10 @@ data class MeasurementEntity(
     val txBytesApp: Long?,
     val screenOn: Boolean?,
     val thermalStatus: Int?,
-    /** Warnings raised by this tick (before per-session deduplication). */
+    /** Getter calls that threw while reading this tick (real parse failures). */
     val parseErrors: Int,
+    /** Warnings raised by this tick, including flagged OEM corrections (before per-session deduplication). */
+    val warningCount: Int,
 )
 
 @Entity(
@@ -102,7 +104,12 @@ data class CellEntity(
     val measurementId: Long,
     /** LTE / NR / WCDMA / GSM. */
     val rat: String,
-    val isServing: Boolean,
+    /** Derived serving flag (after flagged corrections); SIGNAL_STRENGTH rows are always serving. */
+    val servingInferred: Boolean,
+    /** The phone's own serving label, uncorrected; null for SIGNAL_STRENGTH rows. */
+    val reportedServing: Boolean?,
+    /** ServingSource name (NR CELL_INFO rows): REPORTED / NSA_INFERRED / SIGNAL_STRENGTH_MATCH / STRONGEST / AMBIGUOUS. */
+    val servingSource: String?,
     val isRegistered: Boolean?,
     /** ConnectionStatus name. */
     val connectionStatus: String?,
@@ -114,7 +121,7 @@ data class CellEntity(
     val pci: Int?,
     val arfcn: Int?,
     val band: Int?,
-    /** API / MAPPED. */
+    /** API / MAPPED / MAPPED_MCC_FALLBACK. */
     val bandSource: String?,
     val bandwidthKhz: Int?,
     val mcc: String?,
