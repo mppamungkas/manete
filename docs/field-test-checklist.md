@@ -20,3 +20,21 @@ Do this on each phone, in LTE-only coverage and in 5G NSA coverage (5G icon visi
 - [ ] Turn the screen off for 30 s, back on: check cell ages and `Cell info: FRESH/CACHED`
 - [ ] Repeat once on an unrooted phone (A56) before marking the milestone done
 - [ ] Record findings in `docs/device-quirks.md`
+
+## Milestone 3: logging service, screen off
+
+Run on the moto g45 (pilot) and on the A56 (unrooted). **Unplug the phone**: on USB it charges and never enters
+Doze, so a plugged-in test proves nothing about screen-off behavior.
+
+- [ ] Live → **Start logging**: notification "NetLogger is logging" with Stop and Add marker appears
+- [ ] `adb -s <serial> shell dumpsys power | grep NetLogger:logging` shows the partial wake lock while logging
+- [ ] Add marker from the notification and from the Live screen: marker count goes up
+- [ ] GPS card: status OK, accuracy and age plausible (age < 2 s while moving outdoors)
+- [ ] Device card: battery %, current (note sign while charging vs. discharging), voltage, temperature, thermal, screen
+- [ ] Unplug, screen off, **1 hour** (walk or drive if possible). Then plug in and read
+      `adb -s <serial> logcat -d -s NetLogger:I | grep ticks` (one summary per minute: ticks recorded/expected,
+      cell info origin, max serving-cell age, max GPS age, screen-off ticks, NR ticks)
+- [ ] Pass: ≥ 95 % of expected ticks (Live: "Last session x / y"), no crash
+- [ ] Note the max serving-cell age with screen off (moto plugged in: ~10 s) and whether NR disappears
+- [ ] Stop from the notification: notification gone, wake lock released (`REL NetLogger:logging` in dumpsys power)
+- [ ] Record results per phone in `docs/device-quirks.md`

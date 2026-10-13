@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,17 +19,23 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.ac.pnp.netlogger.core.model.device.DeviceContext
+import id.ac.pnp.netlogger.core.model.location.LocationFix
+import id.ac.pnp.netlogger.core.model.location.LocationStatus
 import id.ac.pnp.netlogger.core.model.radio.CellSample
 import id.ac.pnp.netlogger.core.model.radio.CellSource
-import java.util.Locale
 import id.ac.pnp.netlogger.core.model.radio.RadioSnapshot
 import id.ac.pnp.netlogger.core.ui.component.PlaceholderScreen
+import id.ac.pnp.netlogger.feature.logger.service.LoggingService
+import id.ac.pnp.netlogger.feature.logger.service.LoggingState
+import java.util.Locale
 
 /** Values older than this are grayed out. */
 private const val STALE_AGE_MS = 5_000L
@@ -67,12 +75,13 @@ private fun LiveContent(viewModel: LiveViewModel, modifier: Modifier = Modifier)
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
         is LiveUiState.Failed -> PlaceholderScreen("Live", "Sampling stopped: ${s.message}", modifier)
-        is LiveUiState.Ready -> SnapshotView(s.snapshot, modifier)
+        is LiveUiState.Ready -> SnapshotView(s, modifier)
     }
 }
 
 @Composable
-private fun SnapshotView(snapshot: RadioSnapshot, modifier: Modifier = Modifier) {
+private fun SnapshotView(ui: LiveUiState.Ready, modifier: Modifier = Modifier) {
+    val snapshot = ui.snapshot
     val serving = snapshot.cells.filter { it.isServing }
     val neighbors = snapshot.cells.filterNot { it.isServing }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
 
@@ -81,11 +90,84 @@ private fun SnapshotView(snapshot: RadioSnapshot, modifier: Modifier = Modifier)
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item { LoggingCard(ui.logging) }
         item { NetworkCard(snapshot) }
+        item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
+        ui.tick?.device?.let { item { DeviceCard(it) } }
         items(serving) { ServingCellCard(it) }
         if (serving.isEmpty()) item { Text("No serving cell reported.", style = MaterialTheme.typography.bodyMedium) }
         item { NeighborTable(neighbors) }
         if (snapshot.warnings.isNotEmpty()) item { WarningsCard(snapshot) }
+    }
+}
+
+@Composable
+private fun LoggingCard(logging: LoggingState) {
+    val context = LocalContext.current
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            when (logging) {
+                is LoggingState.Running -> {
+                    val st = logging.stats
+                    Text("Logging", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Field("Ticks", "${st.recorded} / ${st.expected} expected (%.1f %%) · ${st.missed} missed".format(Locale.ROOT, st.recordedPct))
+                    Field("Interval", "${st.intervalMs} ms")
+                    Field("Markers", logging.markers.size.toString())
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { LoggingService.stop(context) }) { Text("Stop") }
+                        OutlinedButton(onClick = { LoggingService.addMarker(context) }) { Text("Add marker") }
+                    }
+                }
+                is LoggingState.Idle -> {
+                    Text("Not logging", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    logging.lastSession?.let { st ->
+                        Field("Last session", "${st.recorded} / ${st.expected} ticks (%.1f %%)".format(Locale.ROOT, st.recordedPct))
+                    }
+                    Text(
+                        "Sessions are kept in memory until storage arrives (milestone 4).",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(onClick = { LoggingService.start(context) }) { Text("Start logging") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationCard(fix: LocationFix?, status: LocationStatus?, ageMs: Long?, error: String?) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("GPS · ${status.orDash()}", style = MaterialTheme.typography.titleSmall)
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            if (fix != null) {
+                val stale = (ageMs ?: 0) > STALE_AGE_MS
+                Field("Lat / Lon", "%.6f / %.6f".format(Locale.ROOT, fix.latitude, fix.longitude), stale)
+                Field("Accuracy", "${fix.accuracyM?.let { "%.1f".format(Locale.ROOT, it) }.orDash()} m", stale)
+                Field("Speed / Bearing", "${fix.speedMps?.let { "%.1f".format(Locale.ROOT, it) }.orDash()} m/s / ${fix.bearingDeg?.let { "%.0f".format(Locale.ROOT, it) }.orDash()}°", stale)
+                Field("Altitude", "${fix.altitudeM?.let { "%.0f".format(Locale.ROOT, it) }.orDash()} m", stale)
+                Field("Age", "${ageMs.orDash()} ms", stale)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceCard(d: DeviceContext) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Device", style = MaterialTheme.typography.titleSmall)
+            with(d.battery) {
+                Field("Battery", "${levelPct.orDash()} % · ${if (isCharging == true) "charging" else if (isCharging == false) "discharging" else "–"}")
+                Field("Current / Voltage", "${currentUa.orDash()} µA / ${voltageMv.orDash()} mV")
+                Field("Battery temp", "${tempC.orDash()} °C")
+            }
+            Field("Thermal / Screen", "${d.thermalStatus.orDash()} / ${d.screenOn?.let { if (it) "on" else "off" }.orDash()}")
+            with(d.traffic) {
+                Field("Total rx / tx", "${rxBytesTotal.orDash()} / ${txBytesTotal.orDash()} B")
+                Field("App rx / tx", "${rxBytesApp.orDash()} / ${txBytesApp.orDash()} B")
+            }
+        }
     }
 }
 

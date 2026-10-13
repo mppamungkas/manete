@@ -181,6 +181,23 @@ telephony.registry` sampled every ~4.5 s for 3 minutes (36 samples each; log in 
 - The 5 dB SS-RSRP gap between phones on the same carrier is device-level (antenna, position, calibration): compare
   NR levels across phones only with the device recorded per session.
 
+### Logging service, first screen-off run, moto g45, 2026-10-13 (milestone 3)
+
+Plugged in via USB (charging, so **no Doze**: `deviceidle mState=ACTIVE`), screen off ~10 min, 1 s interval.
+- 688 / 688 ticks (100 %), partial wake lock held for the whole session and released on Stop.
+- Cell info: every request returned (`FRESH`), but with the screen off the serving cell's own timestamp lagged by up
+  to **~10 s** (max per minute 9.0–10.0 s; with the screen on < 2 s). The modem refreshes measurements about every
+  10 s when the screen is off. `cellInfoOrigin = FRESH` only means the request completed: use `cellInfoAgeMs` to judge
+  staleness.
+- GPS age with screen off ≤ 1 s (fused, high accuracy, held by the foreground service).
+- NR ticks dropped to 0 in the screen-off minutes with idle data (NR leg released, as seen before).
+- Battery current is positive while charging on this phone (+57678 µA); sign convention to confirm while discharging.
+- App TrafficStats rx/tx = 0 (NetLogger itself uses no network yet).
+- **Still to do:** the unplugged 1-hour test on both phones (Doze), see `docs/field-test-checklist.md`.
+
+A56: service starts and runs (foreground, type location), but its lock screen could not be dismissed over adb, so
+the screen-off run is pending.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
