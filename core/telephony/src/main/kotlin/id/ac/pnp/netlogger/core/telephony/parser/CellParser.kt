@@ -91,16 +91,21 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             cells = SamsungQuirks.dropPlaceholders(cells, warnings)
         }
 
+        // Always kept next to the CELL_INFO rows, never merged or deduplicated: the two sources arrive at
+        // different times and fill different fields (moto g45: RSSNR only in SignalStrength), and their
+        // differences are useful for validation. Consumers pick per field (CELL_INFO first).
         val ssCells = signalStrengthCells(input.signalStrength, ctx, input.device)
         val nrSsPresent = ssCells.any { it.rat == Rat.NR }
-        cells = cells + ssCells.filter { ss -> cells.none { it.rat == ss.rat && it.isServing && it.hasSignal() } }
+        cells = cells + ssCells
 
         return ParseResult(cells, warnings, nrSsPresent, latched)
     }
 
     /**
-     * Serving-cell signal from SignalStrength.getCellSignalStrengths(). Many phones omit CellInfoNr in NSA,
-     * so this is the second source for NR (and for LTE when CellInfo has no serving LTE signal).
+     * Serving-cell signal from SignalStrength.getCellSignalStrengths(): one SIGNAL_STRENGTH row per RAT entry
+     * with any valid value. Many phones omit CellInfoNr in NSA, so this is the second source for NR. The rows
+     * are serving, have no identity (SignalStrength has no PCI or ARFCN, and none is copied from CellInfo),
+     * and their age comes from SignalStrength.getTimestampMillis(), not from the CellInfo timestamp.
      */
     private fun signalStrengthCells(ss: RawSignalStrength?, ctx: Ctx, device: DeviceTraits): List<CellSample> {
         if (ss == null) return emptyList()

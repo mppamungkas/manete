@@ -102,7 +102,7 @@ DTO layer and the per-quirk tests, which we would need for requirements 3 and 4 
 
 1. **Option:** C approved.
 2. **Test phones:** Samsung Galaxy A56 (Exynos 1580, Samsung modem, Android 16) and Motorola moto g45
-   (Qualcomm Snapdragon, reported as SM6357). Quirks to port first:
+   (Qualcomm Snapdragon 6s Gen 3, `ro.soc.model` = SM6375, Android 15). Quirks to port first:
    - Samsung A56: `SamsungEndiannessPostprocessor` (LTE TAC byte swap, Samsung on Android 12+) and
      `SamsungInvalidValuesPostprocessor` (Samsung N/A constants, LTE SNR `0.0`).
    - Not ported up front: `PixelTensorPostprocessor` only runs on a hard-coded list of Pixel products.
@@ -113,3 +113,20 @@ DTO layer and the per-quirk tests, which we would need for requirements 3 and 4 
 3. **Operators:** all Indonesian operators. `BandMapper` therefore uses the full 3GPP EARFCN / NR-ARFCN
    tables, not an operator subset. Tests cover every band that Indonesian operators are confirmed to use.
    The band list is checked against field data from both phones before it is final.
+
+## Addendum (2026-10-13): two sources for serving-cell signal
+
+Found on the moto g45 (see `docs/device-quirks.md`): CellInfo reports LTE RSSNR as unavailable while
+`SignalStrength` reports it (`rssnr=11`). Decided with the user:
+
+1. `CellParser` always emits a `SIGNAL_STRENGTH` row for each RAT entry in `SignalStrength` that has any valid
+   value, next to the `CELL_INFO` rows. Previously it did so only when no CELL_INFO serving cell of that RAT had
+   signal.
+2. That row has `isServing = true`, its `rat`, and null identity (PCI, ARFCN, cell ID, TAC, band, PLMN).
+   Identity is never copied from the CELL_INFO row.
+3. Its `cellInfoAgeMs` is measured from `SignalStrength.getTimestampMillis()` (elapsedRealtime base), because it
+   arrives from a callback at a different time than CellInfo.
+4. No deduplication: when both sources have RSRP, both are stored. Differences are kept for validation.
+5. **`flat.csv` rule (milestone 5):** for each serving-cell field (RSRP, RSRQ, SINR, RSSI, CQI, TA, CSI-*), take
+   the CELL_INFO value; if it is null, take the SIGNAL_STRENGTH value. Each such field gets a source column
+   (`sinrSource`, `rsrpSource`, …) with `CELL_INFO`, `SIGNAL_STRENGTH` or empty. Document in `docs/columns.md`.

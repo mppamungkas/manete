@@ -125,21 +125,47 @@ class CellParserTest {
         assertEquals(-100, nr.rsrpDbm)
         assertEquals(50L, nr.cellInfoAgeMs)
         assertTrue(result.nrSignalStrengthPresent)
-        // LTE already has signal from CellInfo, so no duplicate SIGNAL_STRENGTH LTE row.
-        assertEquals(1, result.cells.count { it.rat == Rat.LTE })
+        assertEquals(listOf(CellSource.CELL_INFO, CellSource.SIGNAL_STRENGTH), result.cells.filter { it.rat == Rat.LTE }.map { it.source })
     }
 
     @Test
-    fun `CellInfoNr with signal wins over SignalStrength`() {
+    fun `CellInfoNr and SignalStrength NR are both kept, not deduplicated`() {
         val result = parse(cellInfo(lteCell(), nrCell()), signalStrength(nr = listOf(nrSignal(ssRsrp = -90))))
 
-        val nr = result.cells.single { it.rat == Rat.NR }
-        assertEquals(CellSource.CELL_INFO, nr.source)
+        val nr = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
         assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
         assertEquals(500, nr.pci)
         assertEquals(40, nr.band)
+        assertEquals(-100, nr.rsrpDbm)
         assertNull("NCI Long.MAX_VALUE is a sentinel", nr.cellId)
+        val ss = result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }
+        assertEquals(-90, ss.rsrpDbm)
+        assertNull("identity is never copied from CellInfo", ss.pci)
         assertTrue(result.nrSignalStrengthPresent)
+    }
+
+    @Test
+    fun `moto g45 - RSSNR missing in CellInfo is kept from SignalStrength in its own row`() {
+        // dumpsys on moto g45 (Tri, B3, 2026-10-13): CellInfo rssnr=MAX, SignalStrength.mLte rssnr=11.
+        val cell = lteCell(timestamp = NOW_MS - 986, pci = 479, earfcn = 1475, signal = lteSignal(-101, -13, UNAVAILABLE, -69, UNAVAILABLE, UNAVAILABLE))
+        val ss = signalStrength(lte = listOf(lteSignal(-103, -11, 11, -71, UNAVAILABLE, UNAVAILABLE)), timestamp = NOW_MS - 300)
+        val result = parse(cellInfo(cell), ss)
+
+        val fromCellInfo = result.cells.single { it.rat == Rat.LTE && it.source == CellSource.CELL_INFO }
+        val fromSs = result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }
+        assertNull(fromCellInfo.sinrDb)
+        assertEquals(-101, fromCellInfo.rsrpDbm)
+        assertEquals(986L, fromCellInfo.cellInfoAgeMs)
+
+        assertTrue(fromSs.isServing)
+        assertEquals(11, fromSs.sinrDb)
+        assertEquals("both RSRP values are kept", -103, fromSs.rsrpDbm)
+        assertEquals("age from SignalStrength.getTimestampMillis()", 300L, fromSs.cellInfoAgeMs)
+        assertNull(fromSs.pci)
+        assertNull(fromSs.arfcn)
+        assertNull(fromSs.cellId)
+        assertNull(fromSs.band)
+        assertTrue(result.warnings.isEmpty())
     }
 
     @Test
