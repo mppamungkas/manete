@@ -39,6 +39,10 @@ data class ParseInput(
     val legacyCellLocation: RawLegacyCellLocation? = null,
     /** The TAC byte swap was already seen in this session, so apply it even without a fresh comparison. */
     val samsungTacSwapLatched: Boolean = false,
+    /** ServiceState.getCellBandwidths(); null when unknown. CA evidence for SECONDARY_SERVING cells. */
+    val cellBandwidthsKhz: List<Int>? = null,
+    /** TelephonyDisplayInfo.getOverrideNetworkType(); null when unknown. */
+    val overrideNetworkType: Int? = null,
 )
 
 data class ParseResult(
@@ -83,6 +87,8 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             }
         }
 
+        cells = demoteFalseSecondaries(cells, input, warnings)
+
         var latched = input.samsungTacSwapLatched
         if (input.device.isSamsung) {
             val swap = SamsungQuirks.fixTacByteSwap(cells, input.legacyCellLocation, latched, input.device.sdkInt, warnings)
@@ -99,6 +105,29 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         cells = cells + ssCells
 
         return ParseResult(cells, warnings, nrSsPresent, latched)
+    }
+
+    /**
+     * Some modems (Samsung A56) flag ordinary neighbors as SECONDARY_SERVING. A same-RAT secondary is only
+     * kept as serving when it can be a CA component carrier: not on the primary's ARFCN, and the phone shows
+     * CA (more than one cell bandwidth or the LTE_CA override). With no CA information at all, the reported
+     * status is kept. An NR secondary under an LTE primary is EN-DC, not CA, and is never touched.
+     */
+    private fun demoteFalseSecondaries(cells: List<CellSample>, input: ParseInput, warnings: MutableList<ParseWarning>): List<CellSample> {
+        val primary = cells.firstOrNull { it.source == CellSource.CELL_INFO && it.connectionStatus == ConnectionStatus.PRIMARY_SERVING }
+            ?: return cells
+        val bandwidths = input.cellBandwidthsKhz
+        val caKnown = bandwidths != null || input.overrideNetworkType != null
+        val caShown = bandwidths.orEmpty().size > 1 || input.overrideNetworkType == OVERRIDE_LTE_CA
+        return cells.map { cell ->
+            val suspect = cell.connectionStatus == ConnectionStatus.SECONDARY_SERVING &&
+                cell.isRegistered != true &&
+                cell.rat == primary.rat
+            val sameCarrier = cell.arfcn != null && cell.arfcn == primary.arfcn
+            if (!suspect || !(sameCarrier || (caKnown && !caShown))) return@map cell
+            warnings += ParseWarning(WarningCode.SECONDARY_SERVING_WITHOUT_CA, cell.rat, cell.pci, "connectionStatus", CONNECTION_SECONDARY_SERVING.toString())
+            cell.copy(isServing = false, connectionStatus = ConnectionStatus.NONE)
+        }
     }
 
     /**
@@ -260,6 +289,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         const val CONNECTION_NONE = 0
         const val CONNECTION_PRIMARY_SERVING = 1
         const val CONNECTION_SECONDARY_SERVING = 2
+
+        // TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_CA.
+        const val OVERRIDE_LTE_CA = 1
     }
 }
 

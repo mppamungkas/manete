@@ -43,6 +43,7 @@ class RadioSampler @Inject constructor(
             val tickWallMs = clock.wallTimeMs()
             val cellInfo = source.requestCellInfo(subId, cellInfoTimeoutMs)
             val state = network.value
+            val serviceState = state.serviceState
             val result = parser.parse(
                 ParseInput(
                     cellInfo = cellInfo,
@@ -51,11 +52,12 @@ class RadioSampler @Inject constructor(
                     nowElapsedMs = clock.elapsedRealtimeNs() / NS_PER_MS,
                     legacyCellLocation = if (device.isSamsung) source.legacyCellLocation(subId) else null,
                     samsungTacSwapLatched = tacSwapLatched,
+                    cellBandwidthsKhz = serviceState?.cellBandwidthsKhz,
+                    overrideNetworkType = state.displayInfo?.overrideNetworkType,
                 ),
             )
             tacSwapLatched = result.samsungTacSwapLatched
 
-            val serviceState = state.serviceState
             val dataNetworkType = state.displayInfo?.networkType ?: state.dataConnection?.networkType
             val inputs = NetworkClassifier.nsaInputs(
                 cells = result.cells,

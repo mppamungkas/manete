@@ -8,7 +8,8 @@
  *
  * Changes from the original: reimplemented on NetLogger's CellSample; every correction emits a ParseWarning
  * that keeps the raw value instead of changing data silently; the byte-swap latch lives for one session
- * instead of being persisted per Android build.
+ * instead of being persisted per Android build. Cell ID 0, TAC 0 and LTE CQI 0 on neighbors were added
+ * from our own A56 field data (not in NetMonster).
  */
 package id.ac.pnp.netlogger.core.telephony.parser
 
@@ -59,7 +60,10 @@ internal object SamsungQuirks {
         return SwapResult(fixed, nowLatched)
     }
 
-    /** Neighbor (not serving) cells only: Samsung fills unknown values with placeholders. */
+    /**
+     * Neighbor (not serving) cells only: Samsung fills unknown values with placeholders. Seen on the A56
+     * (Android 16): neighbors with cell ID 0, TAC 0, CQI 0, TA 0 and RSSNR 0.
+     */
     fun dropPlaceholders(cells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> =
         cells.map { cell ->
             var c = fixLteSnrZero(cell, warnings)
@@ -68,6 +72,9 @@ internal object SamsungQuirks {
                 warnings += ParseWarning(WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER, c.rat, c.pci, field, raw.toString())
                 return null
             }
+            c.cellId?.takeIf { it == 0L }?.let { c = c.copy(cellId = drop("cellId", it.toInt())) }
+            c.tac?.takeIf { it == 0 }?.let { c = c.copy(tac = drop("tac", it)) }
+            if (c.rat == Rat.LTE) c.cqi?.takeIf { it == 0 }?.let { c = c.copy(cqi = drop("cqi", it)) }
             when (c.rat) {
                 Rat.LTE, Rat.GSM -> {
                     c.rssiDbm?.takeIf { it == PLACEHOLDER_RSSI }?.let { c = c.copy(rssiDbm = drop("rssi", it)) }

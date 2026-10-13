@@ -63,10 +63,17 @@ enum class WarningCode {
     CELL_INFO_UNAVAILABLE,
     UNSUPPORTED_CELL_TYPE,
 
+    /**
+     * A cell reported as SECONDARY_SERVING cannot be a carrier-aggregation secondary: it has the same RAT and
+     * ARFCN as the primary cell, or the phone shows no CA (one cell bandwidth, no LTE_CA override). It is
+     * stored as a neighbor (connectionStatus NONE); `rawValue` holds the reported CellInfo status.
+     */
+    SECONDARY_SERVING_WITHOUT_CA,
+
     /** Samsung, Android 12+: serving TAC/LAC bytes swapped; the column holds the corrected value. */
     SAMSUNG_TAC_BYTE_SWAP,
 
-    /** Samsung neighbor placeholder (RSSI -51, TA 0, Ec/No 0) replaced by null. */
+    /** Samsung neighbor placeholder (RSSI -51, TA 0, Ec/No 0, cell ID 0, TAC 0, LTE CQI 0) replaced by null. */
     SAMSUNG_NEIGHBOR_PLACEHOLDER,
 
     /** Samsung reports LTE RSSNR 0 for "not available"; replaced by null. */

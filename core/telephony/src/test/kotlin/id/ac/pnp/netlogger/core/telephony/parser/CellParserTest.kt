@@ -25,7 +25,9 @@ class CellParserTest {
         device: id.ac.pnp.netlogger.core.model.raw.DeviceTraits = MOTO,
         legacy: RawLegacyCellLocation? = null,
         latched: Boolean = false,
-    ) = parser.parse(ParseInput(info, ss, device, NOW_MS, legacy, latched))
+        bandwidths: List<Int>? = null,
+        override: Int? = null,
+    ) = parser.parse(ParseInput(info, ss, device, NOW_MS, legacy, latched, bandwidths, override))
 
     @Test
     fun `serving LTE cell maps every field`() {
@@ -289,6 +291,73 @@ class CellParserTest {
         assertEquals(WarningCode.SAMSUNG_LTE_SNR_ZERO, samsung.warnings.single().code)
 
         assertEquals(0, parse(cellInfo(lteCell(signal = lteSignal(rssnr = 0))), device = MOTO).cells.single().sinrDb)
+    }
+
+    @Test
+    fun `A56 - same-carrier SECONDARY_SERVING neighbors without CA become neighbors, placeholders dropped`() {
+        // A56, Telkomsel B1, 2026-10-13: three cells with status 2 on the PCell's EARFCN 500, while
+        // getCellBandwidths() = [20000] and override NONE. CI/TAC 0, CQI 0, TA 0, RSSNR 0 on all three.
+        val placeholder = { rsrp: Int -> lteSignal(rsrp, -17, 0, -77, 0, 0) }
+        fun fake(pci: Int, rsrp: Int) = lteCell(registered = false, status = 2, ci = 0, tac = 0, pci = pci, earfcn = 500, bands = listOf(1), signal = placeholder(rsrp))
+        val primary = lteCell(ci = 158_896_673, tac = 11_550, pci = 140, earfcn = 500, bands = listOf(1), bandwidthKhz = UNAVAILABLE, signal = lteSignal(-101, -14, 5, -79, 12, 1))
+        val result = parse(cellInfo(primary, fake(139, -99), fake(138, -100), fake(290, -107)), device = SAMSUNG, bandwidths = listOf(20_000), override = 0)
+
+        val serving = result.cells.single { it.isServing }
+        assertEquals(140, serving.pci)
+        assertEquals(12, serving.cqi)
+        assertEquals(1, serving.timingAdvance)
+        assertEquals(5, serving.sinrDb)
+        val neighbors = result.cells.filterNot { it.isServing }
+        assertEquals(listOf(139, 138, 290), neighbors.map { it.pci })
+        neighbors.forEach { n ->
+            assertEquals(ConnectionStatus.NONE, n.connectionStatus)
+            assertNull(n.cellId)
+            assertNull(n.tac)
+            assertNull(n.cqi)
+            assertNull(n.timingAdvance)
+            assertNull(n.sinrDb)
+            assertEquals(-77, n.rssiDbm)
+            assertEquals(1, n.band)
+        }
+        val codes = result.warnings.groupingBy { it.code }.eachCount()
+        assertEquals(3, codes[WarningCode.SECONDARY_SERVING_WITHOUT_CA])
+        assertEquals(3, codes[WarningCode.SAMSUNG_LTE_SNR_ZERO])
+        assertEquals(12, codes[WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER])
+        assertEquals("2", result.warnings.first { it.code == WarningCode.SECONDARY_SERVING_WITHOUT_CA }.rawValue)
+    }
+
+    @Test
+    fun `real CA secondary on another carrier stays serving`() {
+        val scell = lteCell(registered = false, status = 2, pci = 200, earfcn = 1850)
+        val primary = lteCell(earfcn = 500)
+        listOf(
+            parse(cellInfo(primary, scell), bandwidths = listOf(20_000, 20_000)),
+            parse(cellInfo(primary, scell), override = 1),
+            parse(cellInfo(primary, scell)), // CA unknown: keep what the phone says
+        ).forEach { result ->
+            assertEquals(ConnectionStatus.SECONDARY_SERVING, result.cells.single { it.pci == 200 }.connectionStatus)
+            assertTrue(result.cells.single { it.pci == 200 }.isServing)
+            assertTrue(result.warnings.none { it.code == WarningCode.SECONDARY_SERVING_WITHOUT_CA })
+        }
+    }
+
+    @Test
+    fun `secondary without CA is demoted on every manufacturer, on the same carrier even if CA is unknown`() {
+        val primary = lteCell(earfcn = 500)
+        val noCa = parse(cellInfo(primary, lteCell(registered = false, status = 2, pci = 200, earfcn = 1850)), bandwidths = listOf(20_000))
+        assertFalse(noCa.cells.single { it.pci == 200 }.isServing)
+        val sameCarrier = parse(cellInfo(primary, lteCell(registered = false, status = 2, pci = 200, earfcn = 500)))
+        assertFalse(sameCarrier.cells.single { it.pci == 200 }.isServing)
+        // Placeholder rules stay Samsung-only.
+        assertEquals(0, noCa.warnings.count { it.code == WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER })
+    }
+
+    @Test
+    fun `NR secondary under an LTE primary is EN-DC and is never demoted`() {
+        val result = parse(cellInfo(lteCell(), nrCell()), bandwidths = listOf(20_000), override = 0)
+        val nr = result.cells.single { it.rat == Rat.NR }
+        assertTrue(nr.isServing)
+        assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
     }
 
     @Test
