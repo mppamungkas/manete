@@ -15,7 +15,8 @@ Update after every real-device test. For each quirk: device, Android / baseband 
 ### moto g45, Tri (510-89), LTE B3 with carrier aggregation, 2026-10-13
 
 Setup: SIM 1 Tri, slot 2 empty, static indoor, no 5G coverage (`isEndcAvailable = false`). Raw dumps in
-`docs/samples/` (gitignored, local only: they contain cell IDs and TACs). The Live screen matched
+`docs/samples/` (gitignored, local only: they contain cell IDs and TACs). Anonymized fixture (CI/TAC
+replaced, IPs and logs removed): `core/telephony/src/test/resources/fixtures/moto-g45_tri_lte-ca_2026-10-13.txt`. The Live screen matched
 `dumpsys telephony.registry`.
 No extraction failures and no parse warnings in logcat. `requestCellInfoUpdate` returned FRESH data every tick
 (age 19–986 ms) with the screen on.

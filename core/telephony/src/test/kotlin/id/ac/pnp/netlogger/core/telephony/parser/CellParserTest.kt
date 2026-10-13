@@ -147,6 +147,7 @@ class CellParserTest {
     @Test
     fun `moto g45 - RSSNR missing in CellInfo is kept from SignalStrength in its own row`() {
         // dumpsys on moto g45 (Tri, B3, 2026-10-13): CellInfo rssnr=MAX, SignalStrength.mLte rssnr=11.
+        // Same pattern in src/test/resources/fixtures/moto-g45_tri_lte-ca_2026-10-13.txt (rssnr=9).
         val cell = lteCell(timestamp = NOW_MS - 986, pci = 479, earfcn = 1475, signal = lteSignal(-101, -13, UNAVAILABLE, -69, UNAVAILABLE, UNAVAILABLE))
         val ss = signalStrength(lte = listOf(lteSignal(-103, -11, 11, -71, UNAVAILABLE, UNAVAILABLE)), timestamp = NOW_MS - 300)
         val result = parse(cellInfo(cell), ss)

@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5** · last updated 2026-10-13
+**CLAUDE.md version 1.5.1** · last updated 2026-10-13
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.1:** Package / application ID is `id.ac.pnp.netlogger` (root safety rules corrected).
 - **1.5:** Project license set to GPL v3; reference reuse rules updated accordingly. Added pilot device (moto g45 5G, rooted, USB passthrough) and root safety rules. ADB over USB is now the primary connection. Added first device findings to Radio collection. Added `docs/samples/` (gitignored, contains location data) and optional modem-diag validation track. Added project status.
 - **1.4:** Added PCAPdroid to `reference/` (study only, GPL). Phase 3a now uses PCAPdroid's app API, including UDP packet streaming to NetLogger. Capture file changed from `.pcapng` to `.pcap` (PCAPng is a paid PCAPdroid feature).
 - **1.3:** Added development environment (Proxmox homelab, Ubuntu Server VM, Claude Code CLI, ADB over Wi-Fi). Added `reference/` folder with open-source projects for study and license rules for reuse. NetMonster Core evaluated as a parsing dependency in Milestone 2. Added device/ADB commands and `.gitignore` rules. Updated first prompt.
@@ -76,7 +77,7 @@ adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for revie
 - Record everything device-specific in `docs/device-quirks.md`.
 
 ### Root safety rules (strict)
-Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.netlogger`, `screencap`, `pull` of NetLogger's own files.
+Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.ac.pnp.netlogger`, `screencap`, `pull` of NetLogger's own files.
 **Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside NetLogger's own storage.
 
 ### Optional validation track (outside the app)
