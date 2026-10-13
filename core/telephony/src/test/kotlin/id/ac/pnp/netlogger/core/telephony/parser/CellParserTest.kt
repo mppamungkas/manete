@@ -3,11 +3,15 @@ package id.ac.pnp.netlogger.core.telephony.parser
 import id.ac.pnp.netlogger.core.model.radio.BandSource
 import id.ac.pnp.netlogger.core.model.radio.CellSource
 import id.ac.pnp.netlogger.core.model.radio.ConnectionStatus
+import id.ac.pnp.netlogger.core.model.radio.NetworkType
 import id.ac.pnp.netlogger.core.model.radio.Rat
 import id.ac.pnp.netlogger.core.model.radio.WarningCode
 import id.ac.pnp.netlogger.core.model.raw.CellInfoOrigin
+import id.ac.pnp.netlogger.core.model.raw.RawCell
 import id.ac.pnp.netlogger.core.model.raw.RawCellInfoResult
 import id.ac.pnp.netlogger.core.model.raw.RawLegacyCellLocation
+import id.ac.pnp.netlogger.core.model.raw.RawNrCell
+import id.ac.pnp.netlogger.core.model.raw.RawNrSignal
 import id.ac.pnp.netlogger.core.model.raw.RawSignalStrength
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,7 +31,9 @@ class CellParserTest {
         latched: Boolean = false,
         bandwidths: List<Int>? = null,
         override: Int? = null,
-    ) = parser.parse(ParseInput(info, ss, device, NOW_MS, legacy, latched, bandwidths, override))
+        mcc: String? = null,
+        parser: CellParser = this.parser,
+    ) = parser.parse(ParseInput(info, ss, device, NOW_MS, legacy, latched, bandwidths, override, mcc))
 
     @Test
     fun `serving LTE cell maps every field`() {
@@ -94,7 +100,7 @@ class CellParserTest {
 
     @Test
     fun `mapper fills band when getBands is empty and marks it MAPPED`() {
-        val mapper = BandMapper { rat, arfcn -> if (rat == Rat.LTE && arfcn == 1850) 3 else null }
+        val mapper = BandMapper { rat, arfcn, _ -> if (rat == Rat.LTE && arfcn == 1850) BandMapping(3, listOf(3)) else null }
         val cell = CellParser(mapper).parse(ParseInput(cellInfo(lteCell(bands = null)), null, MOTO, NOW_MS)).cells.single()
         assertEquals(3, cell.band)
         assertEquals(BandSource.MAPPED, cell.bandSource)
@@ -358,6 +364,94 @@ class CellParserTest {
         val nr = result.cells.single { it.rat == Rat.NR }
         assertTrue(nr.isServing)
         assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
+    }
+
+    // moto g45, Tri (510-89), 5G NSA, 2026-10-13: CellInfoNr unregistered with status NONE, PCI 479, NR-ARFCN 531870,
+    // bands [], TAC copied from LTE (19350), no signal. NR signal only in SignalStrength. LTE anchor: registered,
+    // status NONE (Qualcomm doesn't fill it).
+    private val motoAnchor = lteCell(status = 0, timestamp = NOW_MS - 6, ci = 12_866_878, tac = 19_350, pci = 479, earfcn = 1475,
+        bandwidthKhz = 10_000, signal = lteSignal(-96, -9, UNAVAILABLE, -71, UNAVAILABLE, 1))
+    private val motoNr = RawNrCell(false, 0, NOW_MS - 6, Long.MAX_VALUE, 19_350, 479, 531_870, emptyList(), null, null,
+        RawNrSignal(UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))
+    private val nsaParser = CellParser(BandMapper.Standard)
+
+    private fun motoNsa(nrSignal: RawNrSignal, override: Int? = 3, vararg extraNr: RawNrCell) = parse(
+        cellInfo(motoAnchor, *(listOf<RawCell>(motoNr) + extraNr).toTypedArray()),
+        signalStrength(lte = listOf(lteSignal(-97, -13, 9, -67, UNAVAILABLE, UNAVAILABLE)), nr = listOf(nrSignal), timestamp = NOW_MS - 1_263),
+        bandwidths = listOf(10_000, 10_000, 20_000), override = override, mcc = "510", parser = nsaParser,
+    )
+
+    @Test
+    fun `moto g45 NSA - unregistered NR cell becomes the NSA secondary, TAC blanked, band n41 mapped`() {
+        listOf(
+            RawNrSignal(-101, -11, 17, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE), // capture 1
+            RawNrSignal(-103, -12, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE), // capture 2
+        ).forEach { ssNr ->
+            val result = motoNsa(ssNr)
+            val nrCell = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+            assertTrue(nrCell.isServing)
+            assertEquals(ConnectionStatus.SECONDARY_SERVING, nrCell.connectionStatus)
+            assertEquals(479, nrCell.pci)
+            assertEquals(531_870, nrCell.arfcn)
+            assertEquals(41, nrCell.band)
+            assertEquals(BandSource.MAPPED, nrCell.bandSource)
+            assertNull("TAC copied from LTE is blanked", nrCell.tac)
+            assertNull("signal is not copied from SignalStrength", nrCell.rsrpDbm)
+
+            val nrSs = result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }
+            assertEquals(ssNr.ssRsrp, nrSs.rsrpDbm)
+            assertEquals(ssNr.ssSinr.takeIf { it != UNAVAILABLE }, nrSs.sinrDb)
+            assertNull(nrSs.pci)
+            assertEquals(1_263L, nrSs.cellInfoAgeMs)
+
+            val warnings = result.warnings.associateBy { it.code }
+            assertEquals("0", warnings.getValue(WarningCode.NR_NSA_SECONDARY_INFERRED).rawValue)
+            assertEquals("19350", warnings.getValue(WarningCode.NR_TAC_FROM_LTE).rawValue)
+            assertEquals("[7, 41, 90]", warnings.getValue(WarningCode.MULTIPLE_BANDS).rawValue)
+
+            val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 3, 13)
+            assertTrue(inputs.nrServingCellInfo)
+            assertEquals(NetworkType.NR_NSA, NetworkClassifier.classify(inputs, result.cells, 0))
+        }
+    }
+
+    @Test
+    fun `NR cell is not labelled without an NSA override`() {
+        listOf(null, 0, 1).forEach { override ->
+            val result = motoNsa(nrSignal(), override = override)
+            val nrCell = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+            assertFalse(nrCell.isServing)
+            assertEquals(19_350, nrCell.tac)
+            assertTrue(result.warnings.none { it.code == WarningCode.NR_NSA_SECONDARY_INFERRED || it.code == WarningCode.NR_TAC_FROM_LTE })
+        }
+    }
+
+    @Test
+    fun `several unregistered NR cells in NSA are not guessed`() {
+        val second = motoNr.copy(pci = 480, tac = UNAVAILABLE)
+        val result = motoNsa(nrSignal(), 3, second)
+        assertTrue(result.cells.filter { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }.none { it.isServing })
+        assertEquals("2", result.warnings.single { it.code == WarningCode.NR_NSA_SECONDARY_AMBIGUOUS }.rawValue)
+    }
+
+    @Test
+    fun `NR leg dropped - SignalStrength NR unavailable leaves no NR serving row`() {
+        // Seen a minute later: override back to LTE_CA, mNr all unavailable, CellInfoNr gone.
+        val result = parse(
+            cellInfo(motoAnchor),
+            signalStrength(lte = listOf(lteSignal()), nr = listOf(RawNrSignal(UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))),
+            override = 1, mcc = "510", parser = nsaParser,
+        )
+        assertTrue(result.cells.none { it.rat == Rat.NR })
+        assertFalse(result.nrSignalStrengthPresent)
+    }
+
+    @Test
+    fun `NR TAC that differs from the LTE TAC is kept`() {
+        val result = parse(
+            cellInfo(motoAnchor, motoNr.copy(tac = 77)), override = 3, mcc = "510", parser = nsaParser,
+        )
+        assertEquals(77, result.cells.single { it.rat == Rat.NR }.tac)
     }
 
     @Test

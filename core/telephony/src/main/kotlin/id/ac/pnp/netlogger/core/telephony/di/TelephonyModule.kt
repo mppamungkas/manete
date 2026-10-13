@@ -9,6 +9,7 @@ import id.ac.pnp.netlogger.core.model.Clock
 import id.ac.pnp.netlogger.core.telephony.AndroidClock
 import id.ac.pnp.netlogger.core.telephony.AndroidTelephonySource
 import id.ac.pnp.netlogger.core.telephony.TelephonySource
+import id.ac.pnp.netlogger.core.telephony.parser.BandMapper
 import id.ac.pnp.netlogger.core.telephony.parser.CellParser
 
 @Module
@@ -22,6 +23,6 @@ abstract class TelephonyModule {
 
     companion object {
         @Provides
-        fun provideCellParser(): CellParser = CellParser()
+        fun provideCellParser(): CellParser = CellParser(BandMapper.Standard)
     }
 }

@@ -70,6 +70,21 @@ enum class WarningCode {
      */
     SECONDARY_SERVING_WITHOUT_CA,
 
+    /**
+     * NSA (override NR_NSA / NR_NSA_MMWAVE / NR_ADVANCED, registered LTE cell) and exactly one NR cell that is
+     * neither registered nor serving: it is labelled SECONDARY_SERVING. `rawValue` holds the reported status.
+     */
+    NR_NSA_SECONDARY_INFERRED,
+
+    /** As NR_NSA_SECONDARY_INFERRED, but several NR cells qualify, so none is labelled. `rawValue` is the count. */
+    NR_NSA_SECONDARY_AMBIGUOUS,
+
+    /**
+     * The inferred NSA NR cell reports the LTE serving cell's TAC. An NSA NR cell broadcasts no TAC, so the modem
+     * copied it; the column is null and `rawValue` holds the reported TAC.
+     */
+    NR_TAC_FROM_LTE,
+
     /** Samsung, Android 12+: serving TAC/LAC bytes swapped; the column holds the corrected value. */
     SAMSUNG_TAC_BYTE_SWAP,
 

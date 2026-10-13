@@ -57,6 +57,47 @@ cannot be cross-checked from the shell. PCI 140 / EARFCN 500 / band 1 / 20 MHz w
 | CellInfo ages 3–7 s although origin is FRESH | Ages 3102 ms then 6977 ms | Shown as reported | Samsung may answer `requestCellInfoUpdate` with the last modem report. Check in milestone 3 with screen on/off |
 | TAC byte swap | No `SAMSUNG_TAC_BYTE_SWAP` warning; TAC 11550 | Not triggered | Can't verify without CI/TAC in dumpsys. Compare with the cell in a crowd-sourced map or Network Survey on the same phone |
 
+### moto g45, Tri (510-89), 5G NSA (LTE B3 anchor + NR 531870), 2026-10-13
+
+Captured twice with the status bar showing 5G (`overrideNetwork=NR_NSA`, override 3). Raw dumps in `docs/samples/`.
+No parse warnings, no extraction failures. Reported vs. G-NetTrack Pro: "NR_NSA in the header, but no NR values".
+
+**The NR data is not dropped. It is split across two sources, and neither one is labelled as the serving NR cell:**
+
+| Source | What it holds | How NetLogger shows it now |
+|---|---|---|
+| `CellInfoNr` | `mRegistered=NO`, `mCellConnectionStatus=0` (NONE), PCI 479, NR-ARFCN 531870, `mBands=[]`, TAC 19350, NCI unavailable, **all signal fields unavailable** | Parsed (no cast or filter problem), but **as a neighbor** because it is neither registered nor PRIMARY/SECONDARY_SERVING: neighbor row "NR 479 531870 – –". Band null (`getBands()` empty, `BandMapper.None` until milestone 7). `nsaInputs.nrCellInfo = false`. |
+| `SignalStrength.getCellSignalStrengths()` → `CellSignalStrengthNr` | SS-RSRP -101 / -103, SS-RSRQ -11 / -12, SS-SINR 17 / unavailable; CSI unavailable | Parsed: "NR serving · SIGNAL_STRENGTH" card with RSRP/RSRQ, **no PCI/ARFCN/band** (by design, decision 001 addendum). `nsaInputs.nrSignal = true`. |
+
+Other observations:
+- **NR leg comes and goes.** Within 1–2 minutes the phone switched between `NR_NSA` (5G icon) and `LTE_CA` (4G+) while
+  idle on USB. When the SCG is released, `mNr` returns to all-unavailable and the NR card disappears. NSA NR is added
+  with data activity; a field check with idle data will often see no NR.
+- **NR TAC = LTE TAC (19350) and NR PCI = LTE PCI (479).** An NSA NR cell broadcasts no TAC, so the TAC is most likely
+  copied from the LTE anchor by the modem (compare NetMonster `NrIdentityFromLtePostprocessor`, which handles the same
+  pattern for the NCI on Xiaomi). The equal PCI may be real (co-sited planning); to confirm against G-NetTrack's NR PCI.
+- **Band:** NR-ARFCN 531870 = 2659.35 MHz (ΔF = 5 kHz for N < 600000). That frequency lies in n41 (499200–537999),
+  n90 (499200–537999) and n7 (524000–537999). `getBands()` is empty, so the band needs `BandMapper` with an operator
+  preference: Indonesian 2.6 GHz NR is TDD → n41, as G-NetTrack shows.
+- **SignalStrength LTE vs. CellInfo LTE** (same moments): RSRP -97/-97, -96/-97, -95/-97, -101/-103; RSRQ differs by up
+  to 4 dB. No constant offset in these few pairs; recheck once sessions are stored (milestone 4).
+- **SignalStrength age:** the callback fires only on change, so a stable signal has an age of tens of seconds (40.7 s seen).
+
+**Fixed (2026-10-13), confirmed on the phone:**
+- With override NR_NSA / NR_NSA_MMWAVE / NR_ADVANCED, a registered LTE cell and exactly one unregistered, non-serving
+  NR cell, that cell becomes `SECONDARY_SERVING` with `NR_NSA_SECONDARY_INFERRED` (raw status kept). Several such NR
+  cells → none labelled, `NR_NSA_SECONDARY_AMBIGUOUS`. `nsaInputs.nrCellInfo` is now true in this case.
+- Its TAC is blanked when it equals the LTE serving TAC (`NR_TAC_FROM_LTE`, raw TAC kept). PCI is kept as reported
+  (still to compare with G-NetTrack's NR PCI).
+- Band from `BandMapper.Standard` (NR table from TS 38.101-1/-2): 531870 → n41, `bandSource = MAPPED`,
+  `MULTIPLE_BANDS` with `[7, 41, 90]`.
+- Signal stays in the separate `SIGNAL_STRENGTH` NR row; the Live screen shows both cards. SignalStrength rows show
+  "Updated X s ago" and are no longer grayed out; the age stays in the data.
+
+**Known limitation:** right after the app starts, the display override can be missing for a few seconds (seen:
+`override=–` about 2 s after launch) until the first `onDisplayInfoChanged`; there is no getter to seed it. In that
+window the NR cell stays a neighbor. Logging sessions are long, so this affects only the first ticks.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
@@ -69,8 +110,8 @@ cannot be cross-checked from the shell. PCI 140 / EARFCN 500 / band 1 / 20 MHz w
 
 - **GSM neighbors reported as LTE** (NetMonster `PixelTensorPostprocessor`, Samsung modems in Pixel Tensor):
   LTE neighbor with a PCI, an RSRP and no band, RSSI or RSRQ. Check on the A56.
-- **No `CellInfoNr` in NSA**: expected on many phones; handled by the `SIGNAL_STRENGTH` NR row. Record which
-  phone does what.
+- **No `CellInfoNr` in NSA**: expected on many phones; handled by the `SIGNAL_STRENGTH` NR row. moto g45 does list
+  `CellInfoNr` in NSA, but unregistered with status NONE and no signal (see above). A56: to check in 5G coverage.
 - **RSSNR scaling**: some OEMs report 0.1 dB units (values > 30 → `OUT_OF_RANGE`). moto g45: dB units (9, 11) in SignalStrength. A56: to check.
 - **`getBands()` empty**: until `BandMapper` (milestone 7), band stays null. Record how often each phone does this.
 - **Cached cell info with screen off**: check `cellInfoOrigin` and `cellInfoAgeMs` in milestone 3 tests.

@@ -20,15 +20,6 @@ import id.ac.pnp.netlogger.core.model.raw.RawNrSignal
 import id.ac.pnp.netlogger.core.model.raw.RawSignalStrength
 import id.ac.pnp.netlogger.core.model.raw.RawWcdmaCell
 
-/** Maps an ARFCN to a band when getBands() is empty. The real mapper arrives in milestone 7. */
-fun interface BandMapper {
-    fun map(rat: Rat, arfcn: Int): Int?
-
-    companion object {
-        val None = BandMapper { _, _ -> null }
-    }
-}
-
 data class ParseInput(
     val cellInfo: RawCellInfoResult,
     val signalStrength: RawSignalStrength?,
@@ -43,6 +34,8 @@ data class ParseInput(
     val cellBandwidthsKhz: List<Int>? = null,
     /** TelephonyDisplayInfo.getOverrideNetworkType(); null when unknown. */
     val overrideNetworkType: Int? = null,
+    /** MCC of the registered network (ServiceState); picks between overlapping bands in [BandMapper]. */
+    val registeredMcc: String? = null,
 )
 
 data class ParseResult(
@@ -63,7 +56,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
     fun parse(input: ParseInput): ParseResult {
         val warnings = mutableListOf<ParseWarning>()
-        val ctx = Ctx(warnings, input.nowElapsedMs)
+        val ctx = Ctx(warnings, input.nowElapsedMs, input.registeredMcc)
 
         if (input.cellInfo.extractionFailures > 0) {
             warnings += ParseWarning(WarningCode.EXTRACTION_FAILED, rawValue = input.cellInfo.extractionFailures.toString())
@@ -88,6 +81,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         }
 
         cells = demoteFalseSecondaries(cells, input, warnings)
+        cells = inferNsaSecondary(cells, input, warnings)
 
         var latched = input.samsungTacSwapLatched
         if (input.device.isSamsung) {
@@ -131,6 +125,44 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
     }
 
     /**
+     * In NSA, some modems (moto g45, Qualcomm) list the NR leg as an unregistered cell with connection status NONE
+     * and no signal; the signal only comes through SignalStrength. When the display override says NSA, a
+     * registered LTE cell exists and exactly one NR cell is neither registered nor serving, that cell is labelled
+     * SECONDARY_SERVING. Its TAC is dropped when it equals the LTE serving TAC (NSA NR cells broadcast none).
+     * Signal is never copied from SignalStrength; that stays in its own row.
+     */
+    private fun inferNsaSecondary(cells: List<CellSample>, input: ParseInput, warnings: MutableList<ParseWarning>): List<CellSample> {
+        if (input.overrideNetworkType !in NSA_OVERRIDES) return cells
+        val anchor = cells.firstOrNull { it.source == CellSource.CELL_INFO && it.rat == Rat.LTE && it.isRegistered == true }
+            ?: return cells
+        val nr = cells.filter { it.source == CellSource.CELL_INFO && it.rat == Rat.NR }
+        if (nr.any { it.isServing }) return cells
+        val candidates = nr.filter { it.isRegistered != true }
+        if (candidates.size > 1) {
+            warnings += ParseWarning(WarningCode.NR_NSA_SECONDARY_AMBIGUOUS, Rat.NR, field = "nrCells", rawValue = candidates.size.toString())
+            return cells
+        }
+        val target = candidates.singleOrNull() ?: return cells
+        return cells.map { cell ->
+            if (cell !== target) return@map cell
+            warnings += ParseWarning(WarningCode.NR_NSA_SECONDARY_INFERRED, Rat.NR, cell.pci, "connectionStatus", cell.connectionStatus.rawCode())
+            var tac = cell.tac
+            if (tac != null && tac == anchor.tac) {
+                warnings += ParseWarning(WarningCode.NR_TAC_FROM_LTE, Rat.NR, cell.pci, "tac", tac.toString())
+                tac = null
+            }
+            cell.copy(isServing = true, connectionStatus = ConnectionStatus.SECONDARY_SERVING, tac = tac)
+        }
+    }
+
+    private fun ConnectionStatus?.rawCode(): String = when (this) {
+        ConnectionStatus.NONE -> CONNECTION_NONE.toString()
+        ConnectionStatus.PRIMARY_SERVING -> CONNECTION_PRIMARY_SERVING.toString()
+        ConnectionStatus.SECONDARY_SERVING -> CONNECTION_SECONDARY_SERVING.toString()
+        null -> "null"
+    }
+
+    /**
      * Serving-cell signal from SignalStrength.getCellSignalStrengths(): one SIGNAL_STRENGTH row per RAT entry
      * with any valid value. Many phones omit CellInfoNr in NSA, so this is the second source for NR. The rows
      * are serving, have no identity (SignalStrength has no PCI or ARFCN, and none is copied from CellInfo),
@@ -146,7 +178,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             .filter { it.hasSignal() }
     }
 
-    private inner class Ctx(val warnings: MutableList<ParseWarning>, private val nowElapsedMs: Long) {
+    private inner class Ctx(val warnings: MutableList<ParseWarning>, private val nowElapsedMs: Long, private val mcc: String?) {
 
         fun lte(raw: RawLteCell): CellSample {
             val v = Validator(warnings, Rat.LTE, raw.pci)
@@ -279,8 +311,11 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
                 warnings += ParseWarning(WarningCode.MULTIPLE_BANDS, rat, pci, "bands", valid.toString())
             }
             valid.firstOrNull()?.let { return it to BandSource.API }
-            val mapped = arfcn?.let { bandMapper.map(rat, it) }
-            return if (mapped != null) mapped to BandSource.MAPPED else null to null
+            val mapped = arfcn?.let { bandMapper.map(rat, it, mcc) } ?: return null to null
+            if (mapped.candidates.size > 1) {
+                warnings += ParseWarning(WarningCode.MULTIPLE_BANDS, rat, pci, "mappedBands", mapped.candidates.toString())
+            }
+            return mapped.band to BandSource.MAPPED
         }
     }
 
@@ -290,8 +325,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         const val CONNECTION_PRIMARY_SERVING = 1
         const val CONNECTION_SECONDARY_SERVING = 2
 
-        // TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_CA.
+        // TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_* values.
         const val OVERRIDE_LTE_CA = 1
+        val NSA_OVERRIDES = setOf(3, 4, 5) // NR_NSA, NR_NSA_MMWAVE, NR_ADVANCED
     }
 }
 

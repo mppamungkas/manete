@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.ac.pnp.netlogger.core.model.radio.CellSample
+import id.ac.pnp.netlogger.core.model.radio.CellSource
+import java.util.Locale
 import id.ac.pnp.netlogger.core.model.radio.RadioSnapshot
 import id.ac.pnp.netlogger.core.ui.component.PlaceholderScreen
 
@@ -125,7 +127,11 @@ private fun ServingCellCard(c: CellSample) {
                 Field("CSI RSRP / RSRQ / SINR", "${c.csiRsrpDbm.orDash()} / ${c.csiRsrqDb.orDash()} / ${c.csiSinrDb.orDash()}", stale)
             }
             if (c.rscpDbm != null || c.ecNoDb != null) Field("RSCP / Ec/No", "${c.rscpDbm.orDash()} / ${c.ecNoDb.orDash()}", stale)
-            Field("Age", "${c.cellInfoAgeMs.orDash()} ms", stale)
+            if (c.source == CellSource.SIGNAL_STRENGTH) {
+                Field("Updated", c.cellInfoAgeMs?.let { "%.1f s ago".format(Locale.ROOT, it / 1000.0) }.orDash())
+            } else {
+                Field("Age", "${c.cellInfoAgeMs.orDash()} ms", stale)
+            }
         }
     }
 }
@@ -194,6 +200,7 @@ private fun TableRow(cells: List<String>, header: Boolean = false, stale: Boolea
 
 private const val MAX_WARNINGS_SHOWN = 10
 
-private fun CellSample.isStale() = (cellInfoAgeMs ?: 0) > STALE_AGE_MS
+// SignalStrength only fires on change, so a large age there means "unchanged", not "stale": never grayed out.
+private fun CellSample.isStale() = source == CellSource.CELL_INFO && (cellInfoAgeMs ?: 0) > STALE_AGE_MS
 
 private fun Any?.orDash(): String = this?.toString() ?: "–"

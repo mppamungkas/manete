@@ -130,3 +130,16 @@ Found on the moto g45 (see `docs/device-quirks.md`): CellInfo reports LTE RSSNR 
 5. **`flat.csv` rule (milestone 5):** for each serving-cell field (RSRP, RSRQ, SINR, RSSI, CQI, TA, CSI-*), take
    the CELL_INFO value; if it is null, take the SIGNAL_STRENGTH value. Each such field gets a source column
    (`sinrSource`, `rsrpSource`, …) with `CELL_INFO`, `SIGNAL_STRENGTH` or empty. Document in `docs/columns.md`.
+
+## Addendum (2026-10-13): NSA NR cell labelling and NR band mapping
+
+From the moto g45 NSA capture (see `docs/device-quirks.md`), decided with the user:
+
+1. In NSA (override NR_NSA / NR_NSA_MMWAVE / NR_ADVANCED, registered LTE cell), exactly one unregistered,
+   non-serving NR cell is labelled `SECONDARY_SERVING` with a `NR_NSA_SECONDARY_INFERRED` warning. With several
+   candidates nothing is guessed (`NR_NSA_SECONDARY_AMBIGUOUS`).
+2. Its TAC is blanked when equal to the LTE serving TAC (`NR_TAC_FROM_LTE`, raw value kept).
+3. No signal merging: the NR signal stays in its `SIGNAL_STRENGTH` row (first addendum).
+4. The NR part of `BandMapper` is pulled forward from milestone 7: full NR-ARFCN table from TS 38.101-1/-2; on
+   overlap an MCC preference (510 → n41), then TDD first for 510, then the narrowest band, then the lowest number.
+   All candidates go into a `MULTIPLE_BANDS` warning. LTE mapping and the per-operator band tests stay in milestone 7.

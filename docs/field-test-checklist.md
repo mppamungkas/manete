@@ -12,6 +12,8 @@ Do this on each phone, in LTE-only coverage and in 5G NSA coverage (5G icon visi
 - [ ] Within the same few seconds: `adb shell dumpsys telephony.registry > docs/samples/<device>_<operator>_<situation>_<date>.txt` (gitignored)
 - [ ] Compare serving LTE: PCI, EARFCN, band, TAC, CI, RSRP/RSRQ/RSSNR (`mCellInfo` against the `CELL_INFO` card, `mSignalStrength.mLte` against the `SIGNAL_STRENGTH` card; both are shown)
 - [ ] Compare NR: does `dumpsys` list a `CellInfoNr`? Does the Live screen show NR as `CELL_INFO` or `SIGNAL_STRENGTH`?
+      NSA NR is only added while data moves: keep a download running, and wait until the status bar shows 5G
+      (`overrideNetwork=NR_NSA` in dumpsys) before capturing. Check the NR card's PCI and band against G-NetTrack.
 - [ ] Compare network type with `mTelephonyDisplayInfo` (`overrideNetworkType`) and the status bar icon
 - [ ] Note every parse warning shown, especially `SAMSUNG_*` and `OUT_OF_RANGE`
 - [ ] Neighbors: count and PCIs roughly match `dumpsys`

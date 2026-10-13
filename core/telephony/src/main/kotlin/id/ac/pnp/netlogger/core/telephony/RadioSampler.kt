@@ -54,6 +54,7 @@ class RadioSampler @Inject constructor(
                     samsungTacSwapLatched = tacSwapLatched,
                     cellBandwidthsKhz = serviceState?.cellBandwidthsKhz,
                     overrideNetworkType = state.displayInfo?.overrideNetworkType,
+                    registeredMcc = serviceState?.operatorNumeric?.takeIf { it.length >= 5 }?.take(3),
                 ),
             )
             tacSwapLatched = result.samsungTacSwapLatched
