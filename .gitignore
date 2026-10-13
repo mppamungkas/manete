@@ -1,0 +1,16 @@
+reference/
+local.properties
+*.jks
+*.keystore
+.gradle/
+.kotlin/
+build/
+captures/
+*.pcap
+*.pcapng
+exports/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
