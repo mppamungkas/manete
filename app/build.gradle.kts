@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "id.ac.pnp.netlogger"
+    namespace = "id.my.pamslab.netlogger"
 
     defaultConfig {
-        applicationId = "id.ac.pnp.netlogger"
+        applicationId = "id.my.pamslab.netlogger"
         versionCode = 1
         versionName = "0.1.0"
     }

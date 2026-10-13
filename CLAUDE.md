@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.2** · last updated 2026-10-13
+**CLAUDE.md version 1.5.3** · last updated 2026-10-13
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.3:** Package / application ID renamed to `id.my.pamslab.netlogger` everywhere (root safety rules updated).
 - **1.5.2:** Added Samsung Galaxy A56 (unrooted, serial `RRGYB06DN2T`) as the unrooted reference phone; always use `adb -s <serial>` with two phones attached.
 - **1.5.1:** Package / application ID is `id.ac.pnp.netlogger` (root safety rules corrected).
 - **1.5:** Project license set to GPL v3; reference reuse rules updated accordingly. Added pilot device (moto g45 5G, rooted, USB passthrough) and root safety rules. ADB over USB is now the primary connection. Added first device findings to Radio collection. Added `docs/samples/` (gitignored, contains location data) and optional modem-diag validation track. Added project status.
@@ -87,7 +88,7 @@ With two phones attached, **always** use `adb -s <serial>` (and `ANDROID_SERIAL=
 - Record everything device-specific in `docs/device-quirks.md`.
 
 ### Root safety rules (strict)
-Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.ac.pnp.netlogger`, `screencap`, `pull` of NetLogger's own files.
+Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.my.pamslab.netlogger`, `screencap`, `pull` of NetLogger's own files.
 **Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside NetLogger's own storage.
 
 ### Optional validation track (outside the app)

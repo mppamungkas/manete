@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
 }
 
-group = "id.ac.pnp.netlogger.buildlogic"
+group = "id.my.pamslab.netlogger.buildlogic"
 
 dependencies {
     compileOnly(libs.android.gradlePlugin)

@@ -12,12 +12,12 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 internal const val COMPILE_SDK = 35
 internal const val MIN_SDK = 31
 internal const val TARGET_SDK = 35
-internal const val BASE_NAMESPACE = "id.ac.pnp.netlogger"
+internal const val BASE_NAMESPACE = "id.my.pamslab.netlogger"
 
 internal val Project.libs: VersionCatalog
     get() = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
-/** ":core:telephony" -> "id.ac.pnp.netlogger.core.telephony" */
+/** ":core:telephony" -> "id.my.pamslab.netlogger.core.telephony" */
 internal fun Project.defaultNamespace(): String =
     BASE_NAMESPACE + path.replace(':', '.').replace('-', '_')
 

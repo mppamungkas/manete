@@ -6,7 +6,7 @@ Code copied or adapted from other projects. Gradle dependencies are listed in `g
 
 - **Source:** https://github.com/mroczis/netmonster-core (studied at commit `33063e0`)
 - **License:** Apache License 2.0. Copyright 2019 Michal Mroček.
-- **Adapted into:** `core/telephony/src/main/kotlin/id/ac/pnp/netlogger/core/telephony/parser/SamsungQuirks.kt`
+- **Adapted into:** `core/telephony/src/main/kotlin/id/my/pamslab/netlogger/core/telephony/parser/SamsungQuirks.kt`
 - **From:**
   - `feature/postprocess/SamsungEndiannessPostprocessor.kt`: Samsung (Android 12+) serving TAC/LAC byte swap,
     detected by comparing with the deprecated `getCellLocation()`.
