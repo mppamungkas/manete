@@ -2,8 +2,12 @@ package id.ac.pnp.netlogger.core.telephony.parser
 
 import id.ac.pnp.netlogger.core.model.radio.Rat
 
-/** A band derived from an ARFCN. [candidates] lists every band containing the frequency, [band] included. */
-data class BandMapping(val band: Int, val candidates: List<Int>)
+/**
+ * A band derived from an ARFCN. [candidates] lists every band containing the frequency, [band] included.
+ * [countryPreferred] is true when [band] came from the country's known band list, strong enough to overrule a
+ * contradicting getBands().
+ */
+data class BandMapping(val band: Int, val candidates: List<Int>, val countryPreferred: Boolean = false)
 
 /** Maps an ARFCN to a band when getBands() is empty. Used only as a fallback; results are marked MAPPED. */
 fun interface BandMapper {
@@ -89,8 +93,8 @@ object NrBandTable {
         if (matches.isEmpty()) return null
         val numbers = matches.map { it.number }
         val byWidth = compareBy<Band>({ it.dlHighKhz - it.dlLowKhz }, { it.number })
-        val band = PREFERRED_BY_MCC[mcc]?.firstOrNull { it in numbers }
-            ?: matches.filter { mcc in TDD_FIRST_MCC && it.duplex == Duplex.TDD }.minWithOrNull(byWidth)?.number
+        PREFERRED_BY_MCC[mcc]?.firstOrNull { it in numbers }?.let { return BandMapping(it, numbers, countryPreferred = true) }
+        val band = matches.filter { mcc in TDD_FIRST_MCC && it.duplex == Duplex.TDD }.minWithOrNull(byWidth)?.number
             ?: matches.minWith(byWidth).number
         return BandMapping(band, numbers)
     }

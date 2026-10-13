@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.1** · last updated 2026-10-13
+**CLAUDE.md version 1.5.2** · last updated 2026-10-13
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.2:** Added Samsung Galaxy A56 (unrooted, serial `RRGYB06DN2T`) as the unrooted reference phone; always use `adb -s <serial>` with two phones attached.
 - **1.5.1:** Package / application ID is `id.ac.pnp.netlogger` (root safety rules corrected).
 - **1.5:** Project license set to GPL v3; reference reuse rules updated accordingly. Added pilot device (moto g45 5G, rooted, USB passthrough) and root safety rules. ADB over USB is now the primary connection. Added first device findings to Radio collection. Added `docs/samples/` (gitignored, contains location data) and optional modem-diag validation track. Added project status.
 - **1.4:** Added PCAPdroid to `reference/` (study only, GPL). Phase 3a now uses PCAPdroid's app API, including UDP packet streaming to NetLogger. Capture file changed from `.pcapng` to `.pcap` (PCAPng is a paid PCAPdroid feature).
@@ -70,10 +71,19 @@ adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for revie
 - Never store signing keys, keystore passwords or API tokens in the repo. Use `local.properties` or environment variables (both gitignored).
 
 ## Pilot device
-- **Motorola moto g45 5G** (Snapdragon 6s Gen 3, SM6375), Android 14+, ADB serial `ZP22222MQL`.
+- **Motorola moto g45 5G** (Snapdragon 6s Gen 3, SM6375), Android 15, ADB serial `ZP22222MQL`.
 - **Rooted.** Root is for the developer's validation tools only; NetLogger must never require or use root.
 - Dual SIM; slot 1 currently Tri / IOH (MCC 510, MNC 89), slot 2 empty.
-- Before marking a milestone done, test at least once on an **unrooted** phone as well (background, permissions and battery behavior can differ on rooted devices).
+
+### Unrooted reference phone
+- **Samsung Galaxy A56** (SM-A566B, Exynos 1580 / Samsung modem), Android 16, ADB serial `RRGYB06DN2T`. **Unrooted.**
+- SIM varies between tests (seen: Telkomsel 510-10, Tri 510-89); record the operator with every finding.
+- Samsung redacts cell identity (`mCi`, `mPci`, `mTac`, `mEarfcn`) in `dumpsys telephony.registry`; compare those via NetLogger or `mPhysicalChannelConfigs`.
+- Connected over USB like the pilot phone; ADB over Wi-Fi as fallback (keeps Wi-Fi on, so mobile data and NR stay idle).
+
+With two phones attached, **always** use `adb -s <serial>` (and `ANDROID_SERIAL=<serial> ./gradlew installDebug` to install on one).
+
+- Before marking a milestone done, test at least once on the **unrooted** phone as well (background, permissions and battery behavior can differ on rooted devices).
 - Record everything device-specific in `docs/device-quirks.md`.
 
 ### Root safety rules (strict)

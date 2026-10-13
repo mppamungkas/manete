@@ -9,7 +9,7 @@
  * Changes from the original: reimplemented on NetLogger's CellSample; every correction emits a ParseWarning
  * that keeps the raw value instead of changing data silently; the byte-swap latch lives for one session
  * instead of being persisted per Android build. Cell ID 0, TAC 0 and LTE CQI 0 on neighbors were added
- * from our own A56 field data (not in NetMonster).
+ * from our own A56 field data (not in NetMonster), as was the NR CSI floor placeholder.
  */
 package id.ac.pnp.netlogger.core.telephony.parser
 
@@ -25,6 +25,9 @@ internal object SamsungQuirks {
 
     private const val ANDROID_12 = 31
     private const val PLACEHOLDER_RSSI = -51
+    private const val CSI_RSRQ_FLOOR = -20
+    private const val CSI_SINR_FLOOR = -23
+    private const val CSI_GAP_DB = 20
 
     data class SwapResult(val cells: List<CellSample>, val latched: Boolean)
 
@@ -66,7 +69,7 @@ internal object SamsungQuirks {
      */
     fun dropPlaceholders(cells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> =
         cells.map { cell ->
-            var c = fixLteSnrZero(cell, warnings)
+            var c = fixNrCsiFloor(fixLteSnrZero(cell, warnings), warnings)
             if (c.isServing) return@map c
             fun drop(field: String, raw: Int): Nothing? {
                 warnings += ParseWarning(WarningCode.SAMSUNG_NEIGHBOR_PLACEHOLDER, c.rat, c.pci, field, raw.toString())
@@ -90,6 +93,22 @@ internal object SamsungQuirks {
         if (cell.rat != Rat.LTE || cell.sinrDb != 0) return cell
         warnings += ParseWarning(WarningCode.SAMSUNG_LTE_SNR_ZERO, cell.rat, cell.pci, "rssnr", "0")
         return cell.copy(sinrDb = null)
+    }
+
+    /**
+     * A56 (Android 16) reports NR CSI-RSRP / CSI-RSRQ / CSI-SINR as -140 / -20 / -23 while SS-RSRP is about -100:
+     * the RSRQ and SINR sit at the floor of Android's ranges and the RSRP is far below SS-RSRP, so nothing was
+     * measured. All three become null, each with a warning.
+     */
+    fun fixNrCsiFloor(cell: CellSample, warnings: MutableList<ParseWarning>): CellSample {
+        if (cell.rat != Rat.NR || cell.csiRsrqDb != CSI_RSRQ_FLOOR || cell.csiSinrDb != CSI_SINR_FLOOR) return cell
+        val csiRsrp = cell.csiRsrpDbm
+        val ssRsrp = cell.rsrpDbm
+        if (csiRsrp != null && ssRsrp != null && csiRsrp > ssRsrp - CSI_GAP_DB) return cell
+        listOf("csiRsrp" to csiRsrp, "csiRsrq" to cell.csiRsrqDb, "csiSinr" to cell.csiSinrDb).forEach { (field, raw) ->
+            if (raw != null) warnings += ParseWarning(WarningCode.SAMSUNG_NR_CSI_PLACEHOLDER, cell.rat, cell.pci, field, raw.toString())
+        }
+        return cell.copy(csiRsrpDbm = null, csiRsrqDb = null, csiSinrDb = null)
     }
 
     fun swapBytes(value: Int): Int = ((value and 0xFF) shl 8) or ((value shr 8) and 0xFF)

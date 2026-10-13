@@ -82,6 +82,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
         cells = demoteFalseSecondaries(cells, input, warnings)
         cells = inferNsaSecondary(cells, input, warnings)
+        cells = blankNsaTacZero(cells, warnings)
 
         var latched = input.samsungTacSwapLatched
         if (input.device.isSamsung) {
@@ -131,7 +132,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
      * In NSA, some modems (moto g45, Qualcomm) list the NR leg as an unregistered cell with connection status NONE
      * and no signal; the signal only comes through SignalStrength. When the display override says NSA, a
      * registered LTE cell exists and exactly one NR cell is neither registered nor serving, that cell is labelled
-     * SECONDARY_SERVING. Its TAC is dropped when it equals the LTE serving TAC (NSA NR cells broadcast none).
+     * SECONDARY_SERVING. Its TAC is dropped when it equals the LTE serving TAC (NSA NR cells broadcast none); when
+     * the PCI equals the LTE PCI as well, the identity was copied from the anchor and the PCI is dropped too (a
+     * co-sited NR cell may share the PCI, but not together with a TAC it cannot have).
      * Signal is never copied from SignalStrength; that stays in its own row.
      */
     private fun inferNsaSecondary(cells: List<CellSample>, input: ParseInput, warnings: MutableList<ParseWarning>): List<CellSample> {
@@ -150,11 +153,29 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             if (cell !== target) return@map cell
             warnings += ParseWarning(WarningCode.NR_NSA_SECONDARY_INFERRED, Rat.NR, cell.pci, "connectionStatus", cell.connectionStatus.rawCode())
             var tac = cell.tac
-            if (tac != null && tac == anchor.tac) {
+            var pci = cell.pci
+            val tacCopied = tac != null && tac == anchor.tac
+            if (tacCopied) {
                 warnings += ParseWarning(WarningCode.NR_TAC_FROM_LTE, Rat.NR, cell.pci, "tac", tac.toString())
                 tac = null
             }
-            cell.copy(isServing = true, connectionStatus = ConnectionStatus.SECONDARY_SERVING, tac = tac)
+            if (tacCopied && pci != null && pci == anchor.pci) {
+                warnings += ParseWarning(WarningCode.NR_PCI_FROM_LTE, Rat.NR, cell.pci, "pci", pci.toString())
+                pci = null
+            }
+            cell.copy(isServing = true, connectionStatus = ConnectionStatus.SECONDARY_SERVING, tac = tac, pci = pci)
+        }
+    }
+
+    /** An NSA NR secondary (LTE anchor registered) has no TAC of its own; A56 reports 0 there. */
+    private fun blankNsaTacZero(cells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> {
+        if (cells.none { it.source == CellSource.CELL_INFO && it.rat == Rat.LTE && it.isRegistered == true }) return cells
+        return cells.map { cell ->
+            val nsaSecondary = cell.source == CellSource.CELL_INFO && cell.rat == Rat.NR &&
+                cell.connectionStatus == ConnectionStatus.SECONDARY_SERVING
+            if (!nsaSecondary || cell.tac != 0) return@map cell
+            warnings += ParseWarning(WarningCode.NR_NSA_TAC_ZERO, Rat.NR, cell.pci, "tac", "0")
+            cell.copy(tac = null)
         }
     }
 
@@ -177,7 +198,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         val lte = ss.lte.map { ctx.lteSignalCell(it, age) }
         val nr = ss.nr.map { ctx.nrSignalCell(it, age) }
         return (lte + nr)
-            .map { if (device.isSamsung) SamsungQuirks.fixLteSnrZero(it, ctx.warnings) else it }
+            .map { if (device.isSamsung) SamsungQuirks.fixNrCsiFloor(SamsungQuirks.fixLteSnrZero(it, ctx.warnings), ctx.warnings) else it }
             .filter { it.hasSignal() }
     }
 
@@ -303,7 +324,10 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             return age
         }
 
-        /** getBands() first; the mapper only when the API gives nothing. */
+        /**
+         * getBands() first; the mapper when the API gives nothing, or when getBands() contradicts the country's
+         * known band for this ARFCN (A56: n7 for an n41 carrier), with an API_BAND_CONFLICT warning.
+         */
         private fun band(rat: Rat, bands: List<Int>?, arfcn: Int?, range: IntRange, pci: Int?): Pair<Int?, BandSource?> {
             val reported = bands.orEmpty()
             val valid = reported.filter { it in range }
@@ -313,8 +337,14 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             if (valid.size > 1) {
                 warnings += ParseWarning(WarningCode.MULTIPLE_BANDS, rat, pci, "bands", valid.toString())
             }
-            valid.firstOrNull()?.let { return it to BandSource.API }
-            val mapped = arfcn?.let { bandMapper.map(rat, it, mcc) } ?: return null to null
+            val mapped = arfcn?.let { bandMapper.map(rat, it, mcc) }
+            if (valid.isNotEmpty()) {
+                if (mapped == null || !mapped.countryPreferred) return valid.first() to BandSource.API
+                if (mapped.band in valid) return mapped.band to BandSource.API
+                warnings += ParseWarning(WarningCode.API_BAND_CONFLICT, rat, pci, "bands", valid.toString())
+                return mapped.band to BandSource.MAPPED
+            }
+            if (mapped == null) return null to null
             if (mapped.candidates.size > 1) {
                 warnings += ParseWarning(WarningCode.MULTIPLE_BANDS, rat, pci, "mappedBands", mapped.candidates.toString())
             }

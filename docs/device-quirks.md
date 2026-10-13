@@ -118,9 +118,43 @@ Other findings:
   `SAMSUNG_TAC_BYTE_SWAP` warning. The correction stays in code for other Samsung models/firmware.
 - **Cell bandwidths include 60000 kHz** (`[10000, 10000, 60000]`) while `isUsingCarrierAggregation=false` and one
   PhysicalChannelConfig (10 MHz). 60 MHz is not a valid LTE bandwidth, so this is either an NR carrier or a stale
-  entry; the list is not reliable as a CA count on this phone. **Fixed:** for an LTE primary the SECONDARY_SERVING
+  entry; the list is not reliable as a CA count on this phone. *Update (NSA capture below): the 60000 kHz entry is the
+  NR n41 carrier (PhysicalChannelConfig: NR, 60 MHz), i.e. Samsung puts the NR SCG bandwidth into this list.* **Fixed:** for an LTE primary the SECONDARY_SERVING
   rule now counts only LTE channel bandwidths (1.4/3/5/10/15/20 MHz) as CA evidence, or the LTE_CA override.
 - Operator name from ServiceState is the SIM's marketing name `3SinyalKuatHemat`; PLMN 510-89 as on the moto.
+
+### Both phones in 5G NSA on the same site, Tri (510-89), 2026-10-13
+
+Both on USB, mobile data in use, both `overrideNetwork=NR_NSA`, LTE anchors on the same site (PCI 479; moto on EARFCN
+1475 / 10 MHz, A56 on 1625 / 20 MHz). Dumps: `docs/samples/*_tri_nsa-both_2026-10-13.txt`. No extraction failures,
+no crash. The A56's `mPhysicalChannelConfigs` (dumpsys only) gives ground truth for the NR leg: **PCI 440, n41,
+60 MHz, centre NR-ARFCN 532002** (2660.01 MHz).
+
+| | moto g45 (Qualcomm) | A56 (Samsung) |
+|---|---|---|
+| `CellInfoNr` present | yes | yes |
+| registered / status | NO / **0 (NONE)** | NO / **2 (SECONDARY_SERVING)** |
+| NR-ARFCN (SSB) | 531870 | 531870 (via NetLogger; dumpsys redacts) |
+| `getBands()` | `[]` | **`[7]`** (wrong: network config says n41; 60 MHz is not a valid n7 bandwidth) |
+| PCI | **479 = LTE anchor PCI** (wrong: real NR PCI is 440) | 440 (matches PhysicalChannelConfig) |
+| TAC | 19350 = LTE TAC (copied) | **0** (NSA NR has no TAC; Samsung placeholder) |
+| NCI | unavailable | unavailable |
+| SS-RSRP / RSRQ / SINR in CellInfoNr | all unavailable | -98…-100 / -10…-11 / 12–13 |
+| CSI-RSRP / RSRQ / SINR in CellInfoNr | unavailable | **-140 / -20 / -23**: -20 and -23 are the floors of Android's CSI-RSRQ / CSI-SINR ranges, -140 is ~40 dB below SS-RSRP (the LTE RSRP floor): a "not measured" placeholder, not a reading |
+| `CellSignalStrengthNr` in SignalStrength | yes: -100 / -11 / 18 | yes: -100…-104 / -10…-11 / 9–14, CSI unavailable, CSI CQI report `[10]` |
+| `CellConfigLte.isEndcAvailable` | false (even in NSA) | false (even in NSA) |
+| NetLogger today | NR CELL_INFO card: SECONDARY_SERVING (inferred), PCI 479, n41 MAPPED, TAC blank, no signal; NR SIGNAL_STRENGTH card with signal | NR CELL_INFO card: SECONDARY_SERVING (reported), PCI 440, **band 7 (API)**, **TAC 0**, SS signal, **CSI -140/-20/-23**; NR SIGNAL_STRENGTH card |
+
+**Problems found, fixed 2026-10-13 and confirmed on both phones:**
+1. moto: NR **PCI copied from the LTE anchor** together with the TAC (the A56 and its PhysicalChannelConfig show 440
+   on the same NR carrier). → When an inferred NSA NR cell has both the LTE PCI and the LTE TAC, both are blanked
+   (`NR_PCI_FROM_LTE`, `NR_TAC_FROM_LTE`). An equal PCI alone is kept.
+2. A56: `getBands()` reports **n7 for an n41 carrier**. → When the reported band contradicts the country's known band
+   for the ARFCN (510 → n41), the known band is used with `bandSource = MAPPED` and `API_BAND_CONFLICT` keeps `[7]`.
+   Outside such countries the API band is kept.
+3. A56: NR **TAC 0** on the NSA NR secondary. → Null with `NR_NSA_TAC_ZERO` (all manufacturers).
+4. A56: **CSI placeholder** -140 / -20 / -23. → On Samsung, CSI-RSRQ -20 and CSI-SINR -23 with CSI-RSRP ≥ 20 dB
+   below SS-RSRP: all three null with `SAMSUNG_NR_CSI_PLACEHOLDER`.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 

@@ -85,6 +85,24 @@ enum class WarningCode {
      */
     NR_TAC_FROM_LTE,
 
+    /**
+     * The inferred NSA NR cell reports both the PCI and the TAC of the LTE serving cell (moto g45: PCI 479 while the
+     * real NR PCI was 440). The PCI is treated as copied: the column is null, `rawValue` holds the reported PCI.
+     */
+    NR_PCI_FROM_LTE,
+
+    /** An NSA NR secondary reports TAC 0 (NSA NR cells broadcast no TAC); null, `rawValue` = "0". */
+    NR_NSA_TAC_ZERO,
+
+    /**
+     * getBands() contradicts the country's known band for this ARFCN (A56: n7 reported for an n41 carrier). The
+     * mapped band is used with bandSource MAPPED; `rawValue` holds the reported bands.
+     */
+    API_BAND_CONFLICT,
+
+    /** Samsung NR CSI values at the range floor (CSI-RSRQ -20, CSI-SINR -23, CSI-RSRP far below SS-RSRP): not measured. */
+    SAMSUNG_NR_CSI_PLACEHOLDER,
+
     /** Samsung, Android 12+: serving TAC/LAC bytes swapped; the column holds the corrected value. */
     SAMSUNG_TAC_BYTE_SWAP,
 

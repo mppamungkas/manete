@@ -404,7 +404,7 @@ class CellParserTest {
             val nrCell = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
             assertTrue(nrCell.isServing)
             assertEquals(ConnectionStatus.SECONDARY_SERVING, nrCell.connectionStatus)
-            assertEquals(479, nrCell.pci)
+            assertNull("PCI copied from LTE together with the TAC is blanked", nrCell.pci)
             assertEquals(531_870, nrCell.arfcn)
             assertEquals(41, nrCell.band)
             assertEquals(BandSource.MAPPED, nrCell.bandSource)
@@ -420,6 +420,7 @@ class CellParserTest {
             val warnings = result.warnings.associateBy { it.code }
             assertEquals("0", warnings.getValue(WarningCode.NR_NSA_SECONDARY_INFERRED).rawValue)
             assertEquals("19350", warnings.getValue(WarningCode.NR_TAC_FROM_LTE).rawValue)
+            assertEquals("479", warnings.getValue(WarningCode.NR_PCI_FROM_LTE).rawValue)
             assertEquals("[7, 41, 90]", warnings.getValue(WarningCode.MULTIPLE_BANDS).rawValue)
 
             val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 3, 13)
@@ -460,11 +461,82 @@ class CellParserTest {
     }
 
     @Test
-    fun `NR TAC that differs from the LTE TAC is kept`() {
+    fun `NR TAC that differs from the LTE TAC is kept, and then an equal PCI is kept too`() {
         val result = parse(
             cellInfo(motoAnchor, motoNr.copy(tac = 77)), override = 3, mcc = "510", parser = nsaParser,
         )
-        assertEquals(77, result.cells.single { it.rat == Rat.NR }.tac)
+        val nr = result.cells.single { it.rat == Rat.NR }
+        assertEquals(77, nr.tac)
+        assertEquals("co-sited NR may share the PCI", 479, nr.pci)
+        assertTrue(result.warnings.none { it.code == WarningCode.NR_PCI_FROM_LTE || it.code == WarningCode.NR_TAC_FROM_LTE })
+    }
+
+    // A56 (Samsung, Android 16), Tri, same site in NSA, 2026-10-13. PhysicalChannelConfig (dumpsys only): NR PCI 440,
+    // n41, 60 MHz. CellInfoNr: registered NO, status 2, PCI 440, NR-ARFCN 531870, bands [7], TAC 0, SS -99/-11/12,
+    // CSI -140/-20/-23.
+    private fun a56Nsa(device: id.ac.pnp.netlogger.core.model.raw.DeviceTraits = SAMSUNG, mcc: String? = "510") = parse(
+        cellInfo(
+            lteCell(ci = 12_866_888, tac = 19_350, pci = 479, earfcn = 1625, bandwidthKhz = UNAVAILABLE, signal = lteSignal(-92, -7, 14, -63, 9, 2)),
+            RawNrCell(false, 2, NOW_MS - 994, Long.MAX_VALUE, 0, 440, 531_870, listOf(7), null, null, RawNrSignal(-99, -11, 12, -140, -20, -23)),
+        ),
+        signalStrength(lte = listOf(lteSignal(-93, -9, 15, -93, 13, UNAVAILABLE)), nr = listOf(RawNrSignal(-100, -10, 14, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE))),
+        device = device, bandwidths = listOf(20_000, 10_000, 60_000), override = 3, mcc = mcc, parser = nsaParser,
+    )
+
+    @Test
+    fun `A56 NSA - band n7 from getBands is replaced by n41, TAC 0 and CSI floor blanked`() {
+        val result = a56Nsa()
+        val nr = result.cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+        assertTrue(nr.isServing)
+        assertEquals(ConnectionStatus.SECONDARY_SERVING, nr.connectionStatus)
+        assertEquals(440, nr.pci)
+        assertEquals(41, nr.band)
+        assertEquals(BandSource.MAPPED, nr.bandSource)
+        assertNull(nr.tac)
+        assertEquals(-99, nr.rsrpDbm)
+        assertEquals(12, nr.sinrDb)
+        assertNull(nr.csiRsrpDbm)
+        assertNull(nr.csiRsrqDb)
+        assertNull(nr.csiSinrDb)
+
+        val codes = result.warnings.groupingBy { it.code }.eachCount()
+        assertEquals(1, codes[WarningCode.API_BAND_CONFLICT])
+        assertEquals("[7]", result.warnings.single { it.code == WarningCode.API_BAND_CONFLICT }.rawValue)
+        assertEquals(1, codes[WarningCode.NR_NSA_TAC_ZERO])
+        assertEquals(3, codes[WarningCode.SAMSUNG_NR_CSI_PLACEHOLDER])
+        assertNull("reported as secondary, nothing inferred", codes[WarningCode.NR_NSA_SECONDARY_INFERRED])
+        assertNull(codes[WarningCode.NR_PCI_FROM_LTE])
+        assertEquals(-100, result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }.rsrpDbm)
+    }
+
+    @Test
+    fun `API band is kept outside countries with a known band, and CSI floor is kept on other manufacturers`() {
+        val elsewhere = a56Nsa(mcc = "262").cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+        assertEquals(7, elsewhere.band)
+        assertEquals(BandSource.API, elsewhere.bandSource)
+
+        val moto = a56Nsa(device = MOTO).cells.single { it.rat == Rat.NR && it.source == CellSource.CELL_INFO }
+        assertEquals(-140, moto.csiRsrpDbm)
+        assertEquals(-20, moto.csiRsrqDb)
+        assertNull("TAC 0 rule is for every manufacturer", moto.tac)
+    }
+
+    @Test
+    fun `CSI is kept when RSRP is close to SS-RSRP, even at the RSRQ and SINR floor`() {
+        val cell = SamsungQuirks.fixNrCsiFloor(
+            parse(cellInfo(lteCell(), nrCell(signal = RawNrSignal(-100, -11, 5, -105, -20, -23)))).cells.single { it.rat == Rat.NR },
+            mutableListOf(),
+        )
+        assertEquals(-105, cell.csiRsrpDbm)
+    }
+
+    @Test
+    fun `API band containing the preferred band keeps API source`() {
+        val result = parse(cellInfo(lteCell(), nrCell(arfcn = 531_870, bands = listOf(7, 41))), mcc = "510", parser = nsaParser)
+        val nr = result.cells.single { it.rat == Rat.NR }
+        assertEquals(41, nr.band)
+        assertEquals(BandSource.API, nr.bandSource)
+        assertTrue(result.warnings.none { it.code == WarningCode.API_BAND_CONFLICT })
     }
 
     @Test

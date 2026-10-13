@@ -143,3 +143,6 @@ From the moto g45 NSA capture (see `docs/device-quirks.md`), decided with the us
 4. The NR part of `BandMapper` is pulled forward from milestone 7: full NR-ARFCN table from TS 38.101-1/-2; on
    overlap an MCC preference (510 → n41), then TDD first for 510, then the narrowest band, then the lowest number.
    All candidates go into a `MULTIPLE_BANDS` warning. LTE mapping and the per-operator band tests stay in milestone 7.
+5. From the two-phone NSA comparison: the inferred NR cell's PCI is blanked too when both PCI and TAC equal the LTE
+   anchor's; TAC 0 on an NSA NR secondary is null; a country-preferred band overrides a contradicting `getBands()`
+   (`API_BAND_CONFLICT`, `bandSource = MAPPED`); Samsung's NR CSI floor values are null.

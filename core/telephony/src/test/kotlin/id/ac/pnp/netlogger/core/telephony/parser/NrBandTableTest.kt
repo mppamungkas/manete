@@ -19,7 +19,7 @@ class NrBandTableTest {
 
     @Test
     fun `moto g45 Tri NR-ARFCN 531870 is n41 in Indonesia, ambiguous elsewhere`() {
-        assertEquals(BandMapping(41, listOf(7, 41, 90)), NrBandTable.map(531_870, "510"))
+        assertEquals(BandMapping(41, listOf(7, 41, 90), countryPreferred = true), NrBandTable.map(531_870, "510"))
         assertEquals(7, NrBandTable.map(531_870, "262")?.band)
         assertEquals(7, NrBandTable.map(531_870, null)?.band)
     }
