@@ -198,6 +198,50 @@ Plugged in via USB (charging, so **no Doze**: `deviceidle mState=ACTIVE`), scree
 A56: service starts and runs (foreground, type location), but its lock screen could not be dismissed over adb, so
 the screen-off run is pending.
 
+### First unplugged screen-off run, both phones, 2026-10-13 (milestone 3)
+
+Sessions started 23:02 (phone time), 1 s interval, screens off, unplugged until ~23:21 (**~20 min, not the
+required hour**), static indoors.
+
+| | moto g45 | A56 |
+|---|---|---|
+| Ticks at replug | 1200 / 1200 (100 %) | 1200 / 1200 (100 %) |
+| Doze reached | unknown (batterystats history reset on replug) | **light Doze only** (23:05–23:11, 23:12–23:21); deep Doze never entered |
+| Max serving-cell age per minute | ~10 s | ~10 s every minute |
+| Max GPS age per minute | ≤ 1.1 s (5.6 s once) | 0.6–1.3 s; **7.5–7.7 s** in three minutes during light Doze |
+| NR ticks | 52–60 per minute in the minutes kept | 60 → 0 after ~4 min screen off (NR leg released), back when replugged |
+| Service, wake lock, crash | running, held, none | running, held, none |
+
+- Light Doze did not cost ticks; the wake lock keeps the 1 s loop running. GPS fixes slow down to ~7 s in some
+  minutes under light Doze on the A56 (fused provider batching), which `locationAgeMs` records.
+- The moto's log buffer kept only the last 2 summaries (busy system log); the Live counter is the reliable total.
+- Deep Doze (stationary, ~30+ min after screen off) is still untested: the full 1-hour run is needed.
+
+### Second unplugged screen-off run, both phones, 2026-10-13/14 (milestone 3)
+
+Sessions started 23:26 (phone time), 1 s interval, screens off, phones lying still indoors. Unplugged 23:26:30 →
+00:12:20 = **~46 min** (short of the required hour).
+
+| | moto g45 | A56 |
+|---|---|---|
+| Ticks (Live counter at replug) | **2820 / 2820 (100 %)** at 00:12:57 | **2829 / 2829 (100 %)** at 00:13:11 |
+| Doze | **deep Doze (IDLE) 23:38:37 → 00:12:18 (~34 min)**, one maintenance window at 23:53 (`device_idle` events: SENSING → LOCATING → IDLE) | **light Doze only** (23:28–23:34, 23:36–23:49, 23:49–00:09, 00:10–00:12); never deep Doze |
+| Max serving-cell age per minute | ~10 s (only the last summary survived in the log) | 9.98–9.99 s every minute |
+| Max GPS age per minute | 1.3 s (last summary) | 0.55–0.80 s for 40 min, then 1.3–3.5 s in the last 8 min |
+| NR ticks | 39 / 60 in the replug minute | 0 for the whole idle period |
+| Service, wake lock, crash | running, held, none | running, held, none |
+
+- Final totals after Stop (00:15): moto 2982 / 2982, A56 2982 / 2982 (100 %). Accepted as the milestone 3
+  screen-off test (46 min unplugged instead of 60, with ~34 min of deep Doze on the moto); a full hour on a real
+  drive is still to be checked.
+- **Deep Doze did not cost a single tick on the moto**: the partial wake lock plus the location foreground service
+  keep the 1 s loop running through IDLE.
+- The A56 (Samsung, unrooted) never left light Doze while logging. Likely the active high-accuracy location request
+  of the foreground service keeps it out of deep Doze; not a problem for logging, but battery use is higher.
+- Cell data age stays at the ~10 s modem refresh with the screen off on both phones; `cellInfoAgeMs` records it.
+- The moto's system log rolled over, so per-minute summaries were lost; persistence in milestone 4 removes the
+  dependency on logcat.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

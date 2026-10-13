@@ -4,7 +4,7 @@
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–2 implemented and installed on the pilot phone. Next: field validation of milestone 2 on the pilot phone (see Pilot device), then milestone 3.
+- Milestones 1–3 implemented and tested on both phones (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto). Next: milestone 4 (persistence).
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
