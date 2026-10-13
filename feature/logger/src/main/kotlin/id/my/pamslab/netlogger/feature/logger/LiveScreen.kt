@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,7 @@ import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
+import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
@@ -75,12 +77,20 @@ private fun LiveContent(viewModel: LiveViewModel, modifier: Modifier = Modifier)
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
         is LiveUiState.Failed -> PlaceholderScreen("Live", "Sampling stopped: ${s.message}", modifier)
-        is LiveUiState.Ready -> SnapshotView(s, modifier)
+        is LiveUiState.Ready -> {
+            val scenario by viewModel.scenario.collectAsStateWithLifecycle()
+            SnapshotView(s, scenario, viewModel::selectScenario, modifier)
+        }
     }
 }
 
 @Composable
-private fun SnapshotView(ui: LiveUiState.Ready, modifier: Modifier = Modifier) {
+private fun SnapshotView(
+    ui: LiveUiState.Ready,
+    scenario: Scenario,
+    onScenario: (Scenario) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val snapshot = ui.snapshot
     val serving = snapshot.cells.filter { it.isServing }
     val neighbors = snapshot.cells.filterNot { it.isServing }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
@@ -90,7 +100,7 @@ private fun SnapshotView(ui: LiveUiState.Ready, modifier: Modifier = Modifier) {
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { LoggingCard(ui.logging) }
+        item { LoggingCard(ui.logging, scenario, onScenario) }
         item { NetworkCard(snapshot) }
         item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
         ui.tick?.device?.let { item { DeviceCard(it) } }
@@ -102,7 +112,7 @@ private fun SnapshotView(ui: LiveUiState.Ready, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun LoggingCard(logging: LoggingState) {
+private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (Scenario) -> Unit) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -112,7 +122,11 @@ private fun LoggingCard(logging: LoggingState) {
                     Text("Logging", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Field("Ticks", "${st.recorded} / ${st.expected} expected (%.1f %%) · ${st.missed} missed".format(Locale.ROOT, st.recordedPct))
                     Field("Interval", "${st.intervalMs} ms")
+                    Field("Session", "#${logging.sessionId}")
                     Field("Markers", logging.markers.size.toString())
+                    if (logging.writeErrors > 0) {
+                        Text("${logging.writeErrors} ticks not stored, see logcat", color = MaterialTheme.colorScheme.error)
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { LoggingService.stop(context) }) { Text("Stop") }
                         OutlinedButton(onClick = { LoggingService.addMarker(context) }) { Text("Add marker") }
@@ -123,11 +137,16 @@ private fun LoggingCard(logging: LoggingState) {
                     logging.lastSession?.let { st ->
                         Field("Last session", "${st.recorded} / ${st.expected} ticks (%.1f %%)".format(Locale.ROOT, st.recordedPct))
                     }
-                    Text(
-                        "Sessions are kept in memory until storage arrives (milestone 4).",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Button(onClick = { LoggingService.start(context) }) { Text("Start logging") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Scenario.entries.forEach { s ->
+                            FilterChip(
+                                selected = s == scenario,
+                                onClick = { onScenario(s) },
+                                label = { Text(s.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                            )
+                        }
+                    }
+                    Button(onClick = { LoggingService.start(context, scenario) }) { Text("Start logging") }
                 }
             }
         }

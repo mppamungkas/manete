@@ -1,5 +1,7 @@
 package id.my.pamslab.netlogger.feature.logger.service
 
+import id.my.pamslab.netlogger.core.data.SessionRecorder
+import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
@@ -14,6 +16,13 @@ import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
+import id.my.pamslab.netlogger.core.model.session.EndReason
+import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.session.SessionStart
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import java.util.UUID
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,16 +44,19 @@ sealed interface LoggingState {
     data class Idle(val lastSession: TickStats? = null) : LoggingState
 
     data class Running(
+        val sessionId: Long,
         val stats: TickStats,
         val latest: Tick?,
         val markers: List<UserMarker>,
         val deviceInfo: DeviceInfo,
+        /** Ticks whose database write failed (logged, session continues). */
+        val writeErrors: Long = 0,
     ) : LoggingState
 }
 
 /**
- * Builds one [Tick] per radio snapshot: the snapshot plus the GPS fix and device context at that moment. Runs inside
- * LoggingService; Room persistence plugs in here in milestone 4. Each fix is matched to the tick by time, so a fix
+ * Builds one [Tick] per radio snapshot: the snapshot plus the GPS fix and device context at that moment, and writes
+ * it to the session in one transaction. Runs inside LoggingService. Each fix is matched to the tick by time, so a fix
  * that arrives during the cell info request is not used for the tick that started before it.
  */
 @Singleton
@@ -53,20 +65,32 @@ class LoggingEngine @Inject constructor(
     private val location: LocationProvider,
     private val device: DeviceContextSource,
     private val clock: Clock,
+    private val repository: SessionRepository,
 ) {
     private val _state = MutableStateFlow<LoggingState>(LoggingState.Idle())
     val state: StateFlow<LoggingState> = _state.asStateFlow()
 
     private val locationState = AtomicReference(LocationState(LocationStatus.WAITING))
     private val recentFixes = AtomicReference<List<LocationFix>>(emptyList())
+    private val recorder = AtomicReference<SessionRecorder?>(null)
 
-    /** Runs until the calling coroutine is cancelled. */
-    suspend fun run(intervalMs: Long) {
+    /** Closes sessions a killed process left open; skipped while a session is recording. */
+    suspend fun recoverAbandonedSessions(): Int =
+        if (_state.value is LoggingState.Idle) repository.closeAbandonedSessions() else 0
+
+    /** Records a session until the calling coroutine is cancelled (USER_STOP) or fails (ERROR). */
+    suspend fun run(intervalMs: Long, scenario: Scenario?) {
         require(intervalMs > 0)
         val startNs = clock.elapsedRealtimeNs()
+        val info = device.deviceInfo()
+        val session = repository.startSession(
+            SessionStart(UUID.randomUUID().toString(), clock.wallTimeMs(), startNs, intervalMs, scenario, info),
+        )
+        recorder.set(session)
         locationState.set(LocationState(LocationStatus.WAITING))
         recentFixes.set(emptyList())
-        _state.value = LoggingState.Running(TickStats(startNs, intervalMs, 0, 0), null, emptyList(), device.deviceInfo())
+        _state.value = LoggingState.Running(session.sessionId, TickStats(startNs, intervalMs, 0, 0), null, emptyList(), info)
+        var endReason = EndReason.USER_STOP
         try {
             coroutineScope {
                 launch {
@@ -82,10 +106,23 @@ class LoggingEngine @Inject constructor(
                     val tick = buildTick(seq, snapshot, locationState.get(), recentFixes.get(), device.snapshot())
                     seq++
                     window.add(tick)
+                    val writeFailed = try {
+                        window.writeMs(session.record(tick))
+                        false
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        log("tick ${tick.seq} not stored: $e")
+                        true
+                    }
                     val expected = (snapshot.elapsedRealtimeNs - startNs) / (intervalMs * NS_PER_MS) + 1
                     _state.update { s ->
                         if (s !is LoggingState.Running) s
-                        else s.copy(stats = s.stats.copy(recorded = seq, expected = maxOf(expected, seq)), latest = tick)
+                        else s.copy(
+                            stats = s.stats.copy(recorded = seq, expected = maxOf(expected, seq)),
+                            latest = tick,
+                            writeErrors = s.writeErrors + if (writeFailed) 1 else 0,
+                        )
                     }
                     if (seq % SUMMARY_EVERY_TICKS == 0L) {
                         log(window.summary(seq, maxOf(expected, seq)))
@@ -93,13 +130,28 @@ class LoggingEngine @Inject constructor(
                     }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            endReason = EndReason.ERROR
+            throw e
         } finally {
+            recorder.set(null)
+            withContext(NonCancellable) {
+                try {
+                    session.close(endReason, clock.wallTimeMs(), clock.elapsedRealtimeNs())
+                } catch (e: Exception) {
+                    log("session ${session.sessionId} not closed: $e (closed on next start)")
+                }
+            }
             _state.update { s -> LoggingState.Idle((s as? LoggingState.Running)?.stats) }
         }
     }
 
-    /** Records a marker at the current time and last known position; null when not logging. */
-    fun addMarker(): UserMarker? {
+    /**
+     * Records a marker (USER_MARKER event) at the current time and last known position; null when not logging.
+     */
+    suspend fun addMarker(): UserMarker? {
         val fix = recentFixes.get().lastOrNull()
         val marker = UserMarker(clock.wallTimeMs(), clock.elapsedRealtimeNs(), fix?.latitude, fix?.longitude)
         var added = false
@@ -111,7 +163,9 @@ class LoggingEngine @Inject constructor(
                 s
             }
         }
-        return marker.takeIf { added }
+        if (!added) return null
+        recorder.get()?.addMarker(marker)
+        return marker
     }
 
     private fun <T> AtomicReference<T>.update(transform: (T) -> T) {
@@ -128,6 +182,11 @@ class LoggingEngine @Inject constructor(
         private var maxLocationAgeMs = 0L
         private var screenOff = 0
         private var nrTicks = 0
+        private var maxWriteMs = 0L
+
+        fun writeMs(ms: Long) {
+            maxWriteMs = maxOf(maxWriteMs, ms)
+        }
 
         fun add(tick: Tick) {
             origins.merge(tick.radio.cellInfoOrigin, 1, Int::plus)
@@ -140,7 +199,7 @@ class LoggingEngine @Inject constructor(
 
         fun summary(recorded: Long, expected: Long) =
             "ticks $recorded/$expected · cellInfo $origins · maxServingCellAge ${maxCellAgeMs}ms · " +
-                "maxGpsAge ${maxLocationAgeMs}ms · screenOff $screenOff · nr $nrTicks"
+                "maxGpsAge ${maxLocationAgeMs}ms · screenOff $screenOff · nr $nrTicks · maxWrite ${maxWriteMs}ms"
 
         fun clear() {
             origins.clear()
@@ -148,6 +207,7 @@ class LoggingEngine @Inject constructor(
             maxLocationAgeMs = 0
             screenOff = 0
             nrTicks = 0
+            maxWriteMs = 0
         }
     }
 

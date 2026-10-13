@@ -38,3 +38,13 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] Note the max serving-cell age with screen off (moto plugged in: ~10 s) and whether NR disappears
 - [ ] Stop from the notification: notification gone, wake lock released (`REL NetLogger:logging` in dumpsys power)
 - [ ] Record results per phone in `docs/device-quirks.md`
+
+## Milestone 4: persistence and crash-safe closing
+
+- [ ] Live: pick a scenario chip, Start, Add marker (Live and notification), Stop
+- [ ] Sessions: the session shows scenario, operator, device, duration, ticks and the marker count
+- [ ] Detail: edit label and notes, change scenario, Save; values survive an app restart
+- [ ] Kill test: start a session, `adb -s <serial> shell am force-stop id.my.pamslab.netlogger`, reopen the app.
+      The session shows "closed after the app was killed (end = last tick)" and its end time equals the last tick
+- [ ] Delete with confirmation removes the session (the recording session cannot be deleted)
+- [ ] Release check: `ANDROID_SERIAL=<serial> ./gradlew :core:data:connectedDebugAndroidTest` passes on both phones

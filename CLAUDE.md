@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.3** · last updated 2026-10-13
+**CLAUDE.md version 1.5.4** · last updated 2026-10-13
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.4:** Definition of done: instrumented database smoke test must pass on both phones before a release.
 - **1.5.3:** Package / application ID renamed to `id.my.pamslab.netlogger` everywhere (root safety rules updated).
 - **1.5.2:** Added Samsung Galaxy A56 (unrooted, serial `RRGYB06DN2T`) as the unrooted reference phone; always use `adb -s <serial>` with two phones attached.
 - **1.5.1:** Package / application ID is `id.ac.pnp.netlogger` (root safety rules corrected).
@@ -311,6 +312,7 @@ Store capture start/stop `elapsedRealtimeNs` for alignment in both modes. Handle
 - 1 hour of logging with screen off: no crash, ≥ 95% of expected ticks recorded, stale samples identifiable.
 - Works on at least one Android 12+ phone with 5G NSA; values cross-checked against G-NetTrack Pro on the same phone and differences documented.
 - Unit tests pass for parsers, `BandMapper`, `EventDetector`, CSV writers.
+- Before a release: the instrumented database smoke test passes on both phones (`ANDROID_SERIAL=<serial> ./gradlew :core:data:connectedDebugAndroidTest`, moto g45 and A56). Not run in CI.
 
 ## When working on this project, Claude Code should
 - Implement only the milestone asked for; propose, don't silently expand scope.

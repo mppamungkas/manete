@@ -1,5 +1,7 @@
 package id.my.pamslab.netlogger.feature.logger.service
 
+import id.my.pamslab.netlogger.core.data.SessionRecorder
+import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
@@ -10,10 +12,17 @@ import id.my.pamslab.netlogger.core.model.device.TrafficSample
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
+import id.my.pamslab.netlogger.core.model.logging.Tick
+import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.NsaInputs
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
+import id.my.pamslab.netlogger.core.model.session.EndReason
+import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.session.SessionStart
+import id.my.pamslab.netlogger.core.model.session.SessionSummary
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +57,35 @@ class LoggingEngineTest {
         override fun deviceInfo() = DeviceInfo("motorola", "moto g45 5G", "15", 35, "M6375", "0.1")
     }
 
+    private class FakeRepository : SessionRepository {
+        val starts = mutableListOf<SessionStart>()
+        val recorded = mutableListOf<Tick>()
+        val markers = mutableListOf<UserMarker>()
+        var closedWith: EndReason? = null
+        var failWritesFrom: Long = Long.MAX_VALUE
+        var abandonedClosed = 0
+
+        override suspend fun startSession(start: SessionStart): SessionRecorder {
+            starts += start
+            return object : SessionRecorder {
+                override val sessionId = 42L
+                override suspend fun record(tick: Tick): Long {
+                    if (tick.seq >= failWritesFrom) error("disk full")
+                    recorded += tick
+                    return 3
+                }
+                override suspend fun addMarker(marker: UserMarker) { markers += marker }
+                override suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long) { closedWith = reason }
+            }
+        }
+        override suspend fun closeAbandonedSessions(): Int = (++abandonedClosed)
+        override fun observeSessions() = emptyFlow<List<SessionSummary>>()
+        override fun observeSession(id: Long) = emptyFlow<SessionSummary?>()
+        override suspend fun updateDetails(id: Long, label: String?, notes: String?, scenario: Scenario?) = Unit
+        override suspend fun delete(id: Long) = Unit
+        override suspend fun latestScenario(): Scenario? = null
+    }
+
     /** One snapshot per interval, timestamped by the virtual clock; [skip] ticks are not emitted. */
     private fun radio(clock: Clock, skip: Set<Int> = emptySet()) = RadioSamples { intervalMs ->
         flow {
@@ -66,8 +104,8 @@ class LoggingEngineTest {
     @Test
     fun `counts ticks and missed ticks against the interval`() = runTest {
         val clock = VirtualClock(this)
-        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock)
-        val job = launch { engine.run(1_000) }
+        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock, FakeRepository())
+        val job = launch { engine.run(1_000, Scenario.STATIC) }
         advanceTimeBy(9_500)
         runCurrent()
 
@@ -88,8 +126,8 @@ class LoggingEngineTest {
     fun `tick uses the newest fix taken at or before the tick, and its age`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock)
-        val job = launch { engine.run(1_000) }
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository())
+        val job = launch { engine.run(1_000, Scenario.STATIC) }
         runCurrent()
         assertNull("no fix yet", (engine.state.value as LoggingState.Running).latest?.location)
 
@@ -116,15 +154,49 @@ class LoggingEngineTest {
     fun `markers carry the last position and are ignored when idle`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock)
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository())
         assertNull(engine.addMarker())
 
-        val job = launch { engine.run(1_000) }
+        val job = launch { engine.run(1_000, Scenario.STATIC) }
         location.flow.value = LocationState(LocationStatus.OK, fix(0, lat = -0.9))
         advanceTimeBy(1_500)
         val marker = engine.addMarker()
         assertEquals(-0.9, marker!!.latitude!!, 0.0)
         assertEquals(1, (engine.state.value as LoggingState.Running).markers.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `session is started, every tick stored, markers persisted and closed with USER_STOP`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo)
+        assertEquals("recovery runs while idle", 1, engine.recoverAbandonedSessions())
+        val job = launch { engine.run(1_000, Scenario.WALK) }
+        advanceTimeBy(2_500)
+        assertEquals(42L, (engine.state.value as LoggingState.Running).sessionId)
+        assertEquals("recovery is skipped while recording", 0, engine.recoverAbandonedSessions())
+        engine.addMarker()
+        job.cancel()
+        runCurrent()
+
+        assertEquals(Scenario.WALK, repo.starts.single().scenario)
+        assertEquals(listOf(0L, 1L, 2L), repo.recorded.map { it.seq })
+        assertEquals(1, repo.markers.size)
+        assertEquals(EndReason.USER_STOP, repo.closedWith)
+        assertEquals(1, repo.abandonedClosed)
+    }
+
+    @Test
+    fun `failed writes are counted and logging continues`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository().apply { failWritesFrom = 2 }
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo)
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(4_500)
+        val s = engine.state.value as LoggingState.Running
+        assertEquals(5L, s.stats.recorded)
+        assertEquals(3L, s.writeErrors)
         job.cancel()
     }
 

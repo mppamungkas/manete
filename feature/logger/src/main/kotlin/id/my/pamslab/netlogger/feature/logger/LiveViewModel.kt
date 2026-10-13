@@ -3,16 +3,20 @@ package id.my.pamslab.netlogger.feature.logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
+import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.telephony.RadioSampler
 import id.my.pamslab.netlogger.feature.logger.service.LoggingEngine
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed interface LiveUiState {
@@ -47,7 +52,21 @@ class LiveViewModel @Inject constructor(
     location: LocationProvider,
     engine: LoggingEngine,
     clock: Clock,
+    repository: SessionRepository,
 ) : ViewModel() {
+
+    private val _scenario = MutableStateFlow(Scenario.DRIVE)
+
+    /** Scenario for the next session; defaults to the last session's. */
+    val scenario: StateFlow<Scenario> = _scenario.asStateFlow()
+
+    init {
+        viewModelScope.launch { repository.latestScenario()?.let { _scenario.value = it } }
+    }
+
+    fun selectScenario(scenario: Scenario) {
+        _scenario.value = scenario
+    }
 
     /**
      * While logging, shows the service's ticks (one radio loop, not two). Otherwise samples a preview only while the

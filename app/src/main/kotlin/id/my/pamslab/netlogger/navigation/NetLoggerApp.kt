@@ -33,6 +33,7 @@ import id.my.pamslab.netlogger.feature.logger.navigation.liveScreen
 import id.my.pamslab.netlogger.feature.map.navigation.MapRoute
 import id.my.pamslab.netlogger.feature.map.navigation.mapScreen
 import id.my.pamslab.netlogger.feature.sessions.navigation.SessionsRoute
+import id.my.pamslab.netlogger.feature.sessions.navigation.navigateToSessionDetail
 import id.my.pamslab.netlogger.feature.sessions.navigation.sessionsScreen
 import id.my.pamslab.netlogger.feature.settings.navigation.SettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.settingsScreen
@@ -106,7 +107,7 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
             )
             mapScreen()
-            sessionsScreen()
+            sessionsScreen(onOpenSession = navController::navigateToSessionDetail, onBack = { navController.popBackStack() })
             settingsScreen()
         }
     }

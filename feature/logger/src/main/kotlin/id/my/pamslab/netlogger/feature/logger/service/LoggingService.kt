@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
+import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.feature.logger.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
@@ -46,16 +48,21 @@ class LoggingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> start(intent.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS))
+            ACTION_START -> start(
+                intent.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS),
+                intent.getStringExtra(EXTRA_SCENARIO)?.let { name -> Scenario.entries.firstOrNull { it.name == name } },
+            )
             ACTION_STOP -> stop()
-            ACTION_MARKER -> engine.addMarker()?.let { Log.i(TAG, "marker added at ${it.elapsedRealtimeNs}") }
+            ACTION_MARKER -> scope.launch {
+                engine.addMarker()?.let { Log.i(TAG, "marker stored at ${it.elapsedRealtimeNs}") }
+            }
             // A restart without our intent (e.g. after the process was killed): don't resume silently.
             else -> stop()
         }
         return START_NOT_STICKY
     }
 
-    private fun start(intervalMs: Long) {
+    private fun start(intervalMs: Long, scenario: Scenario?) {
         if (sessionJob?.isActive == true) return
         val missing = REQUIRED_PERMISSIONS.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) {
@@ -76,7 +83,7 @@ class LoggingService : Service() {
         acquireWakeLock()
         sessionJob = scope.launch {
             try {
-                engine.run(intervalMs)
+                engine.run(intervalMs, scenario)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "logging session failed", e)
@@ -87,14 +94,18 @@ class LoggingService : Service() {
         Log.i(TAG, "logging started, interval $intervalMs ms")
     }
 
+    /** Waits for the session to close in the database before the wake lock and the service go away. */
     private fun stop() {
-        sessionJob?.cancel()
-        notificationJob?.cancel()
+        val job = sessionJob
         sessionJob = null
+        notificationJob?.cancel()
         notificationJob = null
-        releaseWakeLock()
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        scope.launch(Dispatchers.Main) {
+            job?.cancelAndJoin()
+            releaseWakeLock()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
@@ -173,6 +184,7 @@ class LoggingService : Service() {
         private const val ACTION_STOP = "id.my.pamslab.netlogger.logging.STOP"
         private const val ACTION_MARKER = "id.my.pamslab.netlogger.logging.MARKER"
         private const val EXTRA_INTERVAL_MS = "intervalMs"
+        private const val EXTRA_SCENARIO = "scenario"
 
         private val REQUIRED_PERMISSIONS = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -180,9 +192,12 @@ class LoggingService : Service() {
         )
 
         /** Call from the foreground only (a location FGS cannot be started from the background). */
-        fun start(context: Context, intervalMs: Long = DEFAULT_INTERVAL_MS) {
+        fun start(context: Context, scenario: Scenario?, intervalMs: Long = DEFAULT_INTERVAL_MS) {
             context.startForegroundService(
-                Intent(context, LoggingService::class.java).setAction(ACTION_START).putExtra(EXTRA_INTERVAL_MS, intervalMs),
+                Intent(context, LoggingService::class.java)
+                    .setAction(ACTION_START)
+                    .putExtra(EXTRA_INTERVAL_MS, intervalMs)
+                    .putExtra(EXTRA_SCENARIO, scenario?.name),
             )
         }
 
