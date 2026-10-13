@@ -272,6 +272,9 @@ pulled database and logcat. Raw database backed up in `docs/samples/` (gitignore
   the NR leg on low traffic.
 - Cell data age ≤ 2 s with the screen on, up to ~10 s with it off (as before). GPS age > 5 s in 6 ticks (max 7.3 s).
 - logcat kept only the last ~20 minutes; the database is the record.
+- **Fix confirmed on the A56** (build `bc7afbb`, static session, 105 ticks, NSA): exactly one `servingInferred` NR
+  cell per tick, always PCI 440 (82 `REPORTED`, 19 `SIGNAL_STRENGTH_MATCH`, 4 `STRONGEST`); neighbor 438 kept
+  `reportedServing = true` with `NR_SERVING_*` warnings; first tick n41 `MAPPED_MCC_FALLBACK`; `parseErrors` 0.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
