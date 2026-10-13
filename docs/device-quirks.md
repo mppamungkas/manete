@@ -156,6 +156,31 @@ no crash. The A56's `mPhysicalChannelConfigs` (dumpsys only) gives ground truth 
 4. A56: **CSI placeholder** -140 / -20 / -23. → On Samsung, CSI-RSRQ -20 and CSI-SINR -23 with CSI-RSRP ≥ 20 dB
    below SS-RSRP: all three null with `SAMSUNG_NR_CSI_PLACEHOLDER`.
 
+### NR availability over 3 minutes, both phones, moto SIM now with a data plan, 2026-10-13
+
+Both phones on USB, mobile data as default network, same Tri site, idle (no download running). `dumpsys
+telephony.registry` sampled every ~4.5 s for 3 minutes (36 samples each; log in `docs/samples/`, local only).
+
+| | moto g45 | A56 |
+|---|---|---|
+| `overrideNetwork=NR_NSA` | 27 / 36 (75 %); one 36 s gap in `LTE_CA` | 36 / 36 (100 %) |
+| During the gap | `mDataActivity=4` (dormant), `mNr` unavailable, no `CellInfoNr`: NR leg released | – |
+| `CellSignalStrengthNr` SS-RSRP | -99 … -102 dBm | -104 … -107 dBm (same NR carrier, ~5 dB lower) |
+| `CellInfoNr` | unregistered, status 0, no signal (unchanged) | unregistered, status 2, with signal (unchanged) |
+| NR PhysicalChannelConfig (dumpsys only) | entry present but empty (no channel, PCI 0, band 0) | ch 532002, PCI 440, n41, 60 MHz |
+| `getCellBandwidths()` | `[10000, 10000, 20000]` (LTE only) | `[10000, 10000, 60000]` (includes the NR carrier) |
+
+- The data plan changes **how often** the moto has NR, not **how** it reports it.
+- The moto releases the NR leg after ~30 s without data activity; the A56 keeps it while idle. NR availability in
+  drive tests therefore depends on the phone's inactivity handling, not only on coverage: log `mDataActivity`-like
+  context (TrafficStats deltas, milestone 3) next to the network type.
+- **Screen off (moto):** with the screen off and NetLogger in the background, the registry's cell list lost
+  `CellInfoNr` for ~45 s while `NR_NSA` and NR signal were still present; it came back as soon as NetLogger was in
+  front and requested an update. For milestone 3: check whether `requestCellInfoUpdate()` from the foreground service
+  returns NR with the screen off, or cached data without it (`cellInfoAgeMs`, `cellInfoOrigin`).
+- The 5 dB SS-RSRP gap between phones on the same carrier is device-level (antenna, position, calibration): compare
+  NR levels across phones only with the device recorded per session.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
