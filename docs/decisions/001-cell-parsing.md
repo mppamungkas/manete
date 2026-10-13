@@ -1,6 +1,6 @@
 # 001: Cell parsing: NetMonster Core dependency vs. own `CellParser`
 
-- **Status:** Proposed. Waiting for approval.
+- **Status:** Accepted (option C), 2026-10-13.
 - **Date:** 2026-10-13
 - **Milestone:** 2 (Telephony)
 - **Studied:** `reference/netmonster-core` (commit `33063e0`, 2026-10-12), the published artifact
@@ -100,7 +100,7 @@ DTO layer and the per-quirk tests, which we would need for requirements 3 and 4 
 
 ## Answers and what follows from them
 
-1. **Option:** pending approval of C.
+1. **Option:** C approved.
 2. **Test phones:** Samsung Galaxy A56 (Exynos 1580, Samsung modem, Android 16) and Motorola moto g45
    (Qualcomm Snapdragon, reported as SM6357). Quirks to port first:
    - Samsung A56: `SamsungEndiannessPostprocessor` (LTE TAC byte swap, Samsung on Android 12+) and
