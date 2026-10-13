@@ -1,8 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.4** · last updated 2026-10-13
+**CLAUDE.md version 1.5** · last updated 2026-10-13
+**License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
+
+### Project status
+- Milestones 1–2 implemented and installed on the pilot phone. Next: field validation of milestone 2 on the pilot phone (see Pilot device), then milestone 3.
+- Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5:** Project license set to GPL v3; reference reuse rules updated accordingly. Added pilot device (moto g45 5G, rooted, USB passthrough) and root safety rules. ADB over USB is now the primary connection. Added first device findings to Radio collection. Added `docs/samples/` (gitignored, contains location data) and optional modem-diag validation track. Added project status.
 - **1.4:** Added PCAPdroid to `reference/` (study only, GPL). Phase 3a now uses PCAPdroid's app API, including UDP packet streaming to NetLogger. Capture file changed from `.pcapng` to `.pcap` (PCAPng is a paid PCAPdroid feature).
 - **1.3:** Added development environment (Proxmox homelab, Ubuntu Server VM, Claude Code CLI, ADB over Wi-Fi). Added `reference/` folder with open-source projects for study and license rules for reuse. NetMonster Core evaluated as a parsing dependency in Milestone 2. Added device/ADB commands and `.gitignore` rules. Updated first prompt.
 
@@ -43,21 +49,38 @@ The data is used for research (LTE anchor quality vs. 5G NSA availability, ML on
 ./gradlew connectedDebugAndroidTest   # instrumented tests (needs device)
 ./gradlew :core:data:kspDebugKotlin   # regenerate Room schema
 
-# device (phone connected via ADB over Wi-Fi)
+# device (pilot phone via USB passthrough; ADB over Wi-Fi as fallback)
 adb devices                                   # confirm phone is connected
 ./gradlew installDebug                        # install on phone
 adb logcat -s NetLogger:*                     # app logs (use tag "NetLogger")
 adb shell dumpsys telephony.registry          # raw telephony state, for comparing with parser output
+adb shell dumpsys telephony.registry > docs/samples/<device>_<operator>_<situation>_<date>.txt   # save a fixture
+adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for review
 ```
 
 ## Development environment
 - Host: Proxmox homelab. Guest: **Ubuntu Server LTS VM** (no desktop), min. 4 vCPU, 8–16 GB RAM, 60+ GB disk.
-- Agent: **Claude Code CLI**, run inside `tmux` over SSH so sessions survive disconnects.
-- Toolchain: JDK 17, Android SDK command-line tools (`platform-tools`, `platforms;android-35`, `build-tools`), Gradle wrapper from the repo. NDK + CMake only from Phase 3b.
+- Agent: **Claude Code CLI**, run inside `tmux` (session `netlogger`) so sessions survive disconnects. Access via Proxmox xterm.js console (campus blocks VPN); optionally Claude Code Remote Control from the Claude app.
+- Run everything as user `pams`, never as root.
+- Toolchain: JDK 17 or 21 (whichever is installed on the VM), Android SDK command-line tools (`platform-tools`, `platforms;android-35`, `build-tools`), Gradle wrapper from the repo. NDK + CMake only from Phase 3b.
 - Gradle: `org.gradle.jvmargs=-Xmx4g` (raise if the VM has more RAM), configuration cache and build cache enabled.
-- No emulator: it has no real radio data. All radio testing happens on a **real phone via ADB over Wi-Fi** (`adb pair` / `adb connect` using Wireless debugging). Phone and VM must be on the same network.
+- No emulator: it has no real radio data. All radio testing happens on a **real phone**. Primary: pilot phone via **Proxmox USB port passthrough** (udev rule for vendor `22b8` + `plugdev`). Fallback: ADB over Wi-Fi (`adb pair` / `adb connect`), same network only.
 - Editing by the user: VS Code Remote-SSH or Android Studio on a laptop via git. Do not assume a GUI exists on the server.
 - Never store signing keys, keystore passwords or API tokens in the repo. Use `local.properties` or environment variables (both gitignored).
+
+## Pilot device
+- **Motorola moto g45 5G** (Snapdragon 6s Gen 3, SM6375), Android 14+, ADB serial `ZP22222MQL`.
+- **Rooted.** Root is for the developer's validation tools only; NetLogger must never require or use root.
+- Dual SIM; slot 1 currently Tri / IOH (MCC 510, MNC 89), slot 2 empty.
+- Before marking a milestone done, test at least once on an **unrooted** phone as well (background, permissions and battery behavior can differ on rooted devices).
+- Record everything device-specific in `docs/device-quirks.md`.
+
+### Root safety rules (strict)
+Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.netlogger`, `screencap`, `pull` of NetLogger's own files.
+**Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside NetLogger's own storage.
+
+### Optional validation track (outside the app)
+On the rooted pilot phone, open-source modem-diag tools (e.g. QCSuper, SCAT) may capture LTE/NR RRC signaling as ground truth to validate NetLogger's public-API data. This is a separate research tool, run only by the user; Claude Code may help write analysis scripts for its output but must not integrate diag access into NetLogger.
 
 ## Module structure
 Multi-module from day 1 so traffic capture can be added later without refactoring.
@@ -125,15 +148,18 @@ git clone --depth 1 https://github.com/emanuele-f/PCAPdroid pcapdroid
 | netmonster-core | Apache 2.0 | Cell parsing, OEM workarounds, band mapping. Prefer as a Gradle dependency over reimplementing. |
 | network-survey | Apache 2.0 | Foreground service architecture, logging pipeline, export formats |
 | tower-collector | MPL 2.0 | Cell info throttling, background collection strategies |
-| pcapdroid | GPL (see `COPYING`) | Phase 3 only: `docs/app_api.md` (our integration contract), VpnService lifecycle, capture architecture, how zdtun/nDPI are wired in |
+| pcapdroid | GPL v3 (see `COPYING`) | Phase 3 only: `docs/app_api.md` (our integration contract), VpnService lifecycle, capture architecture, how zdtun/nDPI are wired in |
 
 Rules:
 - Read-only: never edit, build, or add `reference/` to the Gradle build.
 - Always check the project's own `LICENSE` file before reuse; the table above is a starting point, not a guarantee.
 - Default: **write our own implementation** after studying the approach.
-- Copying or adapting code is allowed only from permissive licenses (Apache 2.0, MIT, BSD), and only after telling the user the source file and license. Keep the original copyright notice and add the project to `docs/third-party.md`.
-- MPL 2.0 code: do not copy into our files; study only.
-- PCAPdroid is GPL: **study only, never copy or adapt its code** into NetLogger (that would require NetLogger itself to be GPL). Interact with PCAPdroid only through its public app API. For Phase 3b, write our own implementation; if a GPL library such as zdtun is needed, stop and ask the user first, since it changes NetLogger's license.
+- NetLogger is GPL v3, so code from GPL v3 (and "GPL v2 or later"), Apache 2.0, MIT and BSD projects may be copied or adapted, including PCAPdroid and zdtun.
+- MPL 2.0 code (Tower Collector): reuse only if the file is not marked "Incompatible With Secondary Licenses"; otherwise study only. Ask if unsure.
+- Code licensed "GPL v2 only" or under a proprietary/unknown license: **do not copy**.
+- Before copying or adapting anything: tell the user the source file, project and license, and wait for approval. Then keep the original copyright/license header in the file, add our own modification note, and list the project in `docs/third-party.md`.
+- Prefer using a library as a dependency over copying its source.
+- PCAPdroid integration in Phase 3a still goes through its public app API (it is a separate app). Phase 3b may reuse PCAPdroid/zdtun code under the rules above.
 - No decompiled code from any closed-source app (e.g. G-NetTrack Pro). Compare with it only as a black box using its exported logs.
 - When a design choice is based on a reference project, mention it in the commit message (e.g. `inspired by network-survey: CellularController`).
 
@@ -150,6 +176,13 @@ Implement with these realities in mind:
 | Registration / NR state | `ServiceState`, `NetworkRegistrationInfo` | Cell bandwidths via `ServiceState.getCellBandwidths()` (best-effort CA hint) |
 | Physical channel config | — | **Not available**: needs `READ_PRECISE_PHONE_STATE` (privileged). Do not implement. |
 | Dual SIM | `SubscriptionManager`, `createForSubscriptionId()` | Default: active data SIM. Log `subscriptionId` and `simSlot`. |
+
+Findings on the pilot phone (moto g45, Tri/IOH, Oct 2026):
+- `ServiceState.getCellBandwidths()` reports CA (e.g. `[20000, 10000, 10000]`) and changes between samples → log every tick.
+- `CellIdentityLte.getBands()` is populated → `bandSource = API` expected on this device.
+- `nrState` is redacted even in dumpsys; EN-DC availability is not reliably readable via public API → use `TelephonyDisplayInfo` for NSA state.
+- The empty SIM slot reports its own OUT_OF_SERVICE state → always follow the active data subscription, never "any" subscription.
+- Raw dumps are kept in `docs/samples/` (gitignored) and can be turned into anonymized unit-test fixtures (replace CI/TAC/location before committing a fixture).
 
 NSA detection: LTE serving cell registered **and** (NR cell or NR signal present **or** `overrideNetworkType` is NR_NSA / NR_ADVANCED). Store the raw inputs too, not just the conclusion.
 
@@ -273,7 +306,8 @@ Store capture start/stop `elapsedRealtimeNs` for alignment in both modes. Handle
 - Report device-specific limitations and add them to `docs/device-quirks.md`.
 - Ask before adding dependencies, changing the schema, or touching Phase 3 code.
 - Follow the Reference code rules; never copy from `reference/` silently.
-- Assume a headless server: no GUI tools, no emulator. Ask the user to run on-device checks and paste logcat output when needed.
+- Assume a headless server: no GUI tools, no emulator. Use `adb` (logcat, dumpsys, screencap) for on-device checks; ask the user for anything needing physical interaction (moving, toggling airplane mode, field tests).
+- Follow the Root safety rules for the pilot phone.
 
 ## .gitignore (must include)
 ```
@@ -287,7 +321,8 @@ captures/
 *.pcap
 *.pcapng
 exports/
+docs/samples/
 ```
 
-## First prompt to give Claude Code
-> Read CLAUDE.md. First check the environment: JDK, Android SDK, `adb devices`, and that `reference/` contains the four repositories; tell me what is missing. Also confirm `reference/pcapdroid/docs/app_api.md` exists. Then implement milestone 1: multi-module Gradle project, Hilt, Compose navigation, permission flow, `.gitignore` and the CI workflow. Run build, tests and lint. Then start milestone 2 only up to the decision note `docs/decisions/001-cell-parsing.md` comparing NetMonster Core with our own parser, and stop for my approval.
+## Next prompt to give Claude Code (milestone 2 validation)
+> Read CLAUDE.md v1.5 (changed: GPL v3, pilot device, root safety rules, device findings). Update `.gitignore` and `docs/device-quirks.md` accordingly. Then validate milestone 2 on the pilot phone: with NetLogger's Live screen open, capture `adb shell dumpsys telephony.registry`, a screenshot, and NetLogger's logcat, and compare serving cell values (PCI, EARFCN, band, bandwidths/CA, TAC, CI, network type, RSRP/RSRQ/SINR). Report every mismatch or missing value in a table, propose fixes, and wait for my approval before changing code. Do not use root.
