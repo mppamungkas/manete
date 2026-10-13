@@ -26,7 +26,7 @@ Our minSdk is **31**, so anything NetMonster does for API < 31 doesn't matter to
 ## What NetMonster Core does well
 
 - **OEM quirks.** It encodes years of field experience (the README cites 50,000+ active users). The fixes
-  that matter on API 31+ are `SamsungEndiannessPostprocessor` (byte-swapped serving-cell IDs on Samsung
+  that matter on API 31+ are `SamsungEndiannessPostprocessor` (byte-swapped serving-cell TAC on Samsung
   with Android 12+), `SamsungInvalidValuesPostprocessor` (Samsung's own "N/A" constants, LTE SNR `0.0`),
   `PixelTensorPostprocessor` (GSM neighbors marked as LTE), `InvalidCellsPostprocessor` (MediaTek NR
   ghost cell with -44/-3), `NrIdentityFromLtePostprocessor` (Xiaomi copies the LTE ECI into the NR cell,
@@ -98,9 +98,18 @@ DTO layer and the per-quirk tests, which we would need for requirements 3 and 4 
 4. Live screen showing raw values.
 5. On-device check: I'll ask you to compare the Live screen with `adb shell dumpsys telephony.registry`.
 
-## Open questions for you
+## Answers and what follows from them
 
-1. Approve option C? Or do you prefer A for speed and accept the hidden-API and provenance trade-offs?
-2. Which phone(s) will you test on (manufacturer, model, modem: Qualcomm, MediaTek, Exynos, Tensor)?
-   This decides which quirks to port first.
-3. Which Indonesian operators and bands matter (e.g. Telkomsel, Indosat, XL; LTE B1/B3/B5/B8/B40, NR n40/n78)?
+1. **Option:** pending approval of C.
+2. **Test phones:** Samsung Galaxy A56 (Exynos 1580, Samsung modem, Android 16) and Motorola moto g45
+   (Qualcomm Snapdragon, reported as SM6357). Quirks to port first:
+   - Samsung A56: `SamsungEndiannessPostprocessor` (LTE TAC byte swap, Samsung on Android 12+) and
+     `SamsungInvalidValuesPostprocessor` (Samsung N/A constants, LTE SNR `0.0`).
+   - Not ported up front: `PixelTensorPostprocessor` only runs on a hard-coded list of Pixel products.
+     Its pattern (GSM neighbors reported as LTE) comes from the Samsung modem in Tensor, so we watch for
+     it on the A56 and port it only if we see it. MediaTek and Xiaomi fixes don't apply to these phones.
+   - moto g45 (Qualcomm): no specific NetMonster fix. It serves as the cleaner reference device.
+   - Both phones report Android version and modem to `session` metadata. Findings go into `docs/device-quirks.md`.
+3. **Operators:** all Indonesian operators. `BandMapper` therefore uses the full 3GPP EARFCN / NR-ARFCN
+   tables, not an operator subset. Tests cover every band that Indonesian operators are confirmed to use.
+   The band list is checked against field data from both phones before it is final.
