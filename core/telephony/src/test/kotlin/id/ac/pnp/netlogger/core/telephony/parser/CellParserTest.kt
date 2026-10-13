@@ -359,6 +359,19 @@ class CellParserTest {
     }
 
     @Test
+    fun `non-LTE bandwidths are not CA evidence for an LTE primary`() {
+        // A56, Tri, 2026-10-13: getCellBandwidths() = [10000, 10000, 60000] with CA off and one 10 MHz carrier.
+        val primary = lteCell(earfcn = 1475)
+        val scell = lteCell(registered = false, status = 2, pci = 200, earfcn = 1850)
+        val a56 = parse(cellInfo(primary, scell), bandwidths = listOf(10_000, 60_000), override = 0)
+        assertFalse(a56.cells.single { it.pci == 200 }.isServing)
+        assertEquals(1, a56.warnings.count { it.code == WarningCode.SECONDARY_SERVING_WITHOUT_CA })
+        // Two LTE-sized carriers are still CA evidence.
+        val ca = parse(cellInfo(primary, scell), bandwidths = listOf(10_000, 10_000, 60_000), override = 0)
+        assertTrue(ca.cells.single { it.pci == 200 }.isServing)
+    }
+
+    @Test
     fun `NR secondary under an LTE primary is EN-DC and is never demoted`() {
         val result = parse(cellInfo(lteCell(), nrCell()), bandwidths = listOf(20_000), override = 0)
         val nr = result.cells.single { it.rat == Rat.NR }

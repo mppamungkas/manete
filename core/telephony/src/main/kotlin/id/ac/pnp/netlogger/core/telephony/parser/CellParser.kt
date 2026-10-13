@@ -104,15 +104,18 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
     /**
      * Some modems (Samsung A56) flag ordinary neighbors as SECONDARY_SERVING. A same-RAT secondary is only
      * kept as serving when it can be a CA component carrier: not on the primary's ARFCN, and the phone shows
-     * CA (more than one cell bandwidth or the LTE_CA override). With no CA information at all, the reported
-     * status is kept. An NR secondary under an LTE primary is EN-DC, not CA, and is never touched.
+     * CA (the LTE_CA override, or more than one cell bandwidth of the primary's RAT). With no CA information at
+     * all, the reported status is kept. An NR secondary under an LTE primary is EN-DC, not CA, and is never
+     * touched. For an LTE primary only LTE channel bandwidths count: the A56 lists a 60000 kHz entry (NR or
+     * stale) next to its single LTE carrier.
      */
     private fun demoteFalseSecondaries(cells: List<CellSample>, input: ParseInput, warnings: MutableList<ParseWarning>): List<CellSample> {
         val primary = cells.firstOrNull { it.source == CellSource.CELL_INFO && it.connectionStatus == ConnectionStatus.PRIMARY_SERVING }
             ?: return cells
         val bandwidths = input.cellBandwidthsKhz
         val caKnown = bandwidths != null || input.overrideNetworkType != null
-        val caShown = bandwidths.orEmpty().size > 1 || input.overrideNetworkType == OVERRIDE_LTE_CA
+        val carriers = if (primary.rat == Rat.LTE) bandwidths.orEmpty().filter { it in LTE_BANDWIDTHS_KHZ } else bandwidths.orEmpty()
+        val caShown = carriers.size > 1 || input.overrideNetworkType == OVERRIDE_LTE_CA
         return cells.map { cell ->
             val suspect = cell.connectionStatus == ConnectionStatus.SECONDARY_SERVING &&
                 cell.isRegistered != true &&
@@ -327,6 +330,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
         // TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_* values.
         const val OVERRIDE_LTE_CA = 1
+
+        // LTE channel bandwidths, 3GPP TS 36.101 Table 5.6-1.
+        val LTE_BANDWIDTHS_KHZ = setOf(1_400, 3_000, 5_000, 10_000, 15_000, 20_000)
         val NSA_OVERRIDES = setOf(3, 4, 5) // NR_NSA, NR_NSA_MMWAVE, NR_ADVANCED
     }
 }

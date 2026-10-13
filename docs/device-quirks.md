@@ -48,14 +48,14 @@ cannot be cross-checked from the shell. PCI 140 / EARFCN 500 / band 1 / 20 MHz w
 
 | What was seen | Evidence | Handling now | Proposed |
 |---|---|---|---|
-| **Neighbors reported as SECONDARY_SERVING** | 3 extra cells with `mCellConnectionStatus=2`, `mRegistered=NO`, same EARFCN 500 as the PCell, while `isUsingCarrierAggregation=false`, `mCellBandwidths=[20000]` and one PhysicalChannelConfig | **Fixed:** a same-RAT SECONDARY_SERVING cell on the PCell's ARFCN, or with no CA shown (one cell bandwidth and no LTE_CA override), is stored as a neighbor (`connectionStatus = NONE`) with `SECONDARY_SERVING_WITHOUT_CA` (raw status kept). Applies to all manufacturers; NR under an LTE primary (EN-DC) is never touched. Confirmed on device after the fix. | – |
+| **Neighbors reported as SECONDARY_SERVING** | 3 extra cells with `mCellConnectionStatus=2`, `mRegistered=NO`, same EARFCN 500 as the PCell, while `isUsingCarrierAggregation=false`, `mCellBandwidths=[20000]` and one PhysicalChannelConfig | **Fixed:** a same-RAT SECONDARY_SERVING cell on the PCell's ARFCN, or with no CA shown (at most one LTE-sized cell bandwidth and no LTE_CA override), is stored as a neighbor (`connectionStatus = NONE`) with `SECONDARY_SERVING_WITHOUT_CA` (raw status kept). Applies to all manufacturers; NR under an LTE primary (EN-DC) is never touched. Confirmed on device after the fix. | – |
 | Neighbor CI / TAC = 0 | App shows `0 / 0` for those cells (dumpsys redacted) | **Fixed:** null with `SAMSUNG_NEIGHBOR_PLACEHOLDER` (Samsung neighbors only) | – |
 | Neighbor CQI 0, TA 0, RSSNR 0 | `cqi=0 ta=0 rssnr=0` on all three | **Fixed:** RSSNR 0 → `SAMSUNG_LTE_SNR_ZERO`; TA 0 and LTE CQI 0 → `SAMSUNG_NEIGHBOR_PLACEHOLDER` | – |
 | Serving bandwidth unavailable in CellIdentity | `mBandwidth=2147483647` | Null; `cellBandwidths` from ServiceState has 20000 | – |
 | SignalStrength differs a lot from CellInfo at the same moment | CellInfo serving: RSSI -79, RSSNR 5; SignalStrength: RSSI -103, RSSNR -4, `cqiTableIndex=1` | Both rows kept (decision 001 addendum) | Track over a drive; possibly different measurement windows |
 | SignalStrength timestamp is old while values look current | SIGNAL_STRENGTH row age 39.5 s | Grayed out as stale (> 5 s) | Expected: the callback only fires on change. Keep the honest age; flag in analysis, not in the parser |
 | CellInfo ages 3–7 s although origin is FRESH | Ages 3102 ms then 6977 ms | Shown as reported | Samsung may answer `requestCellInfoUpdate` with the last modem report. Check in milestone 3 with screen on/off |
-| TAC byte swap | No `SAMSUNG_TAC_BYTE_SWAP` warning; TAC 11550 | Not triggered | Can't verify without CI/TAC in dumpsys. Compare with the cell in a crowd-sourced map or Network Survey on the same phone |
+| TAC byte swap | No `SAMSUNG_TAC_BYTE_SWAP` warning; TAC 11550 | Not triggered | Resolved later with the Tri SIM: no swap on this phone (see the A56 NR check below) |
 
 ### moto g45, Tri (510-89), 5G NSA (LTE B3 anchor + NR 531870), 2026-10-13
 
@@ -98,11 +98,35 @@ Other observations:
 `override=–` about 2 s after launch) until the first `onDisplayInfoChanged`; there is no getter to seed it. In that
 window the NR cell stays a neighbor. Logging sessions are long, so this affects only the first ticks.
 
+### Samsung A56, Tri (510-89), NR check, 2026-10-13
+
+SIM swapped to Tri (subId 5, slot 1 / phone 0), camped on the same Indosat cell as the moto g45 (PCI 479, EARFCN
+1475, B3). The phone is connected to ADB over Wi-Fi.
+
+**No NR at all**, in every source: `overrideNetwork=NONE` (only short `LTE_CA` flips in the history, never `NR_NSA`),
+no `CellInfoNr`, `mNr=Invalid`, `isNrAvailable/isEnDcAvailable=false`. The phone and SIM allow 5G
+(`preferred_network_mode=26` = NR/LTE/GSM/WCDMA, carrier config `carrier_nr_availabilities_int_array=[1, 2]`), so this
+is not a setting. **Why:** Wi-Fi is the default network; cellular only carries IMS (`dumpsys connectivity`:
+`MOBILE[LTE] CONNECTED extra: IMS`, `mDataConnectionState=0`, `mDataActivity=4` dormant). With no cellular data
+traffic the network never adds the NR leg. The moto on the same cell gets NSA because its mobile data is in use.
+To test NR on the A56: Wi-Fi off and traffic on mobile data, which needs ADB over USB (Samsung vendor `04e8`
+USB passthrough) or checks done by hand.
+
+Other findings:
+- **TAC byte swap: not present on this A56 (Android 16).** NetLogger reads CI 12866878 / TAC 19350 for the cell,
+  identical to the moto g45 on the same cell (19350 = 0x4B96; a swap would read 38475), and no
+  `SAMSUNG_TAC_BYTE_SWAP` warning. The correction stays in code for other Samsung models/firmware.
+- **Cell bandwidths include 60000 kHz** (`[10000, 10000, 60000]`) while `isUsingCarrierAggregation=false` and one
+  PhysicalChannelConfig (10 MHz). 60 MHz is not a valid LTE bandwidth, so this is either an NR carrier or a stale
+  entry; the list is not reliable as a CA count on this phone. **Fixed:** for an LTE primary the SECONDARY_SERVING
+  rule now counts only LTE channel bandwidths (1.4/3/5/10/15/20 MHz) as CA evidence, or the LTE_CA override.
+- Operator name from ServiceState is the SIM's marketing name `3SinyalKuatHemat`; PLMN 510-89 as on the moto.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
 |---|---|---|---|---|
-| Serving TAC/LAC bytes swapped in CellInfo | Samsung, Android 12+ | Compared with `getCellLocation()`; swapped back, latched for the session | `SAMSUNG_TAC_BYTE_SWAP` | – |
+| Serving TAC/LAC bytes swapped in CellInfo | Samsung, Android 12+ | Compared with `getCellLocation()`; swapped back, latched for the session | `SAMSUNG_TAC_BYTE_SWAP` | **Not seen** on A56 / Android 16 (TAC matches moto g45 on the same cell) |
 | Neighbor placeholders RSSI -51, TA 0, Ec/No 0; plus cell ID 0, TAC 0, LTE CQI 0 (ours, from A56 data) | Samsung | Set to null | `SAMSUNG_NEIGHBOR_PLACEHOLDER` | A56 (CI/TAC/CQI/TA 0), 2026-10-13 |
 | LTE RSSNR 0 meaning "not available" | Samsung | Set to null | `SAMSUNG_LTE_SNR_ZERO` | A56 (neighbors), 2026-10-13 |
 
