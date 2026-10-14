@@ -1,0 +1,18 @@
+                        -H/home/pams/projects/netlogger/feature/capture/src/main/cpp
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+-DCMAKE_SYSTEM_VERSION=31
+-DANDROID_PLATFORM=android-31
+-DANDROID_ABI=arm64-v8a
+-DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+-DANDROID_NDK=/home/pams/Android/Sdk/ndk/27.3.13750724
+-DCMAKE_ANDROID_NDK=/home/pams/Android/Sdk/ndk/27.3.13750724
+-DCMAKE_TOOLCHAIN_FILE=/home/pams/Android/Sdk/ndk/27.3.13750724/build/cmake/android.toolchain.cmake
+-DCMAKE_MAKE_PROGRAM=/home/pams/Android/Sdk/cmake/3.22.1/bin/ninja
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/home/pams/projects/netlogger/feature/capture/build/intermediates/cxx/Debug/2k413w3x/obj/arm64-v8a
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/home/pams/projects/netlogger/feature/capture/build/intermediates/cxx/Debug/2k413w3x/obj/arm64-v8a
+-DCMAKE_BUILD_TYPE=Debug
+-B/home/pams/projects/netlogger/feature/capture/.cxx/Debug/2k413w3x/arm64-v8a
+-GNinja
+                        Build command args: []
+                        Version: 2

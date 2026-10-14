@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "/home/pams/projects/netlogger/feature/capture/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/home/pams/Android/Sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/pams/projects/netlogger/feature/capture/.cxx/Debug/2k413w3x/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/home/pams/Android/Sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/pams/projects/netlogger/feature/capture/.cxx/Debug/2k413w3x/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "netcapture::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "netcapture",
+      "output": "/home/pams/projects/netlogger/feature/capture/build/intermediates/cxx/Debug/2k413w3x/obj/arm64-v8a/libnetcapture.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/home/pams/Android/Sdk/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/home/pams/Android/Sdk/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

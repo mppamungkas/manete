@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/pams/projects/netlogger/feature/capture/.cxx/Debug/2k413w3x/armeabi-v7a",
+  "command": "/home/pams/Android/Sdk/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=armv7-none-linux-androideabi31 --sysroot=/home/pams/Android/Sdk/ndk/27.3.13750724/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Dnetcapture_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -Wall -Wextra -Werror -std=gnu11 -o CMakeFiles/netcapture.dir/netcapture_jni.c.o -c /home/pams/projects/netlogger/feature/capture/src/main/cpp/netcapture_jni.c",
+  "file": "/home/pams/projects/netlogger/feature/capture/src/main/cpp/netcapture_jni.c"
+}
+]

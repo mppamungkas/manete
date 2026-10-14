@@ -23,6 +23,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Native capture (feature:capture): the NDK and CMake versions pinned in gradle/libs.versions.toml.
+      - name: NDK and CMake
+        run: |
+          NDK=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          CMAKE=$(sed -n 's/^cmake = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          # No `yes |`: with pipefail its SIGPIPE would fail the step. The runner image has the licenses accepted.
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "cmake;$CMAKE" > /dev/null
+
       - name: Build
         run: ./gradlew assembleDebug
 

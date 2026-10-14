@@ -1,6 +1,6 @@
 # 002: Native traffic capture (milestone 11, Phase 3b): plan
 
-- **Status:** Proposed, waiting for approval.
+- **Status:** Accepted (all recommendations D1–D8), 2026-10-14.
 - **Date:** 2026-10-14
 - **Milestone:** 11 (native `VpnService` capture)
 - **Studied:** `reference/pcapdroid` (`CaptureService.java`, `jni/core/capture_vpn.c`, `docs/how_it_works.md`),
@@ -66,7 +66,8 @@ app ──IP packets──► tun (VpnService) ──► NetLogger native thread
 
 ## New dependencies and toolchain (your approval needed)
 
-- **Android NDK r27 LTS** (`ndk;27.2.12479018`) and **CMake 3.22.1**, installed with `sdkmanager` on the VM.
+- **Android NDK r27 LTS**, installed as r27d (`ndk;27.3.13750724`, the latest r27 patch; the plan named r27c,
+  `27.2.12479018`), and **CMake 3.22.1**, installed with `sdkmanager` on the VM.
   Neither is installed yet. Install size is about 1.5 GB. `ndkVersion` is pinned in Gradle.
   - The GitHub Actions Ubuntu image already includes an NDK. I'll pin the same version there.
 - **zdtun** source as in D2. No new Gradle or Maven dependency.

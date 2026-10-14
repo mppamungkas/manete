@@ -1,0 +1,3 @@
+# ninja log v5
+0	628	1792011482941596326	CMakeFiles/netcapture.dir/netcapture_jni.c.o	d4fa627b4d1cfe0e
+633	826	1792011483145473639	/home/pams/projects/netlogger/feature/capture/build/intermediates/cxx/Debug/2k413w3x/obj/armeabi-v7a/libnetcapture.so	26183a991a159d68
