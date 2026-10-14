@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Native capture: the network in use before the VPN starts (DNS servers, IPv6). Normal permission. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Package visibility (Android 11+): to find out whether PCAPdroid is installed. -->
     <queries>
         <package android:name="com.emanuelef.remote_capture" />
@@ -9,6 +12,25 @@
     </queries>
 
     <application>
+        <!--
+            Native capture (Phase 3b, docs/decisions/002-native-capture.md). Own process (D3): a crash in native code
+            can't end radio logging. BIND_VPN_SERVICE: only the system binds it. specialUse (D8): no other
+            foreground service type fits a VpnService of a regular app (systemExempted is for system apps).
+        -->
+        <service
+            android:name=".vpn.NativeCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:process=":vpn">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Captures the phone's IP traffic through a local VpnService for network research, in sync with a cellular measurement log" />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <!--
             PCAPdroid sends an explicit broadcast here when its capture stops (we pass this class name in the
             start request). Exported because PCAPdroid is another app; the worst a spoofed broadcast can do is end

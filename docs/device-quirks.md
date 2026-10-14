@@ -447,6 +447,31 @@ Installed the v2 build over the field database (backup first: `docs/samples/db-b
 measurements, 21970 cells, 6 events, 850 warnings), `throughput_test` present and empty. moto g45: not yet (it dropped
 off USB before the install).
 
+### moto g45, native capture (VpnService + zdtun), first run, Tri (510-89), 2026-10-15 (milestone 11, step 3)
+
+Started from the debug-only `NativeCaptureDebugActivity` (no logging session), all apps, MTU 1500. The system VPN
+consent dialog ("Connection request") appeared once; the user tapped OK.
+
+- **Network:** mobile data (network 120, `3gprs`) is IPv4 only (`10.129.85.28/29`, DNS `10.0.37.36`, `114.5.9.87`);
+  the IPv6 address belongs to the IMS network. So the tun routed IPv4 only and used the operator's DNS servers.
+- **VPN network as apps see it:** `Transports: CELLULAR|VPN`, underlying network 120, metered (`setMetered(false)`
+  = like the network underneath). The speed test's mobile-data guard (`TRANSPORT_CELLULAR`) still passes.
+- **Process:** `id.my.pamslab.netlogger:vpn` (separate PID from the main process).
+- **Traffic:** `curl` 3 × 10 MB from speed.cloudflare.com: 1.062 / 0.777 / 0.826 s; `generate_204` and
+  `example.com` fine. zdtun logs `TCP send error[32]: Broken pipe` at the end of each download (curl closed first;
+  harmless).
+- **Counters at stop:** tun rx 13,466 packets / 548,902 B, tx 20,668 / 30,904,739 B; pcap 34,134 = rx + tx, dropped
+  0; connections TCP 8, UDP 10; protect failures 0; tun write errors 0; 3 TCP segments of connections older than the
+  capture (not forwarded); 8 unparsed.
+- **pcap file** (31,999,809 B = 24 + 34,134 × 16 + packet bytes, exact): independent Python check: nanosecond
+  magic, link type 101, 34,134 records, no timestamp going backwards, 0 bad IPv4 header checksums, 0 bad TCP
+  checksums (5,000 checked), all records ≤ 1,500 B.
+- **The 8 unparsed packets** are IPv6 control packets the kernel sends on the new interface (4 ICMPv6, 4 MLD with a
+  hop-by-hop header) although IPv6 isn't routed: captured, not forwarded.
+- **Clock:** wall − boot offset measured to ±104 ns; first packet at elapsedRealtimeNs 143,981,237,061,300 =
+  0.23 ms after the capture start.
+- **Stop:** the loop ended 49 ms after the stop request; the VPN network disappeared.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

@@ -56,7 +56,7 @@ app ──IP packets──► tun (VpnService) ──► NetLogger native thread
 | # | Question | Recommendation |
 |---|---|---|
 | D1 | **Forwarder:** use zdtun, write our own, or use lwIP | **zdtun as a library, unmodified.** It is the forwarder inside PCAPdroid, written in C, about 2,100 lines in `zdtun.c` plus headers. It is **LGPL v3 or later** (file headers and `COPYING`), which is compatible with our GPL v3. It handles TCP, UDP, ICMP, IPv4 and IPv6, and has been field-tested in PCAPdroid. Writing our own TCP imitation is the riskiest part of the milestone. lwIP is a full TCP/IP stack and more than we need. |
-| D2 | **How zdtun gets into the repo** | **Copy the files we need**, unchanged, to `feature/capture/src/main/cpp/third_party/zdtun/`: `zdtun.c/h`, `utils.c/h`, `third_party/net_headers.h`, `third_party/uthash.h`. Keep the headers and `COPYING`, add a README naming the commit `c2a2674`, and list it in `docs/third-party.md`. A git submodule is the alternative, but it makes every clone and CI run depend on another repo. The SOCKS5, client, gateway and pivot files are not needed. `uthash.h` has its own license, BSD 1-clause (checked). `net_headers.h` has no header of its own, so zdtun's `COPYING` covers it. |
+| D2 | **How zdtun gets into the repo** | **Copy the files we need**, unchanged, to `feature/capture/src/main/cpp/third_party/zdtun/`: `zdtun.c/h`, `utils.c/h`, `third_party/net_headers.h`, `third_party/uthash.h`. Keep the headers and `COPYING`, add a README naming the commit `c2a2674`, and list it in `docs/third-party.md`. A git submodule is the alternative, but it makes every clone and CI run depend on another repo. The client, gateway and pivot files are not needed. (Correction, step 3: `socks5.c/h` are needed after all: `zdtun.c` includes `socks5.c`; the SOCKS5 proxy is never enabled.) `uthash.h` has its own license, BSD 1-clause (checked). `net_headers.h` has no header of its own, so zdtun's `COPYING` covers it. |
 | D3 | **Process:** run the VPN service in its own process (`android:process=":vpn"`) | **Yes.** A crash in native code would otherwise kill `LoggingService` in the middle of a drive. The cost is passing state between processes: packet counts and status through a bound `Messenger`, files under NetLogger's own `files/captures/`. The `:vpn` process writes no database rows; the main process stores the `CAPTURE_*` events as it does today. |
 | D4 | **Tun MTU** | **1500.** Captured packets then have realistic sizes for analysis. PCAPdroid uses 10,000, which costs less CPU but produces packets up to 10 kB, which no real link carries. I'll measure the throughput cost on the moto. If it is too high, the MTU becomes a setting. |
 | D5 | **Packet file format** | **pcap with nanosecond timestamps** (magic `0xa1b23c4d`), link type `LINKTYPE_RAW` (101), so Wireshark and tshark open it directly. Timestamp = `CLOCK_BOOTTIME` + (wall clock − boot time), with the offset taken once at capture start, so time never jumps backwards inside a file. `capture_sync.csv` gets the offset at start and stop, as it does now, plus a row every 60 s, so that wall-clock drift can be measured. |
@@ -110,3 +110,11 @@ app ──IP packets──► tun (VpnService) ──► NetLogger native thread
 - PCAPNG, TLS decryption, DPI and app protocol detection (nDPI), firewall or blocking.
 - Root capture.
 - Per-packet uid inside the pcap. The uid is per connection, in `connections.csv`.
+
+## Notes from implementation
+
+- **Step 3:** zdtun calls `exit(1)` when `calloc` fails (its `safe_alloc` macro). In the separate `:vpn` process
+  (D3) that ends only the capture, not radio logging. Its unused helpers for zdtun's own command-line tools
+  (`system()`, `bind`/`listen` servers) are dropped from `libnetcapture` by hidden visibility and `--gc-sections`.
+- **Step 3:** `NetLoggerApplication` runs its abandoned-session recovery only in the main process; in `:vpn` it
+  would close the session being recorded.
