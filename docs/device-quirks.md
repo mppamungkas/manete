@@ -541,6 +541,13 @@ YouTube for ~3 min; the session was then stopped (CAPTURE_STOPPED SESSION_END).
 - The capture card still had "PCAPdroid → NetLogger" selected from milestone 10, so the first start was a PCAPdroid
   capture: NetLogger 9,434 vs. PCAPdroid 9,433 packets (missing −1, as expected).
 - The A56's mobile data (`3gprs`) is IPv4 only, like the moto's: the IPv6 path is untested on both phones.
+- **Another VPN takes over** (user started a capture in the PCAPdroid app during a native capture): Android called
+  `onRevoke`, the loop ended `TUN_CLOSED` 0.1 s later, CAPTURE_STOPPED VPN_REVOKED; pcap 2,056 = expected, 1 tun write
+  error (a packet on its way when the tun closed); logging went on.
+- **Native start while PCAPdroid captures** (started in PCAPdroid itself): the first build showed the system VPN
+  dialog again, and OK would have ended PCAPdroid's capture silently. Now refused with "Another VPN is active (e.g.
+  PCAPdroid): stop it first" (any network with `TRANSPORT_VPN`; Android doesn't say whose); checked on the A56: no
+  dialog, no files.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 

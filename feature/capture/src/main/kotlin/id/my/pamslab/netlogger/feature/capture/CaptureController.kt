@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.os.Build
 import android.os.SystemClock
@@ -273,6 +275,8 @@ class CaptureController @Inject constructor(
         if (!NativeCapture.available) return fail("Native capture is not available on this phone (${NativeCapture.loadError})")
         if (_pcapdroidMayRun.value) return fail("Stop the PCAPdroid capture first: only one VPN can run at a time")
         if (nativePcap != null) return fail("The last native capture is still ending; try again in a moment")
+        // Android allows one VPN: starting ours would silently end the other (e.g. a capture started in PCAPdroid).
+        if (otherVpnActive()) return fail("Another VPN is active (e.g. PCAPdroid): stop it first, only one VPN can run at a time")
         holder.state.value = CaptureState(sessionId = session.id, mode = CaptureMode.NATIVE, fileName = files.pcap(session.uuid).name)
         preparedUuid = session.uuid
         syncFile = files.sync(session.uuid)
@@ -460,6 +464,14 @@ class CaptureController @Inject constructor(
                 }
             }
         }
+    }
+
+    /** A VPN is up (not ours: ours isn't running when this is asked). Android does not tell whose it is. */
+    private fun otherVpnActive(): Boolean = try {
+        val cm = context.getSystemService(ConnectivityManager::class.java)
+        cm?.allNetworks?.any { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true } ?: false
+    } catch (e: Exception) {
+        false
     }
 
     private fun vpnProcessAlive(): Boolean = try {

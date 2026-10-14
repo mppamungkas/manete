@@ -135,8 +135,8 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [x] Stop the session while capturing: CAPTURE_STOPPED SESSION_END, VPN gone (moto g45)
 - [x] Kill the capture process (`adb shell am crash <pid of :vpn>`): logging continues (130/130 ticks), CAPTURE_STOPPED
       PROCESS_DIED within ~6 s, pcap valid, connections.csv keeps the rows flushed before (moto g45)
-- [ ] Start another VPN (e.g. PCAPdroid) while capturing: CAPTURE_STOPPED VPN_REVOKED
-- [ ] PCAPdroid capture running: the native start is refused ("only one VPN")
+- [x] Start another VPN (e.g. PCAPdroid) while capturing: CAPTURE_STOPPED VPN_REVOKED (A56)
+- [x] Another VPN running (PCAPdroid): the native start is refused ("Another VPN is active"), no dialog (A56)
 - [x] Throughput, curl downloads/uploads, capture off / native MTU 1500 / 10 000 (moto g45; A56 has no curl and no usable timer)
 - [ ] In-app speed test during a native capture (needs a server): flagged `captureActive`
 - [x] Browser and a QUIC app (YouTube): connections.csv names the apps (A56, after the launcher-apps `<queries>` fix), pcap valid
