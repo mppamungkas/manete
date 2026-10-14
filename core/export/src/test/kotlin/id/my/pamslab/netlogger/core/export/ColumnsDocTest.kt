@@ -27,6 +27,7 @@ class ColumnsDocTest {
             "flat.csv" to columns.flat.map { it.name },
             "events.csv" to columns.events.map { it.name },
             "warnings.csv" to columns.warnings.map { it.name },
+            "throughput.csv" to columns.throughput.map { it.name },
         ).forEach { (file, names) -> assertEquals(file, names, documented(file)) }
     }
 }

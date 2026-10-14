@@ -6,6 +6,7 @@ import id.my.pamslab.netlogger.core.data.db.EventEntity
 import id.my.pamslab.netlogger.core.data.db.ExportDao
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
+import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import id.my.pamslab.netlogger.core.data.db.WarningWithSeq
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -50,6 +51,7 @@ class LiveDao(ticks: List<MeasurementEntity>, private val cells: (Long) -> List<
     override suspend fun cells(sessionId: Long, fromSeq: Long, toSeq: Long) =
         stored.filter { it.seq in fromSeq..toSeq }.flatMap { m -> cells(m.seq).map { CellWithTick(m.seq, m.wallTimeMs, m.elapsedRealtimeNs, it) } }
     override suspend fun events(sessionId: Long) = events.toList()
+    override suspend fun throughputTests(sessionId: Long) = emptyList<ThroughputTestEntity>()
     override suspend fun warnings(sessionId: Long) = emptyList<WarningWithSeq>()
     override suspend fun measurementCount(sessionId: Long) = stored.size.toLong()
     override fun observeLastSeq(sessionId: Long) = lastSeq

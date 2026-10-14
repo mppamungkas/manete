@@ -2,6 +2,7 @@ package id.my.pamslab.netlogger.feature.logger.service
 
 import id.my.pamslab.netlogger.core.data.SessionRecorder
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
@@ -20,11 +21,12 @@ import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.telephony.EventDetector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
-import java.util.UUID
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +34,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,7 +58,18 @@ sealed interface LoggingState {
         val deviceInfo: DeviceInfo,
         /** Ticks whose database write failed (logged, session continues). */
         val writeErrors: Long = 0,
+        val speedTest: SpeedTestState? = null,
     ) : LoggingState
+}
+
+/** The speed test of the running session, for the Live screen. */
+sealed interface SpeedTestState {
+    data class Running(val progress: SpeedTestProgress?) : SpeedTestState
+
+    /** Results as stored; a phase that failed has its error set. */
+    data class Done(val results: List<ThroughputResult>) : SpeedTestState
+
+    data class Refused(val reason: String) : SpeedTestState
 }
 
 /**
@@ -68,6 +84,8 @@ class LoggingEngine @Inject constructor(
     private val device: DeviceContextSource,
     private val clock: Clock,
     private val repository: SessionRepository,
+    private val speedTestRunner: SpeedTestRunner,
+    private val speedTestSettings: SpeedTestSettings,
 ) {
     private val _state = MutableStateFlow<LoggingState>(LoggingState.Idle())
     val state: StateFlow<LoggingState> = _state.asStateFlow()
@@ -75,6 +93,7 @@ class LoggingEngine @Inject constructor(
     private val locationState = AtomicReference(LocationState(LocationStatus.WAITING))
     private val recentFixes = AtomicReference<List<LocationFix>>(emptyList())
     private val recorder = AtomicReference<SessionRecorder?>(null)
+    private val speedTestBusy = AtomicBoolean(false)
 
     /** Closes sessions a killed process left open; skipped while a session is recording. */
     suspend fun recoverAbandonedSessions(): Int =
@@ -179,6 +198,34 @@ class LoggingEngine @Inject constructor(
         return marker
     }
 
+    /**
+     * Runs one speed test (ping, download, upload) and stores its results in the running session. Returns false when
+     * not logging, a test is already running, or no server is set.
+     */
+    suspend fun runSpeedTest(): Boolean {
+        val session = recorder.get() ?: return false
+        if (!speedTestBusy.compareAndSet(false, true)) return false
+        try {
+            val config = speedTestSettings.config.value
+            if (!config.isComplete) {
+                setSpeedTest(SpeedTestState.Refused(NO_SERVER))
+                return false
+            }
+            setSpeedTest(SpeedTestState.Running(null))
+            log("speed test started against ${config.downloadUrl}")
+            val results = speedTestRunner.run(config) { setSpeedTest(SpeedTestState.Running(it)) }
+            results.forEach { session.addThroughput(it) }
+            log("speed test: " + results.joinToString { "${it.type} ${it.mbps ?: it.rttAvgMs ?: "–"} ${it.error ?: ""}".trim() })
+            setSpeedTest(SpeedTestState.Done(results))
+            return true
+        } finally {
+            speedTestBusy.set(false)
+        }
+    }
+
+    private fun setSpeedTest(value: SpeedTestState) =
+        _state.update { s -> if (s is LoggingState.Running) s.copy(speedTest = value) else s }
+
     private fun <T> AtomicReference<T>.update(transform: (T) -> T) {
         while (true) {
             val current = get()
@@ -237,6 +284,7 @@ class LoggingEngine @Inject constructor(
         const val SUMMARY_EVERY_TICKS = 60L
         const val NS_PER_MS = 1_000_000L
         const val FIX_HISTORY = 5
+        const val NO_SERVER = "No speed test server set (Settings)"
 
         /** Pure: newest fix taken at or before the tick; the oldest one if all are newer. */
         fun buildTick(

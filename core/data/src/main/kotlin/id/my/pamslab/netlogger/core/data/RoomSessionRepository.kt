@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.data.db.SessionDao
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
 import id.my.pamslab.netlogger.core.data.db.SessionSummaryRow
+import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -15,6 +16,7 @@ import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -138,6 +140,29 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
                     toValue = event.toValue,
                     lat = event.latitude,
                     lon = event.longitude,
+                ),
+            )
+        }
+
+        override suspend fun addThroughput(result: ThroughputResult) {
+            measurements.insertThroughput(
+                ThroughputTestEntity(
+                    sessionId = sessionId,
+                    startedAtMs = result.startedAtMs,
+                    startedElapsedNs = result.startedElapsedNs,
+                    type = result.type.name,
+                    serverUrl = result.serverUrl,
+                    durationMs = result.durationMs,
+                    bytes = result.bytes,
+                    mbps = result.mbps,
+                    streams = result.streams,
+                    rttMinMs = result.rttMinMs,
+                    rttAvgMs = result.rttAvgMs,
+                    rttMaxMs = result.rttMaxMs,
+                    jitterMs = result.jitterMs,
+                    lossPct = result.lossPct,
+                    captureActive = result.captureActive,
+                    error = result.error,
                 ),
             )
         }

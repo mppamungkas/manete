@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":feature:map"))
     implementation(project(":feature:sessions"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:speedtest"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -2,6 +2,7 @@ package id.my.pamslab.netlogger.feature.logger.service
 
 import id.my.pamslab.netlogger.core.data.SessionRecorder
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
@@ -12,8 +13,8 @@ import id.my.pamslab.netlogger.core.model.device.TrafficSample
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
-import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
+import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.NsaInputs
@@ -24,11 +25,16 @@ import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
-import kotlinx.coroutines.flow.emptyFlow
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -37,6 +43,7 @@ import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,11 +66,28 @@ class LoggingEngineTest {
         override fun deviceInfo() = DeviceInfo("motorola", "moto g45 5G", "15", 35, "M6375", "0.1")
     }
 
+    private class FakeRunner : SpeedTestRunner {
+        var runs = 0
+        override suspend fun run(config: SpeedTestConfig, onProgress: (SpeedTestProgress) -> Unit): List<ThroughputResult> {
+            runs++
+            onProgress(SpeedTestProgress(ThroughputType.DOWNLOAD, mbps = 12.0))
+            return ThroughputType.entries.map {
+                ThroughputResult(it, 0, 0, config.pingUrl, 10_000, 1_000, 12.0, 4, null, null, null, null, null)
+            }
+        }
+    }
+
+    private class FakeSettings(config: SpeedTestConfig = SpeedTestConfig.libreSpeed("https://speed.example.org")) : SpeedTestSettings {
+        override val config = MutableStateFlow(config)
+        override fun save(pingUrl: String, downloadUrl: String, uploadUrl: String) = Unit
+    }
+
     private class FakeRepository : SessionRepository {
         val starts = mutableListOf<SessionStart>()
         val recorded = mutableListOf<Tick>()
         val markers = mutableListOf<UserMarker>()
         val events = mutableListOf<SessionEvent>()
+        val throughput = mutableListOf<ThroughputResult>()
         var closedWith: EndReason? = null
         var failWritesFrom: Long = Long.MAX_VALUE
         var abandonedClosed = 0
@@ -79,6 +103,7 @@ class LoggingEngineTest {
                 }
                 override suspend fun addMarker(marker: UserMarker) { markers += marker }
                 override suspend fun addEvent(event: SessionEvent) { events += event }
+                override suspend fun addThroughput(result: ThroughputResult) { throughput += result }
                 override suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long) { closedWith = reason }
             }
         }
@@ -108,7 +133,7 @@ class LoggingEngineTest {
     @Test
     fun `counts ticks and missed ticks against the interval`() = runTest {
         val clock = VirtualClock(this)
-        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock, FakeRepository())
+        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
         val job = launch { engine.run(1_000, Scenario.STATIC) }
         advanceTimeBy(9_500)
         runCurrent()
@@ -130,7 +155,7 @@ class LoggingEngineTest {
     fun `tick uses the newest fix taken at or before the tick, and its age`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository())
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
         val job = launch { engine.run(1_000, Scenario.STATIC) }
         runCurrent()
         assertNull("no fix yet", (engine.state.value as LoggingState.Running).latest?.location)
@@ -158,7 +183,7 @@ class LoggingEngineTest {
     fun `markers carry the last position and are ignored when idle`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository())
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
         assertNull(engine.addMarker())
 
         val job = launch { engine.run(1_000, Scenario.STATIC) }
@@ -174,7 +199,7 @@ class LoggingEngineTest {
     fun `session is started, every tick stored, markers persisted and closed with USER_STOP`() = runTest {
         val clock = VirtualClock(this)
         val repo = FakeRepository()
-        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo)
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
         assertEquals("recovery runs while idle", 1, engine.recoverAbandonedSessions())
         val job = launch { engine.run(1_000, Scenario.WALK) }
         advanceTimeBy(2_500)
@@ -195,7 +220,7 @@ class LoggingEngineTest {
     fun `failed writes are counted and logging continues`() = runTest {
         val clock = VirtualClock(this)
         val repo = FakeRepository().apply { failWritesFrom = 2 }
-        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo)
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
         val job = launch { engine.run(1_000, null) }
         advanceTimeBy(4_500)
         val s = engine.state.value as LoggingState.Running
@@ -217,7 +242,7 @@ class LoggingEngineTest {
                 }
             }
         }
-        val engine = LoggingEngine(radio, FakeLocation(), FakeDevice, clock, repo)
+        val engine = LoggingEngine(radio, FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
         val job = launch { engine.run(1_000, null) }
         advanceTimeBy(6_500)
         job.cancel()
@@ -226,6 +251,32 @@ class LoggingEngineTest {
         assertEquals(listOf("1" to "2", "2" to "1"), repo.events.map { it.fromValue to it.toValue })
         assertTrue(repo.events.all { it.type == EventType.DATA_SIM_CHANGED })
         assertEquals(listOf(2L, 4L), repo.events.map { e -> repo.recorded.single { it.radio.elapsedRealtimeNs == e.elapsedRealtimeNs }.seq })
+    }
+
+    @Test
+    fun `speed test - stored in the running session, refused without a server or a session`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val runner = FakeRunner()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings())
+        assertFalse("not logging", engine.runSpeedTest())
+
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(1_500)
+        assertTrue(engine.runSpeedTest())
+        assertEquals(listOf(ThroughputType.PING, ThroughputType.DOWNLOAD, ThroughputType.UPLOAD), repo.throughput.map { it.type })
+        val done = (engine.state.value as LoggingState.Running).speedTest as SpeedTestState.Done
+        assertEquals(3, done.results.size)
+        job.cancel()
+        runCurrent()
+
+        val noServer = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, FakeRepository(), runner, FakeSettings(SpeedTestConfig("", "", "")))
+        val job2 = launch { noServer.run(1_000, null) }
+        advanceTimeBy(1_500)
+        assertFalse(noServer.runSpeedTest())
+        assertEquals(SpeedTestState.Refused(LoggingEngine.NO_SERVER), (noServer.state.value as LoggingState.Running).speedTest)
+        assertEquals("the runner was not called again", 1, runner.runs)
+        job2.cancel()
     }
 
     @Test

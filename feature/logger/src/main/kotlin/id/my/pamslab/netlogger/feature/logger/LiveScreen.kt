@@ -34,9 +34,11 @@ import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
+import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
 import java.util.Locale
 
 /** Values older than this are grayed out. */
@@ -102,6 +104,7 @@ private fun SnapshotView(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { LoggingCard(ui.logging, scenario, onScenario) }
+        (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest) } }
         item { NetworkCard(snapshot) }
         item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
         ui.tick?.device?.let { item { DeviceCard(it) } }
@@ -149,6 +152,39 @@ private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (
                     }
                     Button(onClick = { LoggingService.start(context, scenario) }) { Text("Start logging") }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeedTestCard(test: SpeedTestState?) {
+    val context = LocalContext.current
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Speed test", style = MaterialTheme.typography.titleSmall)
+            when (test) {
+                null -> Text("Ping, download and upload over mobile data; results are stored in this session.", style = MaterialTheme.typography.bodySmall)
+                is SpeedTestState.Running -> {
+                    val p = test.progress
+                    Field(
+                        p?.phase?.name?.lowercase() ?: "starting",
+                        p?.mbps?.let { "%.1f Mbps".format(Locale.ROOT, it) } ?: p?.rttMs?.let { "%.0f ms".format(Locale.ROOT, it) } ?: "…",
+                    )
+                }
+                is SpeedTestState.Refused -> Text(test.reason, color = MaterialTheme.colorScheme.error)
+                is SpeedTestState.Done -> test.results.forEach { r ->
+                    val value = when {
+                        r.error != null -> r.error.orEmpty()
+                        r.type == ThroughputType.PING ->
+                            "%.0f ms avg · %.0f ms jitter · %.0f %% loss".format(Locale.ROOT, r.rttAvgMs ?: 0.0, r.jitterMs ?: 0.0, r.lossPct ?: 0.0)
+                        else -> "%.1f Mbps · %.1f MB".format(Locale.ROOT, r.mbps ?: 0.0, (r.bytes ?: 0) / 1e6)
+                    }
+                    Field(r.type.name.lowercase(), value)
+                }
+            }
+            OutlinedButton(onClick = { LoggingService.speedTest(context) }, enabled = test !is SpeedTestState.Running) {
+                Text("Run speed test")
             }
         }
     }

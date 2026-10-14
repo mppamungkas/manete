@@ -160,6 +160,33 @@ data class EventEntity(
     val lon: Double? = null,
 )
 
+/** One speed test phase (milestone 8, schema v2). */
+@Entity(
+    tableName = "throughput_test",
+    foreignKeys = [ForeignKey(SessionEntity::class, ["id"], ["sessionId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("sessionId")],
+)
+data class ThroughputTestEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sessionId: Long,
+    val startedAtMs: Long,
+    val startedElapsedNs: Long,
+    /** ThroughputType name: PING / DOWNLOAD / UPLOAD. */
+    val type: String,
+    val serverUrl: String,
+    val durationMs: Long?,
+    val bytes: Long?,
+    val mbps: Double?,
+    val streams: Int?,
+    val rttMinMs: Double?,
+    val rttAvgMs: Double?,
+    val rttMaxMs: Double?,
+    val jitterMs: Double?,
+    val lossPct: Double?,
+    val captureActive: Boolean,
+    val error: String?,
+)
+
 /**
  * One row per (session, code, rat, pci, field): the same anomaly is stored once with a counter instead of once per
  * tick. [rawValue] and [measurementId] / [elapsedRealtimeNs] are from the first occurrence.

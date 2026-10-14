@@ -41,6 +41,9 @@ interface ExportDao {
     @Query("SELECT * FROM event WHERE sessionId = :sessionId ORDER BY elapsedRealtimeNs, id")
     suspend fun events(sessionId: Long): List<EventEntity>
 
+    @Query("SELECT * FROM throughput_test WHERE sessionId = :sessionId ORDER BY startedElapsedNs, id")
+    suspend fun throughputTests(sessionId: Long): List<ThroughputTestEntity>
+
     @Query(
         "SELECT m.seq AS firstSeq, w.* FROM parse_warning w LEFT JOIN measurement m ON w.measurementId = m.id " +
             "WHERE w.sessionId = :sessionId ORDER BY w.id",

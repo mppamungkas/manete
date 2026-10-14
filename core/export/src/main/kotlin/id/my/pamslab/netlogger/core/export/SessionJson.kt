@@ -37,7 +37,14 @@ data class SessionJson(
     data class Network(val subscriptionId: Int?, val simSlot: Int?, val operatorName: String?, val mcc: String?, val mnc: String?)
 
     @Serializable
-    data class Counts(val measurements: Long, val cells: Long, val events: Long, val warnings: Long, val trackPoints: Long)
+    data class Counts(
+        val measurements: Long,
+        val cells: Long,
+        val events: Long,
+        val warnings: Long,
+        val trackPoints: Long,
+        val throughputTests: Long = 0,
+    )
 
     companion object {
         const val FORMAT_VERSION = 1

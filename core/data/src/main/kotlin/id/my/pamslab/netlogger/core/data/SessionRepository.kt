@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import kotlinx.coroutines.flow.Flow
 
 interface SessionRepository {
@@ -36,6 +37,8 @@ interface SessionRecorder {
     suspend fun addMarker(marker: UserMarker)
 
     suspend fun addEvent(event: SessionEvent)
+
+    suspend fun addThroughput(result: ThroughputResult)
 
     suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long)
 }

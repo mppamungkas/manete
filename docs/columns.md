@@ -8,8 +8,9 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `measurements.csv` | One row per tick |
 | `cells.csv` | One row per cell per tick: serving and neighbor cells from CellInfo, plus one row per RAT from SignalStrength |
 | `flat.csv` | One row per tick: the serving LTE and the serving NR cell side by side, for spreadsheets and quick plots |
-| `events.csv` | Events (user markers for now; network events come with milestone 7) |
+| `events.csv` | Events: user markers and detected network, GPS and data-SIM events |
 | `warnings.csv` | Parse warnings and flagged corrections, one row per (code, RAT, PCI, field) per session |
+| `throughput.csv` | Speed test results, one row per phase (ping, download, upload) |
 | `track.geojson` | GPS track (LineString) and events with a location (Points), RFC 7946 |
 
 ## Format rules (all CSV files)
@@ -222,6 +223,34 @@ the state. The serving cells are chosen as in flat.csv.
 | `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
 | `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
 
+## throughput.csv
+
+One row per speed test phase (milestone 8): ping, download, upload, in that order per test. A test runs only over
+mobile data (with Wi-Fi as the default network every phase gets `error` = "default network is not mobile data").
+Started from the Live screen or the notification; server URLs are set in Settings (LibreSpeed backend or any web
+server). Align with measurements.csv by `startedElapsedNs`.
+
+| Column | Unit | Description |
+|---|---|---|
+| `startedAt` | ISO-8601 | Phase start, wall time |
+| `startedAtMs` | ms | Phase start, Unix epoch |
+| `startedElapsedNs` | ns | Phase start since boot (sync key) |
+| `type` | | `PING`, `DOWNLOAD` or `UPLOAD` |
+| `serverUrl` | | URL used (each request adds a unique `nl` query parameter against caches) |
+| `durationMs` | ms | Phase time actually measured |
+| `bytes` | bytes | DOWNLOAD: bytes read; UPLOAD: bytes handed to the socket (the last socket buffer may still be in flight) |
+| `mbps` | Mbit/s | bytes × 8 / phase time / 10^6, whole phase incl. TCP ramp-up; empty when the server refused (HTTP error) or nothing was transferred |
+| `streams` | | Parallel connections (download/upload: 4; ping: 1) |
+| `rttMinMs` | ms | PING: fastest HTTP round trip (request sent to response read, kept-alive connection; includes server time, unlike ICMP) |
+| `rttAvgMs` | ms | PING: mean round trip of the counted requests (10; a first request opens the connection and is not counted) |
+| `rttMaxMs` | ms | PING: slowest round trip |
+| `jitterMs` | ms | PING: mean absolute difference between consecutive round trips |
+| `lossPct` | % | PING: failed counted requests (3 s timeout each) |
+| `captureActive` | | Traffic capture was running (Phase 3; always `false` for now) |
+| `error` | | Why the phase failed or was refused; empty when it worked. A failed phase keeps what it measured |
+
+Limits per test: 10 s per throughput phase, at most 200 MB download and 50 MB upload.
+
 ## warnings.csv
 
 Only anomalies and flagged corrections; sentinel values ("not reported") never raise a warning. Codes are documented
@@ -268,5 +297,5 @@ A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 | `appVersion`, `schemaVersion` | NetLogger version and database schema version |
 | `device` | `manufacturer`, `model`, `androidVersion`, `basebandVersion` |
 | `network` | `subscriptionId`, `simSlot`, `operatorName`, `mcc`, `mnc` of the logged SIM |
-| `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, and `trackPoints` (ticks with a fix) |
+| `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, `throughputTests`, and `trackPoints` (ticks with a fix) |
 | `files` | Files in the bundle |

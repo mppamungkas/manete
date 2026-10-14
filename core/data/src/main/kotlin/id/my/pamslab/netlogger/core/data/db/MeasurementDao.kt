@@ -29,6 +29,9 @@ abstract class MeasurementDao {
     @Insert
     abstract suspend fun insertEvent(event: EventEntity): Long
 
+    @Insert
+    abstract suspend fun insertThroughput(test: ThroughputTestEntity): Long
+
     /**
      * One tick in one transaction: the measurement, its cells, new warning rows (their measurementId is set here)
      * and counter updates for warnings already seen in the session. Returns the measurement id and the new warning

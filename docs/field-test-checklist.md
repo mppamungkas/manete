@@ -74,10 +74,29 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] Each metric chip recolors the dots: LTE RSRP, NR SS-RSRP, LTE SINR, NR SS-SINR, Network; legend matches;
       ticks without a value are gray; ticks without a GPS fix are not drawn (count shown top right)
 - [ ] Tap a dot: card with tick, time, LTE/NR identity, RSRP/SINR with "(SS)" when from SignalStrength, ages, GPS
-- [ ] Markers appear as black dots with a white ring
+- [ ] Markers appear as black dots with a white ring; detected events as small rings (gray handover, purple
+      network type / NR, red service / GPS / SIM)
 - [ ] Start logging, open Map: the session is marked "recording" and grows every tick; Follow keeps the newest
       point in view; turning Follow off lets you pan freely
 - [ ] Session detail → "Show on map" opens that session on the Map tab
 - [ ] "© OpenStreetMap contributors" is visible; tiles load on mobile data; no crash in airplane mode (gray map,
       track still drawn)
 - [ ] Map open for 10+ minutes while logging: no slowdown or memory growth visible in Live's tick counter
+
+## Milestone 7: events and bands
+
+- [ ] Drive with handovers and 5G coming and going: events.csv has PCI_CHANGE_LTE, RAT_CHANGE, NR_ADDED / NR_REMOVED
+      at plausible places on the map; A56 PCI_CHANGE_NR only for cells held 2+ ticks
+- [ ] Compare the event list with G-NetTrack's events file (same phone, same drive)
+- [ ] warnings.csv: `API_BAND_CONFLICT` on the moto right after handovers; bands in flat.csv match the EARFCN
+
+## Milestone 8: speed test
+
+- [ ] Server reachable from mobile data (LibreSpeed backend or own web server); URLs saved in Settings
+- [ ] **Wi-Fi off.** With Wi-Fi on, the test is refused ("default network is not mobile data")
+- [ ] While logging: "Run speed test" on Live (and once from the notification with the screen off): ping, then
+      download and upload for 10 s each; Live shows progress and results
+- [ ] throughput.csv: 3 rows per test, plausible Mbps vs. G-NetTrack / another speed test app at the same spot;
+      `startedElapsedNs` falls inside the session's ticks
+- [ ] Data used per test stays under 250 MB (200 MB down, 50 MB up caps)
+- [ ] Server down / wrong URL: the phases have `error` set, no crash, logging continues

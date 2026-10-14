@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.core.export
 
+import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -36,6 +37,14 @@ class SessionExporterTest {
             measurements = ticks,
             events = listOf(marker(3)),
             warnings = listOf(warning("NR_SERVING_STRONGEST", "2"), warning("OUT_OF_RANGE", "a,\"b\"")),
+            throughput = listOf(
+                ThroughputTestEntity(
+                    sessionId = 1, startedAtMs = START_MS + 5_000, startedElapsedNs = 5, type = "DOWNLOAD",
+                    serverUrl = "https://speed.example.org/backend/garbage.php?ckSize=100", durationMs = 10_000,
+                    bytes = 52_428_800, mbps = 41.94304, streams = 4, rttMinMs = null, rttAvgMs = null, rttMaxMs = null,
+                    jitterMs = null, lossPct = null, captureActive = false, error = null,
+                ),
+            ),
         )
         val (result, files) = exportZip(dao)
 
@@ -46,7 +55,10 @@ class SessionExporterTest {
         assertEquals(2, lines(files.getValue("events.csv")).size)
         assertEquals(3, lines(files.getValue("warnings.csv")).size)
         assertTrue(files.getValue("warnings.csv").contains(",\"a,\"\"b\"\"\","))
-        assertEquals(SessionJson.Counts(1_201, 1_201L * a56Cells().size, 1, 2, 1_200), result.counts)
+        assertEquals(SessionJson.Counts(1_201, 1_201L * a56Cells().size, 1, 2, 1_200, 1), result.counts)
+        val throughput = lines(files.getValue("throughput.csv"))
+        assertEquals(2, throughput.size)
+        assertTrue(throughput[1].contains(",DOWNLOAD,https://speed.example.org/backend/garbage.php?ckSize=100,10000,52428800,41.94304,4,,,,,,false,"))
         assertTrue("paged, not one query", dao.measurementQueries >= 3)
 
         val seqs = lines(files.getValue("measurements.csv")).drop(1).map { it.substringBefore(',').toLong() }

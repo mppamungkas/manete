@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 
 /** Bump [VERSION] only together with a Migration and a migration test (CLAUDE.md). */
 @Database(
-    entities = [SessionEntity::class, MeasurementEntity::class, CellEntity::class, EventEntity::class, ParseWarningEntity::class],
+    entities = [SessionEntity::class, MeasurementEntity::class, CellEntity::class, EventEntity::class, ParseWarningEntity::class, ThroughputTestEntity::class],
     version = NetLoggerDatabase.VERSION,
     exportSchema = true,
 )
@@ -15,7 +15,7 @@ abstract class NetLoggerDatabase : RoomDatabase() {
     abstract fun exportDao(): ExportDao
 
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
         const val NAME = "netlogger.db"
     }
 }

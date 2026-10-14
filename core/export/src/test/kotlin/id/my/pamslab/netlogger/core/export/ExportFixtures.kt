@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.data.db.ExportDao
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
 import id.my.pamslab.netlogger.core.data.db.ParseWarningEntity
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
+import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import id.my.pamslab.netlogger.core.data.db.WarningWithSeq
 
 const val START_MS = 1_791_931_200_000L // 2026-10-14T05:40:00+07:00
@@ -61,6 +62,7 @@ class FakeExportDao(
     val cellsPerTick: (Long) -> List<CellEntity> = { a56Cells() },
     val events: List<EventEntity> = emptyList(),
     val warnings: List<WarningWithSeq> = emptyList(),
+    val throughput: List<ThroughputTestEntity> = emptyList(),
 ) : ExportDao {
     var measurementQueries = 0
 
@@ -75,6 +77,8 @@ class FakeExportDao(
         measurements.filter { it.seq in fromSeq..toSeq }.flatMap { m -> cellsPerTick(m.seq).map { CellWithTick(m.seq, m.wallTimeMs, m.elapsedRealtimeNs, it) } }
 
     override suspend fun events(sessionId: Long) = events
+
+    override suspend fun throughputTests(sessionId: Long) = throughput
 
     override suspend fun warnings(sessionId: Long) = warnings
 

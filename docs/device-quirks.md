@@ -391,6 +391,13 @@ unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogge
   NetLogger's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
 - Battery: moto 96 → 93 %, A56 51 → 47 % over 27 min with both apps and the screen on.
 
+### Samsung A56, schema v1 → v2 migration on the phone, 2026-10-14 (milestone 8)
+
+Installed the v2 build over the field database (backup first: `docs/samples/db-backup-2026-10-14-pre-v2/`). Room logged
+"DB version upgrading from 1 to 2"; afterwards `user_version` 2, integrity ok, all rows kept (8 sessions, 4515
+measurements, 21970 cells, 6 events, 850 warnings), `throughput_test` present and empty. moto g45: not yet (it dropped
+off USB before the install).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

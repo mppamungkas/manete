@@ -3,6 +3,7 @@ package id.my.pamslab.netlogger.core.export
 import id.my.pamslab.netlogger.core.data.db.CellWithTick
 import id.my.pamslab.netlogger.core.data.db.EventEntity
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
+import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import id.my.pamslab.netlogger.core.data.db.WarningWithSeq
 
 /** One CSV column: header name and value. Definitions and units: docs/columns.md (kept in sync by a unit test). */
@@ -97,6 +98,25 @@ class Columns(time: IsoTime) {
         col("toValue") { it.toValue },
         col("lat") { it.lat },
         col("lon") { it.lon },
+    )
+
+    val throughput: List<Column<ThroughputTestEntity>> = listOf(
+        col("startedAt") { time.format(it.startedAtMs) },
+        col("startedAtMs") { it.startedAtMs },
+        col("startedElapsedNs") { it.startedElapsedNs },
+        col("type") { it.type },
+        col("serverUrl") { it.serverUrl },
+        col("durationMs") { it.durationMs },
+        col("bytes") { it.bytes },
+        col("mbps") { it.mbps },
+        col("streams") { it.streams },
+        col("rttMinMs") { it.rttMinMs },
+        col("rttAvgMs") { it.rttAvgMs },
+        col("rttMaxMs") { it.rttMaxMs },
+        col("jitterMs") { it.jitterMs },
+        col("lossPct") { it.lossPct },
+        col("captureActive") { it.captureActive },
+        col("error") { it.error },
     )
 
     val warnings: List<Column<WarningWithSeq>> = listOf(

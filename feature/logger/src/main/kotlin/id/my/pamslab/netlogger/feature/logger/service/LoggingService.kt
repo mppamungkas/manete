@@ -56,6 +56,8 @@ class LoggingService : Service() {
             ACTION_MARKER -> scope.launch {
                 engine.addMarker()?.let { Log.i(TAG, "marker stored at ${it.elapsedRealtimeNs}") }
             }
+            // In the service scope, so the test finishes when the Live screen is left.
+            ACTION_SPEED_TEST -> if (sessionJob?.isActive == true) scope.launch { engine.runSpeedTest() }
             // A restart without our intent (e.g. after the process was killed): don't resume silently.
             else -> stop()
         }
@@ -140,6 +142,7 @@ class LoggingService : Service() {
             .setContentIntent(open)
             .addAction(action("Stop", ACTION_STOP, 1))
             .addAction(action("Add marker", ACTION_MARKER, 2))
+            .addAction(action("Speed test", ACTION_SPEED_TEST, 3))
             .build()
     }
 
@@ -183,6 +186,7 @@ class LoggingService : Service() {
         private const val ACTION_START = "id.my.pamslab.netlogger.logging.START"
         private const val ACTION_STOP = "id.my.pamslab.netlogger.logging.STOP"
         private const val ACTION_MARKER = "id.my.pamslab.netlogger.logging.MARKER"
+        private const val ACTION_SPEED_TEST = "id.my.pamslab.netlogger.logging.SPEED_TEST"
         private const val EXTRA_INTERVAL_MS = "intervalMs"
         private const val EXTRA_SCENARIO = "scenario"
 
@@ -207,6 +211,11 @@ class LoggingService : Service() {
 
         fun addMarker(context: Context) {
             context.startService(Intent(context, LoggingService::class.java).setAction(ACTION_MARKER))
+        }
+
+        /** Runs a speed test in the logging session; ignored when not logging. */
+        fun speedTest(context: Context) {
+            context.startService(Intent(context, LoggingService::class.java).setAction(ACTION_SPEED_TEST))
         }
     }
 }

@@ -18,7 +18,7 @@ import javax.inject.Inject
 data class ExportResult(val fileName: String, val counts: SessionJson.Counts)
 
 /**
- * Writes one session as a ZIP bundle: session.json, measurements.csv, cells.csv, events.csv, warnings.csv, flat.csv and
+ * Writes one session as a ZIP bundle: session.json, measurements.csv, cells.csv, events.csv, warnings.csv, throughput.csv, flat.csv and
  * track.geojson. Ticks are read in pages of [PAGE_TICKS], so memory stays flat for long sessions. Timestamps are
  * formatted in [zone] (the device zone at export; sessions do not store one) next to the raw epoch ms and
  * elapsedRealtime ns columns.
@@ -74,6 +74,12 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
             csv.header(columns.warnings.map { it.name })
             csv.writeAll(columns.warnings, warnings)
         }
+        val throughput = dao.throughputTests(sessionId)
+        entry(zip, THROUGHPUT) { w ->
+            val csv = CsvWriter(w)
+            csv.header(columns.throughput.map { it.name })
+            csv.writeAll(columns.throughput, throughput)
+        }
         var trackPoints = 0L
         entry(zip, TRACK) { w ->
             val geo = GeoJsonWriter(w, time, session.uuid)
@@ -85,7 +91,7 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
             }
             geo.finish(events)
         }
-        val counts = SessionJson.Counts(measurements, cells, events.size.toLong(), warnings.size.toLong(), trackPoints)
+        val counts = SessionJson.Counts(measurements, cells, events.size.toLong(), warnings.size.toLong(), trackPoints, throughput.size.toLong())
         entry(zip, SESSION) { w -> w.write(JSON.encodeToString(SessionJson.serializer(), sessionJson(session, time, nowMs, counts))) }
         zip.finish()
         return ExportResult(fileName(session, zone), counts)
@@ -141,9 +147,10 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
         const val CELLS = "cells.csv"
         const val EVENTS = "events.csv"
         const val WARNINGS = "warnings.csv"
+        const val THROUGHPUT = "throughput.csv"
         const val FLAT = "flat.csv"
         const val TRACK = "track.geojson"
-        val FILES = listOf(SESSION, MEASUREMENTS, CELLS, EVENTS, WARNINGS, FLAT, TRACK)
+        val FILES = listOf(SESSION, MEASUREMENTS, CELLS, EVENTS, WARNINGS, THROUGHPUT, FLAT, TRACK)
 
         private const val PAGE_TICKS = 500
         private const val BUFFER_BYTES = 64 * 1024
