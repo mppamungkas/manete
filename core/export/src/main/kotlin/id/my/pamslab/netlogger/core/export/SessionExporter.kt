@@ -26,7 +26,7 @@ data class ExportResult(val fileName: String, val counts: SessionJson.Counts)
  */
 class SessionExporter @Inject constructor(
     private val dao: ExportDao,
-    /** UDP-mode traffic captures (Phase 3a); none in tests. */
+    /** TCP-mode traffic captures (Phase 3a); none in tests. */
     private val captures: CaptureFileStore? = null,
 ) {
 
@@ -96,7 +96,7 @@ class SessionExporter @Inject constructor(
             }
             geo.finish(events)
         }
-        // Traffic capture written by NetLogger (UDP mode): copied byte for byte. A FILE-mode capture stays in
+        // Traffic capture written by NetLogger (TCP mode): copied byte for byte. A FILE-mode capture stays in
         // PCAPdroid's Download folder (session.captureFile names it); NetLogger cannot read it.
         val captureFiles = captures?.let { store ->
             listOfNotNull(

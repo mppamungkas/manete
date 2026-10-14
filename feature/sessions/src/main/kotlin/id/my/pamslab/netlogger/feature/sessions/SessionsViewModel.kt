@@ -101,7 +101,7 @@ class SessionDetailViewModel @Inject constructor(
             try {
                 val uuid = session.value?.uuid
                 repository.delete(id)
-                // The session's traffic capture (UDP mode) goes with it.
+                // The session's traffic capture (TCP mode) goes with it.
                 uuid?.let { withContext(Dispatchers.IO) { captureFiles.delete(it) } }
                 onDeleted()
             } catch (e: IllegalArgumentException) {

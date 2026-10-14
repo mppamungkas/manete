@@ -391,6 +391,30 @@ unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogge
   NetLogger's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
 - Battery: moto 96 → 93 %, A56 51 → 47 % over 27 min with both apps and the screen on.
 
+### moto g45, PCAPdroid capture: UDP vs. TCP stream, 2026-10-14 (milestone 10)
+
+PCAPdroid 2.0.2, VPN mode (records ≤ 10000 bytes = PCAPdroid's VPN MTU; LINKTYPE_RAW, snaplen 32768). The "root"
+prompt the user saw was PCAPdroid's own consent dialog; NetLogger's request now also says `root_capture=false`.
+
+- **UDP exporter loses packets under load.** A 10 MB download (session 8): PCAPdroid counted 10,779 packets / 11.2 MB
+  dumped, NetLogger received 5,813 / 5.9 MB (~46 % lost). The socket kept Android's 224 KB default receive buffer
+  (rmem_max allows 16 MB on the moto, 32 MB on the A56). A small capture (331 packets) arrived complete. UDP's arrival
+  delay also varied by up to 1.5 s (PCAPdroid queues and sends in batches), so arrival time is no packet clock.
+- **TCP exporter: nothing lost.** Session 10, 3 × 10 MB download (curl from the shell, Cloudflare): NetLogger
+  5,483 packets / 30,388,956 bytes = PCAPdroid 5,483 / 30,388,956 bytes dumped; file valid to the last byte,
+  timestamps monotonic. Wall-clock offset START vs. STOP: 0.6 ms apart.
+- **Capture overhead on throughput: none measurable.** Same spot, 5G NSA, LTE CA 10+10+20 MHz, LTE RSRP -97/-98,
+  NR -96, logging on in both sets:
+
+  | 10 MB download | run 1 | run 2 | run 3 | mean |
+  |---|---|---|---|---|
+  | capture off | 0.762 s, 13.1 MB/s | 0.731 s, 13.7 MB/s | 0.819 s, 12.2 MB/s | 0.771 s, 13.0 MB/s (104 Mbit/s) |
+  | TCP capture on | 0.741 s, 13.5 MB/s | 0.880 s, 11.4 MB/s | 0.719 s, 13.9 MB/s | 0.780 s, 12.9 MB/s (103 Mbit/s) |
+
+  Difference ~1 %, inside the run-to-run spread (0.72–0.88 s). Short downloads only; a long capture under sustained
+  load is still to check.
+- A second capture in the same session overwrote the first one's capture_sync.csv: one capture per session now.
+
 ### moto g45, schema v1 → v2 migration and capture card, 2026-10-14 (milestones 8, 10)
 
 Backup first (`docs/samples/db-backup-2026-10-14-pre-v2/`), then the milestone 10 build: `user_version` 2, integrity

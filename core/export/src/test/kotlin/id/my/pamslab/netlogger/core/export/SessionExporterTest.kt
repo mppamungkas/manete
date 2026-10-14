@@ -74,7 +74,7 @@ class SessionExporterTest {
     }
 
     @Test
-    fun `a UDP-mode traffic capture is copied into the bundle and listed`() = runTest {
+    fun `a TCP-mode traffic capture is copied into the bundle and listed`() = runTest {
         val dir = Files.createTempDirectory("captures").toFile()
         val store = object : CaptureFileStore {
             override fun pcap(sessionUuid: String) = File(dir, "$sessionUuid.pcap")

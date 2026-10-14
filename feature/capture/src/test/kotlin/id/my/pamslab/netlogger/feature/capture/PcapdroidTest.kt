@@ -9,10 +9,11 @@ import org.junit.Test
 class PcapdroidTest {
 
     @Test
-    fun `UDP exporter to NetLogger on loopback, free features only`() {
-        val extras = Pcapdroid.startExtras(CaptureMode.UDP, 40_123, null, listOf(" org.mozilla.firefox", "", "com.whatsapp "), "a.b.Receiver")
+    fun `TCP exporter to NetLogger on loopback, VPN mode, free features only`() {
+        val extras = Pcapdroid.startExtras(CaptureMode.TCP, 40_123, null, listOf(" org.mozilla.firefox", "", "com.whatsapp "), "a.b.Receiver")
         assertEquals("start", extras["action"])
-        assertEquals("udp_exporter", extras["pcap_dump_mode"])
+        assertEquals("tcp_exporter", extras["pcap_dump_mode"])
+        assertEquals("false", extras["root_capture"])
         assertEquals("127.0.0.1", extras["collector_host"])
         assertEquals("127.0.0.1", extras["collector_ip_address"])
         assertEquals("40123", extras["collector_port"])

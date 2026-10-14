@@ -18,35 +18,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.BufferedOutputStream
-import java.io.Closeable
+import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.OutputStreamWriter
+import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Why a capture ended, stored as CAPTURE_STOPPED fromValue. */
-enum class StopReason { USER, SESSION_END, PCAPDROID, START_FAILED }
+enum class StopReason { USER, SESSION_END, PCAPDROID }
 
 /**
  * Links a PCAPdroid capture to the open logging session (Phase 3a). The UI launches the intents this class builds
- * (PCAPdroid wants startActivityForResult) and reports the results back. In UDP mode this class owns the listener
+ * (PCAPdroid wants startActivityForResult) and reports the results back. In TCP mode this class owns the receiver
  * and capture.pcap; in FILE mode PCAPdroid owns the file and only its name is linked.
  *
- * Start and stop are stored as CAPTURE_STARTED / CAPTURE_STOPPED events (both time bases), so the capture can be
- * aligned with the radio log. When the session ends, the listener is closed; PCAPdroid itself keeps capturing until
- * stopped from the capture card or PCAPdroid.
+ * Timing: packets keep PCAPdroid's own record timestamps (wall clock). For alignment with the radio log, the
+ * wall-clock ↔ elapsedRealtimeNs offset is written to capture_sync.csv at capture start and stop, and both
+ * CAPTURE_STARTED / CAPTURE_STOPPED events carry both time bases. When the session ends, NetLogger's side closes;
+ * PCAPdroid itself keeps capturing until stopped from the capture card or PCAPdroid.
  */
 @Singleton
 class CaptureController @Inject constructor(
@@ -59,8 +60,10 @@ class CaptureController @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
-    private var receiver: UdpPcapReceiver? = null
-    private var streams: List<Closeable> = emptyList()
+    private var receiver: TcpPcapReceiver? = null
+    private var pcapOut: OutputStream? = null
+    private var syncFile: File? = null
+    private var preparedUuid: String? = null
 
     val state: StateFlow<CaptureState> = holder.state.asStateFlow()
 
@@ -86,22 +89,22 @@ class CaptureController @Inject constructor(
 
     /**
      * Prepares a capture for the open session and returns PCAPdroid's start intent, or null with
-     * [CaptureState.error] set. In UDP mode the listener is already bound when this returns.
+     * [CaptureState.error] set. In TCP mode the receiver is already listening when this returns.
      */
     suspend fun prepareStart(): Intent? = mutex.withLock {
         val session = openSession.value ?: return fail("Start logging first: a capture belongs to a session")
         if (holder.state.value.running) return fail("A capture is already running")
+        // One capture per session: a second one would overwrite capture.pcap and capture_sync.csv.
+        if (files.sync(session.uuid).exists()) return fail("This session already has a capture. Start a new session for another one.")
         val pkg = pcapdroidPackage() ?: return fail("PCAPdroid is not installed")
         val mode = settings.mode
         val extras = try {
             when (mode) {
-                CaptureMode.UDP -> {
-                    val pcap = FileOutputStream(files.pcap(session.uuid))
-                    val out = BufferedOutputStream(pcap)
-                    val sync = OutputStreamWriter(FileOutputStream(files.sync(session.uuid)), Charsets.UTF_8)
-                    val r = UdpPcapReceiver(out, sync, clock::elapsedRealtimeNs, clock::wallTimeMs)
+                CaptureMode.TCP -> {
+                    val out = BufferedOutputStream(FileOutputStream(files.pcap(session.uuid)), WRITE_BUFFER)
+                    pcapOut = out
+                    val r = TcpPcapReceiver(out)
                     receiver = r
-                    streams = listOf(out, sync)
                     holder.state.value = CaptureState(sessionId = session.id, mode = mode, fileName = files.pcap(session.uuid).name)
                     Pcapdroid.startExtras(mode, r.port, null, settings.appFilter, RECEIVER_CLASS)
                 }
@@ -113,8 +116,10 @@ class CaptureController @Inject constructor(
             }
         } catch (e: IOException) {
             closeReceiver()
-            return fail("Capture file or UDP port: ${e.message}")
+            return fail("Capture file or TCP port: ${e.message}")
         }
+        syncFile = files.sync(session.uuid)
+        preparedUuid = session.uuid
         Log.i(TAG, "capture: asking $pkg to start ($mode)")
         Pcapdroid.intent(pkg, extras)
     }
@@ -125,26 +130,27 @@ class CaptureController @Inject constructor(
             mutex.withLock {
                 val s = holder.state.value
                 val sessionId = s.sessionId ?: return@withLock
-                if (!ok) {
+                if (s.running) return@withLock
+                val uuid = openSession.value?.takeIf { it.id == sessionId }?.uuid
+                if (!ok || uuid == null) {
                     closeReceiver()
-                    openSession.value?.uuid?.let { uuid -> if (s.mode == CaptureMode.UDP) files.delete(uuid) }
-                    holder.state.value = CaptureState(error = "PCAPdroid did not start the capture (consent denied or error)")
+                    // Nothing was captured for this session: leave no empty files behind.
+                    preparedUuid?.let(files::delete)
+                    if (ok) _pcapdroidMayRun.value = true // the session ended while PCAPdroid asked for consent
+                    holder.state.value = CaptureState(
+                        error = if (ok) "The session ended before the capture started; stop PCAPdroid"
+                        else "PCAPdroid did not start the capture (consent denied or error)",
+                    )
                     return@withLock
                 }
-                val now = clock.elapsedRealtimeNs()
-                holder.state.value = s.copy(running = true, startedElapsedNs = now, error = null)
-                if (openSession.value?.id != sessionId) {
-                    // The session ended while PCAPdroid asked for consent.
-                    _pcapdroidMayRun.value = true
-                    closeReceiver()
-                    holder.state.value = s.copy(error = "The session ended before the capture started; stop PCAPdroid")
-                    return@withLock
-                }
+                val sync = ClockSync.now(clock)
+                holder.state.value = s.copy(running = true, startedElapsedNs = sync.elapsedNs, error = null)
                 _pcapdroidMayRun.value = true
+                syncFile?.let { ClockSync.writeHeader(it); ClockSync.append(it, "START", sync, null) }
                 repository.setCaptureFile(sessionId, s.fileName?.let { if (s.mode == CaptureMode.FILE) "$PCAPDROID_DIR/$it" else it })
-                repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, s.mode?.name, s.fileName, now))
+                repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, s.mode?.name, "${s.fileName} ${sync.describe()}", sync))
                 Log.i(TAG, "capture started: ${s.mode} ${s.fileName}")
-                if (s.mode == CaptureMode.UDP) launch { publishStats(sessionId) }
+                if (s.mode == CaptureMode.TCP) launch { publishStats(sessionId) }
             }
         }
     }
@@ -158,20 +164,39 @@ class CaptureController @Inject constructor(
     }
 
     /** PCAPdroid's CaptureStatus broadcast: its capture stopped (from PCAPdroid itself or our stop request). */
-    fun onPcapdroidStopped(stats: String?) {
+    fun onPcapdroidStopped(stats: Pcapdroid.Stats?) {
         _pcapdroidMayRun.value = false
         scope.launch { finish(StopReason.PCAPDROID, stats) }
     }
 
-    private suspend fun finish(reason: StopReason, pcapdroidStats: String?) = mutex.withLock {
+    private suspend fun finish(reason: StopReason, stats: Pcapdroid.Stats?) = mutex.withLock {
         val s = holder.state.value
-        if (!s.running) return@withLock
+        if (!s.running) {
+            // The stop result and the broadcast both come; the second one only adds PCAPdroid's count if missing.
+            if (stats != null && s.pcapdroidPackets == null && s.sessionId != null) holder.state.value = s.copy(pcapdroidPackets = stats.packets)
+            return@withLock
+        }
         val r = receiver
+        // PCAPdroid closes the TCP stream once its capture stopped: wait for it, so no buffered packet is cut off.
+        // At the session end PCAPdroid still runs, so NetLogger's side closes right away.
+        val drained = reason != StopReason.SESSION_END && r?.awaitEnd(DRAIN_TIMEOUT_MS) == true
         closeReceiver()
-        val counts = "packets=${r?.packets ?: "–"} bytes=${r?.bytes ?: "–"} rejected=${r?.rejectedDatagrams ?: "–"}" +
-            (pcapdroidStats?.let { " · $it" } ?: "")
-        s.sessionId?.let { repository.addEvent(it, event(EventType.CAPTURE_STOPPED, reason.name, counts, clock.elapsedRealtimeNs())) }
-        holder.state.value = s.copy(running = false, packets = r?.packets ?: s.packets, bytes = r?.bytes ?: s.bytes)
+        val sync = ClockSync.now(clock)
+        val missing = if (r != null && stats != null) stats.packets - r.packets else null
+        val counts = buildString {
+            append("netlogger_packets=${r?.packets ?: "–"} netlogger_bytes=${r?.bytes ?: "–"}")
+            append(" pcapdroid_packets=${stats?.packets ?: "–"} pcapdroid_bytes_dumped=${stats?.bytesDumped ?: "–"}")
+            missing?.let { append(" missing=$it") }
+            if (r != null && !drained && reason != StopReason.SESSION_END) append(" not_drained")
+            r?.error?.let { append(" error=$it") }
+            append(" ${sync.describe()}")
+        }
+        syncFile?.let { ClockSync.append(it, "STOP", sync, counts) }
+        s.sessionId?.let { repository.addEvent(it, event(EventType.CAPTURE_STOPPED, reason.name, counts, sync)) }
+        holder.state.value = s.copy(
+            running = false, packets = r?.packets ?: s.packets, bytes = r?.bytes ?: s.bytes,
+            pcapdroidPackets = stats?.packets, error = r?.error,
+        )
         Log.i(TAG, "capture stopped ($reason): $counts")
     }
 
@@ -180,7 +205,7 @@ class CaptureController @Inject constructor(
             val r = receiver ?: return
             holder.state.update { s ->
                 if (!s.running || s.sessionId != sessionId) return
-                s.copy(packets = r.packets, bytes = r.bytes, rejectedDatagrams = r.rejectedDatagrams, error = r.error)
+                s.copy(packets = r.packets, bytes = r.bytes, error = r.error)
             }
             delay(STATS_MS)
         }
@@ -189,8 +214,8 @@ class CaptureController @Inject constructor(
     private fun closeReceiver() {
         receiver?.close()
         receiver = null
-        streams.forEach { runCatching { it.close() } }
-        streams = emptyList()
+        pcapOut?.let { runCatching { it.close() } }
+        pcapOut = null
     }
 
     private fun fail(message: String): Intent? {
@@ -199,13 +224,42 @@ class CaptureController @Inject constructor(
         return null
     }
 
-    private fun event(type: EventType, from: String?, to: String?, elapsedNs: Long) =
-        SessionEvent(type, clock.wallTimeMs(), elapsedNs, from, to, null, null)
+    private fun event(type: EventType, from: String?, to: String?, sync: ClockSync) =
+        SessionEvent(type, sync.wallMs, sync.elapsedNs, from, to, null, null)
 
     companion object {
         private const val TAG = "NetLogger"
         private const val STATS_MS = 1_000L
+        private const val WRITE_BUFFER = 1 shl 20
+        private const val DRAIN_TIMEOUT_MS = 5_000L
         const val PCAPDROID_DIR = "Download/PCAPdroid"
         val RECEIVER_CLASS: String = CaptureStatusReceiver::class.java.name
+    }
+}
+
+/**
+ * One reading of both clocks. [elapsedNs] is the midpoint of two elapsedRealtimeNs reads around the wall-clock read,
+ * so [wallMinusElapsedNs] is off by at most half their gap (microseconds). A packet's PCAP timestamp (wall clock)
+ * maps to the radio log's axis as `elapsedRealtimeNs = pcapTsNs - wallMinusElapsedNs`.
+ */
+data class ClockSync(val wallMs: Long, val elapsedNs: Long) {
+    val wallMinusElapsedNs: Long get() = wallMs * 1_000_000 - elapsedNs
+
+    fun describe() = "wallMinusElapsedNs=$wallMinusElapsedNs"
+
+    companion object {
+        fun now(clock: Clock): ClockSync {
+            val before = clock.elapsedRealtimeNs()
+            val wall = clock.wallTimeMs()
+            val after = clock.elapsedRealtimeNs()
+            return ClockSync(wall, before + (after - before) / 2)
+        }
+
+        const val HEADER = "point,wallTimeMs,elapsedRealtimeNs,wallMinusElapsedNs,counts\n"
+
+        fun writeHeader(file: File) = file.writeText(HEADER)
+
+        fun append(file: File, point: String, sync: ClockSync, counts: String?) =
+            file.appendText("$point,${sync.wallMs},${sync.elapsedNs},${sync.wallMinusElapsedNs},${counts?.let { "\"$it\"" } ?: ""}\n")
     }
 }

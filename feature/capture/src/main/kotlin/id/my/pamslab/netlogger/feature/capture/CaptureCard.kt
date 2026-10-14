@@ -81,10 +81,9 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                 )
                 state.running -> {
                     Text("Capturing · ${state.mode} · ${state.fileName}", style = MaterialTheme.typography.bodySmall)
-                    if (state.mode == CaptureMode.UDP) {
+                    if (state.mode == CaptureMode.TCP) {
                         Text(
-                            "%d packets · %.1f MB".format(Locale.ROOT, state.packets, state.bytes / 1e6) +
-                                if (state.rejectedDatagrams > 0) " · ${state.rejectedDatagrams} rejected" else "",
+                            "NetLogger received %d packets · %.1f MB".format(Locale.ROOT, state.packets, state.bytes / 1e6),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     } else {
@@ -102,7 +101,7 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                             FilterChip(
                                 selected = m == mode,
                                 onClick = { mode = m; controller.settings.mode = m },
-                                label = { Text(if (m == CaptureMode.UDP) "Into NetLogger" else "PCAPdroid file") },
+                                label = { Text(if (m == CaptureMode.TCP) "Into NetLogger" else "PCAPdroid file") },
                             )
                         }
                     }
@@ -128,6 +127,15 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                         }
                     }) { Text("Start capture") }
                 }
+            }
+            if (!state.running && state.mode == CaptureMode.TCP && state.fileName != null) {
+                // The last capture: loss is always visible.
+                val pcapdroid = state.pcapdroidPackets
+                Text(
+                    "Last capture: NetLogger received ${state.packets} packets · PCAPdroid counted ${pcapdroid ?: "–"}" +
+                        (pcapdroid?.let { " · missing ${it - state.packets}" } ?: ""),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }

@@ -13,7 +13,7 @@ class CaptureSettings @Inject constructor(@ApplicationContext context: Context) 
     private val prefs = context.getSharedPreferences("capture", Context.MODE_PRIVATE)
 
     var mode: CaptureMode
-        get() = prefs.getString(KEY_MODE, null)?.let { name -> CaptureMode.entries.firstOrNull { it.name == name } } ?: CaptureMode.UDP
+        get() = prefs.getString(KEY_MODE, null)?.let { name -> CaptureMode.entries.firstOrNull { it.name == name } } ?: CaptureMode.TCP
         @SuppressLint("UseKtx") set(value) = prefs.edit().putString(KEY_MODE, value.name).apply()
 
     /** Packages to capture; empty = every app. */

@@ -14,7 +14,7 @@ class CaptureStateHolder @Inject constructor() {
     val state = MutableStateFlow(CaptureState())
 }
 
-/** Where UDP-mode captures are stored: app-private files/captures/<session uuid>.pcap (+ _sync.csv). */
+/** Where TCP-mode captures are stored: app-private files/captures/<session uuid>.pcap (+ _sync.csv). */
 interface CaptureFileStore {
     fun pcap(sessionUuid: String): File
     fun sync(sessionUuid: String): File

@@ -114,13 +114,13 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 
 - [ ] PCAPdroid installed (F-Droid / Play); no other VPN active
 - [ ] Without PCAPdroid: the capture card says so, no crash
-- [ ] Logging → capture card → "Into NetLogger" → Start capture: PCAPdroid asks for consent (first time) and for the
+- [ ] Logging → capture card → "Into NetLogger" (TCP) → Start capture: PCAPdroid asks for consent (first time) and for the
       VPN; deny once: the card shows the error, no CAPTURE_STARTED event, no file left behind
 - [ ] Allow: packets and MB count up on the card; browse / run a speed test (flagged `captureActive`)
-- [ ] Stop capture: CAPTURE_STOPPED with counts; export → capture.pcap opens in Wireshark (raw IP), capture_sync.csv
-      has about one row per second of traffic
+- [ ] Stop capture: card shows NetLogger's vs. PCAPdroid's packet count (missing ≈ 0); CAPTURE_STOPPED has both;
+      export → capture.pcap opens in Wireshark (raw IP); capture_sync.csv has START and STOP rows
 - [ ] Stop from PCAPdroid itself: NetLogger notices (CAPTURE_STOPPED reason PCAPDROID)
 - [ ] Stop the session from the notification while capturing: CAPTURE_STOPPED SESSION_END; Live offers "Stop PCAPdroid capture"
-- [ ] Screen off for 10 min while capturing: packets keep counting, no gap in capture_sync.csv while traffic flows
+- [ ] Screen off for 10 min while capturing: packets keep counting; missing ≈ 0 at the end
 - [ ] "PCAPdroid file" mode: file in Download/PCAPdroid/netlogger_<uuid>.pcap, session.json captureFile names it
 - [ ] App filter with one package: only that app's traffic in the PCAP

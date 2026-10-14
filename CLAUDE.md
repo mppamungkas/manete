@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.9** · last updated 2026-10-14
+**CLAUDE.md version 1.6.0** · last updated 2026-10-14
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,7 +8,8 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
-- **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); UDP mode writes `files/captures/<uuid>.pcap` + `_sync.csv` (first packet per second: arrival elapsedRealtimeNs vs. PCAP timestamp), exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
+- **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. NetLogger's packet count on the capture card and in CAPTURE_STOPPED.
+- **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); the stream mode writes `files/captures/<uuid>.pcap` + `_sync.csv`, exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
 - **1.5.8:** Schema v2 (`throughput_test`, migration 1→2 tested; the A56's field data migrated on the phone). `throughput_test` also stores `startedElapsedNs` (timing rule), `streams` and `error`. Speed test (milestone 8): HTTP RTT ping, OkHttp download/upload over mobile data only, manual trigger, server URLs in Settings (LibreSpeed or any web server).
 - **1.5.7:** Events (milestone 7) are detected per tick without debouncing, except a serving NR cell change (confirmed over 2 ticks) (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
 - **1.5.6:** Maps: MapLibre Native (13.6.1) replaces osmdroid (archived). SINR map colors: >= 20 / 13–20 / 0–13 / < 0 dB.
@@ -276,7 +277,7 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
 **3a — PCAPdroid bridge (do first).**
 PCAPdroid (installed separately on the phone) exposes an app API to control capture from another app. Read `reference/pcapdroid/docs/app_api.md` and implement exactly what it documents; do not guess intent extras or permissions. Two modes, user-selectable in Settings:
 - **File mode:** PCAPdroid writes a `.pcap`; NetLogger links the file to the session by session UUID.
-- **UDP stream mode:** PCAPdroid sends captured packets via UDP to a local port opened by NetLogger, which writes `capture.pcap` itself and timestamps arrival with `elapsedRealtimeNs`. Preferred, because NetLogger then owns the file and timing.
+- **TCP stream mode:** PCAPdroid's TCP exporter streams the PCAP to a local port opened by NetLogger, which writes `capture.pcap` itself. Preferred, because NetLogger then owns the file. Packets keep PCAPdroid's own timestamps; the wall-clock ↔ `elapsedRealtimeNs` offset is recorded at capture start and stop for alignment. TCP, not UDP: the UDP exporter lost ~46 % of the packets of a 10 MB download on the moto g45 (2026-10-14); UDP mode was removed. NetLogger must never be the bottleneck (dedicated receive thread, large buffered writer, no per-packet database work), and PCAPdroid's packet count vs. NetLogger's is shown and logged so loss is always visible.
 Store capture start/stop `elapsedRealtimeNs` for alignment in both modes. Handle "PCAPdroid not installed" and "user denied capture" gracefully. Do not depend on PCAPdroid paid features (PCAPng, firewall).
 
 **3b — Native capture (later, separate milestone).**
