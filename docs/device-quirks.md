@@ -293,8 +293,8 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   warnings are the known Samsung corrections (11.5 per tick on average).
 - **The data SIM is chosen once per session.** `RadioSampler` resolves the default data subscription when the
   session starts. If the user switches the data SIM during a session, NetLogger keeps logging the first SIM and
-  nothing marks the switch. Open: proposed to keep the session on its SIM and record an event/warning on a data-SIM
-  change (needs approval).
+  nothing marks the switch. Handled since 2026-10-14 (approved): the session stays on its SIM, every tick after a
+  switch has a `DATA_SIM_CHANGED` warning, a `DATA_SIM_CHANGED` event marks each switch, and Live shows a notice.
 - Not tested yet: data on the Telkomsel SIM, and a data-SIM switch during a session.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
