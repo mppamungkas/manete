@@ -225,7 +225,7 @@ the state. The serving cells are chosen as in flat.csv.
 | `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
 | `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
 | `CAPTURE_STARTED` | mode (`TCP` / `FILE`) → file name and `wallMinusElapsedNs` | PCAPdroid accepted the start request (Phase 3a); at most one capture per session |
-| `CAPTURE_STOPPED` | reason (`USER`, `SESSION_END`, `PCAPDROID`) → counts | Capture ended: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus NetLogger's count), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`, `wallMinusElapsedNs` |
+| `CAPTURE_STOPPED` | reason (`USER`, `SESSION_END`, `PCAPDROID`) → counts | Capture ended: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus NetLogger's count; slightly negative is normal, PCAPdroid reads its counters just before its last packets are dumped; positive means loss), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`, `wallMinusElapsedNs` |
 
 ## throughput.csv
 

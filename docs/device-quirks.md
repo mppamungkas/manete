@@ -415,6 +415,24 @@ prompt the user saw was PCAPdroid's own consent dialog; NetLogger's request now 
   load is still to check.
 - A second capture in the same session overwrote the first one's capture_sync.csv: one capture per session now.
 
+### Samsung A56, PCAPdroid TCP capture, 2026-10-14 (milestone 10, session 13)
+
+Unrooted; PCAPdroid 2.0.2 asked for consent per start ("Once"), no root prompt. No curl in the A56 shell: the
+10 MB download ran over plain HTTP with toybox `nc` (Cloudflare `__down`), timed from request to the last byte on
+the device. Same spot, 5G NSA, LTE 20+10 MHz + NR 60 MHz, LTE RSRP -91/-92, NR -96…-102, logging on:
+
+| 10 MB download (HTTP) | run 1 | run 2 | run 3 | mean |
+|---|---|---|---|---|
+| capture off (session 12, 21:12) | 0.782 s | 0.788 s | 0.747 s | 0.772 s, 13.0 MB/s |
+| capture off (session 13, 21:18) | 0.837 s | 1.097 s | 0.852 s | 0.929 s, 10.8 MB/s |
+| TCP capture on (session 13, 21:20) | 0.751 s | 0.733 s | 0.830 s | 0.771 s, 13.0 MB/s |
+
+No slowdown from the capture; the spread between runs (0.73–1.10 s) is larger than any difference.
+Packets: NetLogger 6,053 / 30,418,158 bytes, PCAPdroid 6,052 / 30,418,058 bytes dumped (`missing=-1`); session 12's
+short capture: 2,449 vs. 2,446. NetLogger gets slightly *more*: PCAPdroid reads its counters when the capture stops,
+just before its last packets are dumped. A positive `missing` would be loss. File valid to the last byte, max record
+10,000 bytes (VPN MTU), timestamps monotonic; wall-clock offset START vs. STOP 0.14 ms apart.
+
 ### moto g45, schema v1 → v2 migration and capture card, 2026-10-14 (milestones 8, 10)
 
 Backup first (`docs/samples/db-backup-2026-10-14-pre-v2/`), then the milestone 10 build: `user_version` 2, integrity
