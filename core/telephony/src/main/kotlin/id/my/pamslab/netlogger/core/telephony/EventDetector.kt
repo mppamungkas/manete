@@ -14,9 +14,11 @@ import id.my.pamslab.netlogger.core.model.session.EventType
  * Compares each tick with the previous ones and returns the events it starts. One instance per session, fed every
  * tick in order; pure apart from that state. The first tick only sets the state.
  *
- * Every change at tick resolution is an event, without debouncing: a ping-pong between two cells within a few ticks
- * stays visible (filter in analysis). A value missing for a tick (no CellInfo cell, unknown service state) is not a
- * change; the last known value is kept.
+ * Every change at tick resolution is an event, without debouncing, except the serving NR cell: a ping-pong between
+ * two LTE cells within a few ticks stays visible (filter in analysis). A new serving NR cell must be seen in
+ * [NR_CONFIRM_TICKS] ticks before PCI_CHANGE_NR is written (A56: the serving pick among cells on one NR-ARFCN flips for
+ * single ticks); the event keeps the time and position of the first of them. A value missing for a tick (no CellInfo
+ * cell, unknown service state) is not a change; the last known value is kept.
  */
 class EventDetector {
 
@@ -25,6 +27,9 @@ class EventDetector {
     private var lteCell: String? = null
     private var nrUp = false
     private var nrCell: String? = null
+    private var nrCandidate: String? = null
+    private var nrCandidateTicks = 0
+    private var nrCandidateEvent: SessionEvent? = null
     private var inService: Boolean? = null
     private var serviceState: Int? = null
     private var gpsProblem: String? = null
@@ -62,10 +67,25 @@ class EventDetector {
                 event(EventType.NR_REMOVED, nrCell, null)
                 nrCell = null
             }
-            nrNow && nrCellNow != null -> {
-                if (nrCell != null && nrCellNow != nrCell) event(EventType.PCI_CHANGE_NR, nrCell, nrCellNow)
-                nrCell = nrCellNow
+            nrNow && nrCellNow != null -> when {
+                nrCell == null -> nrCell = nrCellNow
+                nrCellNow == nrCell -> clearNrCandidate()
+                nrCellNow == nrCandidate -> nrCandidateTicks++
+                else -> {
+                    nrCandidate = nrCellNow
+                    nrCandidateTicks = 1
+                    nrCandidateEvent = SessionEvent(
+                        EventType.PCI_CHANGE_NR, r.wallTimeMs, r.elapsedRealtimeNs, nrCell, nrCellNow,
+                        tick.location?.latitude, tick.location?.longitude,
+                    )
+                }
             }
+        }
+        if (!nrNow) clearNrCandidate()
+        if (nrCandidateTicks >= NR_CONFIRM_TICKS) {
+            nrCandidateEvent?.let { events += it }
+            nrCell = nrCandidate
+            clearNrCandidate()
         }
         nrUp = nrNow
 
@@ -91,6 +111,12 @@ class EventDetector {
         return events
     }
 
+    private fun clearNrCandidate() {
+        nrCandidate = null
+        nrCandidateTicks = 0
+        nrCandidateEvent = null
+    }
+
     private fun gpsProblem(tick: Tick): String? = when {
         tick.locationStatus != LocationStatus.OK -> tick.locationStatus.name
         tick.location == null -> NO_FIX
@@ -106,6 +132,9 @@ class EventDetector {
         const val GPS_MAX_AGE_MS = 5_000L
         const val NO_FIX = "NO_FIX"
         const val STALE_FIX = "STALE_FIX"
+
+        /** Ticks a new serving NR cell must be seen in before PCI_CHANGE_NR. */
+        const val NR_CONFIRM_TICKS = 2
 
         /** "pci/earfcn" of the serving LTE cell, chosen as in flat.csv: registered, else PRIMARY_SERVING, else first. */
         fun servingLte(cells: List<CellSample>): String? {

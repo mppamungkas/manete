@@ -99,6 +99,7 @@ class EventDetectorTest {
             tick(lte(465), nr(559)),
             tick(lte(465), nr(559)),
             tick(lte(465), nr(26)),
+            tick(lte(465), nr(26)),
             tick(lte(465)),
             tick(lte(465), nr(310)),
         )
@@ -121,8 +122,43 @@ class EventDetectorTest {
         val events = EventDetector().run(
             tick(lte(465), nr(559, rsrp = -90), nr(26, rsrp = -100)),
             tick(lte(465), nr(559, rsrp = -101), nr(26, rsrp = -99)),
+            tick(lte(465), nr(559, rsrp = -102), nr(26, rsrp = -98)),
         )
         assertEquals(listOf(Triple(EventType.PCI_CHANGE_NR, "559/531870", "26/531870")), events.summary())
+    }
+
+    @Test
+    fun `NR cell change needs two ticks - single-tick flips are dropped, the event keeps the first tick`() {
+        val detector = EventDetector()
+        val ticks = listOf(
+            tick(lte(465), nr(559)),
+            tick(lte(465), nr(26)), // 1 tick: dropped
+            tick(lte(465), nr(559)),
+            tick(lte(465), nr(310)), // first tick of the change
+            tick(lte(465), nrSignal = true), // NR still up, no CellInfo cell: not a break
+            tick(lte(465), nr(310)), // confirmed
+            tick(lte(465), nr(310)),
+        )
+        val events = ticks.map(detector::detect)
+        assertEquals(listOf(0, 0, 0, 0, 0, 1, 0), events.map { it.size })
+        val e = events[5].single()
+        assertEquals(Triple(EventType.PCI_CHANGE_NR, "559/531870", "310/531870"), Triple(e.type, e.fromValue, e.toValue))
+        assertEquals(ticks[3].radio.elapsedRealtimeNs, e.elapsedRealtimeNs)
+        assertEquals(ticks[3].location?.latitude, e.latitude)
+    }
+
+    @Test
+    fun `an unconfirmed NR cell change is dropped when NR goes away`() {
+        val events = EventDetector().run(tick(lte(465), nr(559)), tick(lte(465), nr(26)), tick(lte(465)), tick(lte(465), nr(26)))
+        assertEquals(
+            listOf(
+                Triple(EventType.RAT_CHANGE, "NR_NSA", "LTE"),
+                Triple(EventType.NR_REMOVED, "559/531870", null),
+                Triple(EventType.RAT_CHANGE, "LTE", "NR_NSA"),
+                Triple(EventType.NR_ADDED, null, "26/531870"),
+            ),
+            events.summary(),
+        )
     }
 
     @Test

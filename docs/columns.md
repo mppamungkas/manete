@@ -200,8 +200,11 @@ had it). The two sources are sampled at different times; compare `*CellInfoAgeMs
 | `lat` | ° | Location at the event; empty without a fix |
 | `lon` | ° | Location at the event |
 
-Detected events compare each tick with the previous one (`EventDetector`). There is **no debouncing**: every change
-at tick resolution is an event, so ping-pong between cells within a few ticks stays visible; filter in analysis. A value
+Detected events compare each tick with the previous one (`EventDetector`). There is **no debouncing** except for the
+serving NR cell: every other change at tick resolution is an event, so ping-pong between LTE cells within a few ticks
+stays visible; filter in analysis. A new serving NR cell must be seen in 2 ticks (NR still up, ticks without an NR
+CellInfo cell in between do not count against it) before `PCI_CHANGE_NR` is written, stamped with the first tick's time
+and position; a one-tick flip (A56: the serving pick among cells on one NR-ARFCN) writes nothing. A value
 missing for one tick (no CellInfo cell, unknown service state) is not a change. The first tick of a session only sets
 the state. The serving cells are chosen as in flat.csv.
 
@@ -210,7 +213,7 @@ the state. The serving cells are chosen as in flat.csv.
 | `USER_MARKER` | – | Live button or notification |
 | `RAT_CHANGE` | `networkType` → `networkType` | `networkType` changed |
 | `PCI_CHANGE_LTE` | `pci/earfcn` → `pci/earfcn` | Serving LTE cell changed (PCI or EARFCN) |
-| `PCI_CHANGE_NR` | `pci/arfcn` → `pci/arfcn` | Serving NR cell changed while NR stayed up; only cells with a known PCI (none on the moto g45) |
+| `PCI_CHANGE_NR` | `pci/arfcn` → `pci/arfcn` | Serving NR cell changed while NR stayed up, confirmed over 2 ticks; only cells with a known PCI (none on the moto g45) |
 | `NR_ADDED` | – → `pci/arfcn` or empty | A serving NR cell or a current NR SignalStrength appeared (`nsaNrCellInfo` or `nsaNrSignal`); the NR leg, not the 5G icon |
 | `NR_REMOVED` | `pci/arfcn` or empty → – | Both went away |
 | `NO_SERVICE` | `serviceState` → `serviceState` | ServiceState left IN_SERVICE (0) |

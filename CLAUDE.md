@@ -8,7 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
-- **1.5.7:** Events (milestone 7) are detected per tick without debouncing (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
+- **1.5.7:** Events (milestone 7) are detected per tick without debouncing, except a serving NR cell change (confirmed over 2 ticks) (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
 - **1.5.6:** Maps: MapLibre Native (13.6.1) replaces osmdroid (archived). SINR map colors: >= 20 / 13–20 / 0–13 / < 0 dB.
 - **1.5.5:** Schema v1 frozen from the first real field session on. Data model: `cell.reportedServing`, `servingInferred` (was `isServing`), `servingSource`; `measurement.warningCount`; `bandSource` `MAPPED_MCC_FALLBACK`.
 - **1.5.4:** Definition of done: instrumented database smoke test must pass on both phones before a release.
