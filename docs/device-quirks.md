@@ -523,6 +523,25 @@ held all packets (dropped 0, pcap = expected).
 - **Debug captures from adb** (`NativeCaptureDebugActivity`) are marked standalone: without that, the main process
   stopped them within 10 ms as "capture without a session" (the safety rule for a restarted main process).
 
+### Samsung A56, native capture, Tri (510-89), 2026-10-15 (milestone 11, step 6)
+
+First native capture on the unrooted phone (Android 16), started by the user from the capture card: the system VPN
+consent dialog appeared, Cancel was tapped first (the card showed the error, no files left), then OK. Browser and
+YouTube for ~3 min; the session was then stopped (CAPTURE_STOPPED SESSION_END).
+
+- pcap 11,735 = expected, dropped 0; independent check: valid, timestamps in order, 0 bad checksums; 9,729 UDP
+  packets (YouTube's QUIC), 1,630 TCP, 366 ICMP.
+- 138 connections, every TCP/UDP uid resolved (`uidUnknown 0`); clock offset ±117 ns; CHECK rows every 60 s.
+- **Package names were missing** for most uids (YouTube = uid 10279 showed no `app`): Android 11+ package
+  visibility hides other apps' names. On the moto this went unnoticed because the apps seen there (shell, Google Play
+  services, Play Store) are always visible. Fixed with a `<queries>` entry for launcher apps (no permission):
+  `dumpsys package queries` then lists 132 packages visible to NetLogger, YouTube, WhatsApp, Instagram, ChatGPT,
+  Gmail and OneDrive among them. Packages without a launcher icon (e.g. `com.facebook.services`, uid 10075) keep only
+  their uid; only `QUERY_ALL_PACKAGES` (restricted on Google Play) would name them.
+- The capture card still had "PCAPdroid → NetLogger" selected from milestone 10, so the first start was a PCAPdroid
+  capture: NetLogger 9,434 vs. PCAPdroid 9,433 packets (missing −1, as expected).
+- The A56's mobile data (`3gprs`) is IPv4 only, like the moto's: the IPv6 path is untested on both phones.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

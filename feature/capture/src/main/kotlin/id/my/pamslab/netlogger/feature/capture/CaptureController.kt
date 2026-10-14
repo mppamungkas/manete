@@ -291,6 +291,7 @@ class CaptureController @Inject constructor(
         val uuid = preparedUuid
         if (s.running || nativePcap != null || uuid == null) return
         if (!ok) {
+            Log.i(TAG, "capture: VPN consent denied, native capture not started")
             holder.state.value = CaptureState(error = "VPN consent denied: the native capture did not start")
             return
         }

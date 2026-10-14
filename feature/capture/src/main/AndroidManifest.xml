@@ -9,6 +9,16 @@
     <queries>
         <package android:name="com.emanuelef.remote_capture" />
         <package android:name="com.emanuelef.remote_capture.debug" />
+        <!--
+            Native capture, connections.csv: the package name of each connection's uid. Android 11+ hides other
+            apps' names unless declared; this makes every app with a launcher icon visible (no permission needed).
+            Apps without one (background-only packages) keep only their uid. QUERY_ALL_PACKAGES would cover all,
+            but is restricted on Google Play.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application>

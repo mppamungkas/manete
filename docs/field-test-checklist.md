@@ -129,7 +129,7 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 
 - [x] Logging → capture card → "Native (VPN)" → Start capture: the system VPN consent dialog the first time only
       (moto g45, 2026-10-15); CAPTURE_STARTED NATIVE; key icon in the status bar; card counts packets, MB, connections
-- [ ] Deny the VPN consent: the card shows the error, no CAPTURE_STARTED, no file left behind
+- [x] Deny the VPN consent: the card shows the error, no CAPTURE_STARTED, no file left behind (A56)
 - [x] Stop capture on the card: CAPTURE_STOPPED USER, pcap packets = expected, dropped 0; capture_sync.csv START,
       CHECK (every 60 s), STOP (moto g45)
 - [x] Stop the session while capturing: CAPTURE_STOPPED SESSION_END, VPN gone (moto g45)
@@ -137,8 +137,9 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
       PROCESS_DIED within ~6 s, pcap valid, connections.csv keeps the rows flushed before (moto g45)
 - [ ] Start another VPN (e.g. PCAPdroid) while capturing: CAPTURE_STOPPED VPN_REVOKED
 - [ ] PCAPdroid capture running: the native start is refused ("only one VPN")
-- [ ] Throughput: 3 × 10 MB download and the speed test, capture off / native / PCAPdroid; speed test flagged `captureActive`
-- [ ] Browser and a QUIC app (YouTube): connections.csv names the apps, pcap opens in Wireshark
+- [x] Throughput, curl downloads/uploads, capture off / native MTU 1500 / 10 000 (moto g45; A56 has no curl and no usable timer)
+- [ ] In-app speed test during a native capture (needs a server): flagged `captureActive`
+- [x] Browser and a QUIC app (YouTube): connections.csv names the apps (A56, after the launcher-apps `<queries>` fix), pcap valid
 - [ ] Screen off 30 min while capturing and logging: ≥ 95 % ticks, pcap packets = expected
 - [ ] App filter with one package: only that app's connections
 - [ ] Export: ZIP has capture.pcap, capture_sync.csv, connections.csv; session.json lists them
