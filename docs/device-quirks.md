@@ -333,6 +333,38 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   on the A56, never older than 10 s (A56 CellInfo has LTE RSSNR). Not changed; check on the moto, which takes LTE RSSNR
   only from SignalStrength.
 
+### Both phones, NetLogger vs. G-NetTrack Pro on the same phone, Tri (510-89), drive, 2026-10-14 (16:02–16:29)
+
+Each phone ran NetLogger (1 s) and G-NetTrack Pro at the same time, **screen on, both apps in the foreground**,
+unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogger tick of the same second
+(moto 712 pairs, A56 680).
+
+- **Ticks:** NetLogger moto 1623 / A56 1596 ticks, 100 % of expected, max spacing 1.007 s, cell info always FRESH.
+  G-NetTrack wrote a row every ~2–3 s, with 21 / 22 gaps of 5 s or more (longest 36–38 s at the start).
+- **5G share:** moto NetLogger 93.1 % NR_NSA vs. G-NetTrack 91.9 % 5G; A56 98.2 % vs. 96.8 %. Network type agrees in
+  all but 6 / 6 matched rows (transitions).
+- **Values agree; both apps read the same API values.** moto: LTE PCI/EARFCN/RSRP/RSRQ/SINR/RSSI/TA, NR SS-RSRP,
+  SS-RSRQ and SS-SINR identical in 91–99 % of pairs, median difference 0. A56: identical in 66–96 % (NR SS-RSRP 66 %,
+  p90 |Δ| 5 dB): the A56's values change about every 2 s, so a one-second offset between the two apps shows up.
+- **G-NetTrack hides the same staleness.** moto LTE SINR comes only from SignalStrength (age median 3.8 s, max 51.6 s
+  even with the screen on). NR SS-RSRP on the moto changes every 6 s (median), longest 47 s, in **both** apps. G-NetTrack
+  has no age column, so its values only look steadier.
+- **CQI:** moto reports none (both apps). A56: NetLogger has a CQI from CellInfo in every tick, changing every ~2 s
+  (values 4–14). G-NetTrack shows 8 in 510 of 682 rows and changed only 13 times: it holds a stale CQI.
+- **NR band: G-NetTrack says N7, NetLogger n41 (`MAPPED`).** NR-ARFCN 531870 lies in n7, n41 and n90; the A56's
+  physical channel config (2026-10-13) said n41, 60 MHz, and 60 MHz is not a valid n7 bandwidth. G-NetTrack is wrong
+  on both phones (on the A56 it apparently takes `getBands()` = [7], which NetLogger flags `API_BAND_CONFLICT`).
+- **NR PCI:** moto's CellInfoNr has no usable NR PCI (NetLogger: `NR_PCI_FROM_LTE`, nrPci empty). G-NetTrack shows the
+  LTE anchor's PCI as the NR PCI, so its 40 moto "5G→5G handovers" are LTE anchor changes. A56: NR PCI agrees in 89 %
+  of pairs (NetLogger's serving NR choice, `SIGNAL_STRENGTH_MATCH` / `STRONGEST`).
+- **NR PLMN on the A56:** G-NetTrack labels the NR cells 510-10 (Telkomsel, the voice SIM in slot 1) with LAC 0;
+  NetLogger's NR cells have no MCC/MNC from the API. Probably G-NetTrack filling in from the other SIM; not verified.
+- **Invalid values:** G-NetTrack wrote LAC 65535 and empty cell IDs (moto 16:15:38); NetLogger stores null.
+- **Events:** G-NetTrack logged 76 (moto) / 50 (A56) events. NetLogger's flat.csv has 52 / 87 LTE PCI changes, 0 / 106
+  NR PCI changes and 33 / 6 network-type changes, not yet written as events (milestone 7). A56 NR PCI changes include
+  NetLogger's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
+- Battery: moto 96 → 93 %, A56 51 → 47 % over 27 min with both apps and the screen on.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
