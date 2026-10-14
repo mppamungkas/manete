@@ -276,6 +276,27 @@ pulled database and logcat. Raw database backed up in `docs/samples/` (gitignore
   cell per tick, always PCI 440 (82 `REPORTED`, 19 `SIGNAL_STRENGTH_MATCH`, 4 `STRONGEST`); neighbor 438 kept
   `reportedServing = true` with `NR_SERVING_*` warnings; first tick n41 `MAPPED_MCC_FALLBACK`; `parseErrors` 0.
 
+### Samsung A56, dual SIM: Tri (slot 0, data) + Telkomsel (slot 1, voice/SMS), 2026-10-14
+
+Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkomsel, default voice/SMS).
+
+- **Only the data SIM is logged, nothing leaks from the other SIM.** NetLogger reads CellInfo, ServiceState and
+  SignalStrength through `createForSubscriptionId(defaultDataSubId)`. Every tick had exactly one registered cell
+  (Tri LTE PCI 479, EARFCN 1625, B3); Telkomsel was camped on EARFCN 1850 (registry, phone 1), which never appeared
+  in our cells. Session metadata: subId 5, slot 0, operator 3SinyalKuatHemat, MNC 89.
+- **Wi-Fi on = no NR.** With Wi-Fi as the default network, the Tri data connection was down (`dataState` 0, only
+  the IMS PDN up), override `0`, LTE CA only (`[20000,10000,10000]`, SCell on EARFCN 1475 kept as serving): the network
+  adds the NR leg only for mobile data traffic. NetLogger and the registry agreed. For NR tests, turn Wi-Fi off.
+- **Wi-Fi off:** 81/81 ticks NR_NSA (override 3, `dataState` 2), bandwidths `[20000,10000,60000]` as in the
+  registry. NR serving selection: PCI 440 in every tick (67 `REPORTED`, 13 `STRONGEST` against neighbor 438 on the
+  same NR-ARFCN, first tick `MAPPED_MCC_FALLBACK`); never more than one serving NR cell per NR-ARFCN. `parseErrors` 0;
+  warnings are the known Samsung corrections (11.5 per tick on average).
+- **The data SIM is chosen once per session.** `RadioSampler` resolves the default data subscription when the
+  session starts. If the user switches the data SIM during a session, NetLogger keeps logging the first SIM and
+  nothing marks the switch. Open: proposed to keep the session on its SIM and record an event/warning on a data-SIM
+  change (needs approval).
+- Not tested yet: data on the Telkomsel SIM, and a data-SIM switch during a session.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
