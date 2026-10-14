@@ -333,6 +333,27 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   on the A56, never older than 10 s (A56 CellInfo has LTE RSSNR). Not changed; check on the moto, which takes LTE RSSNR
   only from SignalStrength.
 
+### Both phones, screen-off drive, Tri (510-89), 2026-10-14 (10:01–10:24; moto session 3, A56 session 7)
+
+Both phones unplugged, screen off for most of the drive (moto 1218 / 1411 ticks, A56 1329 / 1389), 9.5 km, moving
+(> 2 m/s) in ~1160 ticks. Analyzed from the databases (backup `docs/samples/db-backup-2026-10-14-evening/`).
+
+- **Ticks:** 100 % on both (moto 1411 / 1411, A56 1389 / 1389), max spacing 1.005 / 1.014 s, cell info always
+  FRESH, GPS fix in every tick (age ≤ 2 s). No markers. Battery moto 99 → 97 %, A56 85 → 84 %.
+- **CellInfo with the screen off:** serving LTE age median 5 s (moto) / 4 s (A56), never over 10 s.
+- **moto: LTE SignalStrength goes stale with the screen off.** Age median 34 s, p90 108 s, max 212 s; 1010 of 1218
+  screen-off ticks over 10 s (screen on: median 5 s, max 56 s). The moto's CellInfo has no LTE RSSNR, so **flat.csv
+  `lteSinr` on the moto is mostly a 10–200 s old value with the screen off** (age in `lteSignalStrengthAgeMs`).
+  RSRP/RSRQ come from CellInfo and stay fresh. Not changed yet (proposal: same rule as stale NR).
+- **A56: LTE SignalStrength stayed fresh** this time (median 1 s, max 15.5 s with the screen off), unlike the mostly
+  stationary drive at 09:00 (up to 110 s). LTE RSSNR is in CellInfo anyway.
+- **5G:** A56 none (LTE, override LTE_CA in 233 ticks). moto 134 NR_NSA ticks, 40 with the 5G icon. The other 94 had
+  a fresh (< 10 s) NR SignalStrength entry and the unregistered CellInfoNr, but override 0: kept as NR_NSA by the
+  rule; 111 older NR entries were marked `NR_SIGNAL_STRENGTH_STALE` and did not count.
+- **CQI:** moto none (CellInfo or SignalStrength), A56 present.
+- **Map:** the moving track draws on the moto (1411 / 1411 points with GPS). Zoomed out, the dense points' dark
+  outline makes the line look almost black; colors are clear when zoomed in.
+
 ### Both phones, NetLogger vs. G-NetTrack Pro on the same phone, Tri (510-89), drive, 2026-10-14 (16:02–16:29)
 
 Each phone ran NetLogger (1 s) and G-NetTrack Pro at the same time, **screen on, both apps in the foreground**,
