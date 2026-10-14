@@ -14,6 +14,9 @@ interface TelephonySource {
     /** The active data SIM, or null if there is none or READ_PHONE_STATE is missing. */
     fun activeDataSubscription(): RawSubscription?
 
+    /** The current default data subscription ID, cheap enough to read every tick; null if none. */
+    fun defaultDataSubscriptionId(): Int?
+
     /**
      * Latest DisplayInfo / ServiceState / SignalStrength / data connection state for [subscriptionId]
      * (null = default). The TelephonyCallback is registered while the flow is collected.

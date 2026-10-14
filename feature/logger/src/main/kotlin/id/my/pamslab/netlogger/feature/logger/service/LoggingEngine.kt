@@ -10,6 +10,7 @@ import id.my.pamslab.netlogger.core.model.device.DeviceInfo
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.TickStats
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -17,6 +18,7 @@ import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.session.EndReason
+import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import kotlinx.coroutines.CancellationException
@@ -102,12 +104,19 @@ class LoggingEngine @Inject constructor(
                 }
                 var seq = 0L
                 val window = TickWindow()
+                var lastDataSubId: Int? = null
                 radio.samples(intervalMs).collect { snapshot ->
                     val tick = buildTick(seq, snapshot, locationState.get(), recentFixes.get(), device.snapshot())
                     seq++
                     window.add(tick)
+                    val dataSimEvent = dataSimChange(lastDataSubId, tick)
+                    lastDataSubId = snapshot.dataSubscriptionId
                     val writeFailed = try {
                         window.writeMs(session.record(tick))
+                        dataSimEvent?.let {
+                            log("data SIM changed ${it.fromValue} -> ${it.toValue}; session keeps subId ${snapshot.subscriptionId}")
+                            session.addEvent(it)
+                        }
                         false
                     } catch (e: CancellationException) {
                         throw e
@@ -146,6 +155,16 @@ class LoggingEngine @Inject constructor(
             }
             _state.update { s -> LoggingState.Idle((s as? LoggingState.Running)?.stats) }
         }
+    }
+
+    /** DATA_SIM_CHANGED when the default data SIM differs from the previous tick's (the first tick has none). */
+    private fun dataSimChange(previous: Int?, tick: Tick): SessionEvent? {
+        val current = tick.radio.dataSubscriptionId
+        if (tick.seq == 0L || previous == current) return null
+        return SessionEvent(
+            EventType.DATA_SIM_CHANGED, tick.radio.wallTimeMs, tick.radio.elapsedRealtimeNs,
+            previous?.toString(), current?.toString(), tick.location?.latitude, tick.location?.longitude,
+        )
     }
 
     /**

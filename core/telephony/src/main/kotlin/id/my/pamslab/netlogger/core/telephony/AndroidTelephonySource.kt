@@ -48,6 +48,9 @@ class AndroidTelephonySource @Inject constructor(
 
     override fun deviceTraits() = DeviceTraits(Build.MANUFACTURER, Build.MODEL, Build.VERSION.SDK_INT)
 
+    override fun defaultDataSubscriptionId(): Int? =
+        SubscriptionManager.getDefaultDataSubscriptionId().takeIf { it != SubscriptionManager.INVALID_SUBSCRIPTION_ID }
+
     @SuppressLint("MissingPermission") // checked via hasPermission()
     override fun activeDataSubscription(): RawSubscription? {
         val subId = SubscriptionManager.getDefaultDataSubscriptionId()

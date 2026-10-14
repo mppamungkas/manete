@@ -194,7 +194,7 @@ had it). The two sources are sampled at different times; compare `*CellInfoAgeMs
 | `time` | ISO-8601 | Event wall time |
 | `wallTimeMs` | ms | Event wall time, Unix epoch |
 | `elapsedRealtimeNs` | ns | Event time since boot |
-| `type` | | `USER_MARKER` (Live button or notification); RAT/PCI/NR/GPS events from milestone 7 |
+| `type` | | `USER_MARKER` (Live button or notification); `DATA_SIM_CHANGED` (default data SIM changed during the session; `fromValue`/`toValue` are subscription IDs; the session keeps logging its own SIM); RAT/PCI/NR/GPS events from milestone 7 |
 | `fromValue` | | Previous value (network events) |
 | `toValue` | | New value (network events) |
 | `lat` | ° | Location at the event; empty without a fix |

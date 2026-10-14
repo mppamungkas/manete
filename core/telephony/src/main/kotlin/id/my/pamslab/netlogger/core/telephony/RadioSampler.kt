@@ -75,6 +75,13 @@ class RadioSampler @Inject constructor(
                     ),
                 )
             }.orEmpty()
+            // The session stays on the SIM it started with (its metadata describes that SIM); a switch is flagged.
+            val dataSubId = source.defaultDataSubscriptionId()
+            val simWarnings = if (subId != null && dataSubId != subId) {
+                listOf(ParseWarning(WarningCode.DATA_SIM_CHANGED, field = "subscriptionId", rawValue = dataSubId?.toString()))
+            } else {
+                emptyList()
+            }
 
             send(
                 RadioSnapshot(
@@ -92,8 +99,9 @@ class RadioSampler @Inject constructor(
                     cellBandwidthsKhz = serviceState?.cellBandwidthsKhz.orEmpty(),
                     cellInfoOrigin = cellInfo.origin,
                     cells = result.cells,
-                    warnings = result.warnings + extraWarnings,
+                    warnings = result.warnings + extraWarnings + simWarnings,
                     listenerError = state.registrationError,
+                    dataSubscriptionId = dataSubId,
                 ),
             )
 

@@ -13,12 +13,14 @@ import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.logging.Tick
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.NsaInputs
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.session.EndReason
+import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
@@ -61,6 +63,7 @@ class LoggingEngineTest {
         val starts = mutableListOf<SessionStart>()
         val recorded = mutableListOf<Tick>()
         val markers = mutableListOf<UserMarker>()
+        val events = mutableListOf<SessionEvent>()
         var closedWith: EndReason? = null
         var failWritesFrom: Long = Long.MAX_VALUE
         var abandonedClosed = 0
@@ -75,6 +78,7 @@ class LoggingEngineTest {
                     return 3
                 }
                 override suspend fun addMarker(marker: UserMarker) { markers += marker }
+                override suspend fun addEvent(event: SessionEvent) { events += event }
                 override suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long) { closedWith = reason }
             }
         }
@@ -198,6 +202,30 @@ class LoggingEngineTest {
         assertEquals(5L, s.stats.recorded)
         assertEquals(3L, s.writeErrors)
         job.cancel()
+    }
+
+    @Test
+    fun `a data SIM switch and back writes one event each, at the tick it was seen`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val dataSubs = listOf(1, 1, 2, 2, 1, 1)
+        val radio = RadioSamples { intervalMs ->
+            flow {
+                dataSubs.forEach { sub ->
+                    emit(snapshot(clock.elapsedRealtimeNs()).copy(dataSubscriptionId = sub))
+                    delay(intervalMs)
+                }
+            }
+        }
+        val engine = LoggingEngine(radio, FakeLocation(), FakeDevice, clock, repo)
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(6_500)
+        job.cancel()
+        runCurrent()
+
+        assertEquals(listOf("1" to "2", "2" to "1"), repo.events.map { it.fromValue to it.toValue })
+        assertTrue(repo.events.all { it.type == EventType.DATA_SIM_CHANGED })
+        assertEquals(listOf(2L, 4L), repo.events.map { e -> repo.recorded.single { it.radio.elapsedRealtimeNs == e.elapsedRealtimeNs }.seq })
     }
 
     @Test

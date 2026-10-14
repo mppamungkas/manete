@@ -4,6 +4,7 @@ import id.my.pamslab.netlogger.core.model.device.DeviceContext
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
+import id.my.pamslab.netlogger.core.model.session.EventType
 
 /**
  * One logging tick: the radio snapshot plus the latest GPS fix and device context at that moment. Timestamps
@@ -24,6 +25,17 @@ data class Tick(
 data class UserMarker(
     val wallTimeMs: Long,
     val elapsedRealtimeNs: Long,
+    val latitude: Double?,
+    val longitude: Double?,
+)
+
+/** A detected event (not a user marker), stored as an event row. */
+data class SessionEvent(
+    val type: EventType,
+    val wallTimeMs: Long,
+    val elapsedRealtimeNs: Long,
+    val fromValue: String?,
+    val toValue: String?,
     val latitude: Double?,
     val longitude: Double?,
 )

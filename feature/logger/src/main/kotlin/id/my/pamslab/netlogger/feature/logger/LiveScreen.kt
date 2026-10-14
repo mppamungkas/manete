@@ -197,6 +197,13 @@ private fun NetworkCard(s: RadioSnapshot) {
             Text(s.networkType.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text("${s.operatorName.orDash()} (${s.operatorNumeric.orDash()})", style = MaterialTheme.typography.titleMedium)
             Field("SIM", "subId ${s.subscriptionId.orDash()} · slot ${s.simSlot.orDash()}")
+            if (s.dataSubscriptionId != s.subscriptionId) {
+                Text(
+                    "Data SIM is now subId ${s.dataSubscriptionId.orDash()}. This keeps logging subId ${s.subscriptionId.orDash()}; " +
+                        "stop and start a new session to log the new SIM.",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Field("Service / data", "${s.serviceState.orDash()} / ${s.dataState.orDash()} · roaming ${s.isRoaming.orDash()}")
             with(s.nsaInputs) {
                 Field("NSA inputs", "lteServing=$lteServing nrCellInfo=$nrServingCellInfo nrSignal=$nrSignalStrength")

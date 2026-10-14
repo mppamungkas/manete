@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.data.db.SessionDao
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
 import id.my.pamslab.netlogger.core.data.db.SessionSummaryRow
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.session.EndReason
@@ -122,6 +123,21 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
                     type = EventType.USER_MARKER.name,
                     lat = marker.latitude,
                     lon = marker.longitude,
+                ),
+            )
+        }
+
+        override suspend fun addEvent(event: SessionEvent) {
+            measurements.insertEvent(
+                EventEntity(
+                    sessionId = sessionId,
+                    wallTimeMs = event.wallTimeMs,
+                    elapsedRealtimeNs = event.elapsedRealtimeNs,
+                    type = event.type.name,
+                    fromValue = event.fromValue,
+                    toValue = event.toValue,
+                    lat = event.latitude,
+                    lon = event.longitude,
                 ),
             )
         }

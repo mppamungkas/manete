@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.session.EndReason
+import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -138,5 +140,15 @@ class RoomSessionRepositoryTest {
         assertEquals(" Padang loop ", s.label)
         assertNull("blank notes are stored as null", s.notes)
         assertEquals(Scenario.DRIVE, repo.latestScenario())
+    }
+
+    @Test
+    fun `detected events are stored with type, from, to and location`() = runTest {
+        val rec = repo.startSession(TestData.start())
+        rec.addEvent(SessionEvent(EventType.DATA_SIM_CHANGED, TestData.START_MS, TestData.START_NS, "5", "1", -0.9, 100.4))
+        val e = db.measurementDao().events(rec.sessionId).single()
+        assertEquals("DATA_SIM_CHANGED", e.type)
+        assertEquals("5" to "1", e.fromValue to e.toValue)
+        assertEquals(-0.9, e.lat!!, 0.0)
     }
 }

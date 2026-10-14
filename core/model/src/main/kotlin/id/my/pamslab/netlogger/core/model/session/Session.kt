@@ -18,6 +18,9 @@ enum class EndReason {
 enum class EventType {
     RAT_CHANGE, PCI_CHANGE_LTE, PCI_CHANGE_NR, NR_ADDED, NR_REMOVED, NO_SERVICE, SERVICE_RESTORED,
     GPS_LOST, GPS_RESTORED, USER_MARKER,
+
+    /** The default data SIM changed during the session; from/to are subscription IDs. The session keeps its SIM. */
+    DATA_SIM_CHANGED,
 }
 
 /** What is known when a session starts; network fields are filled from the first tick. */

@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.core.data
 
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
 import id.my.pamslab.netlogger.core.model.session.EndReason
@@ -33,6 +34,8 @@ interface SessionRecorder {
     suspend fun record(tick: Tick): Long
 
     suspend fun addMarker(marker: UserMarker)
+
+    suspend fun addEvent(event: SessionEvent)
 
     suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long)
 }

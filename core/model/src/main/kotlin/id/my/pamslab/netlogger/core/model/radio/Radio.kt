@@ -152,6 +152,12 @@ enum class WarningCode {
     /** Samsung NR CSI values at the range floor (CSI-RSRQ -20, CSI-SINR -23, CSI-RSRP far below SS-RSRP): not measured. */
     SAMSUNG_NR_CSI_PLACEHOLDER,
 
+    /**
+     * The default data SIM is no longer the session's SIM (the user switched it during the session). The session keeps
+     * logging its own SIM; `field` = "subscriptionId", `rawValue` = the current data subscription ID.
+     */
+    DATA_SIM_CHANGED,
+
     /** Samsung, Android 12+: serving TAC/LAC bytes swapped; the column holds the corrected value. */
     SAMSUNG_TAC_BYTE_SWAP,
 
@@ -199,6 +205,8 @@ data class RadioSnapshot(
     val warnings: List<ParseWarning>,
     /** Why the TelephonyCallback could not be registered, if it could not. */
     val listenerError: String?,
+    /** The default data subscription at this tick; differs from [subscriptionId] after a data-SIM switch. */
+    val dataSubscriptionId: Int? = subscriptionId,
 ) {
     /** Getter calls that threw (EXTRACTION_FAILED counts): real parse failures, not corrections. */
     val parseErrors: Int get() = warnings.filter { it.code == WarningCode.EXTRACTION_FAILED }.sumOf { it.rawValue?.toIntOrNull() ?: 1 }
