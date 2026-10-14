@@ -6,7 +6,9 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_library(netcapture SHARED
+    capture_clock.c
     netcapture_jni.c
+    pcap_writer.c
 )
 
 target_compile_options(netcapture PRIVATE -Wall -Wextra -Werror)
