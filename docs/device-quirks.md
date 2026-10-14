@@ -304,6 +304,15 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   this test did not change the default data SIM (confirmed in `dumpsys isub`).
 - Not tested yet: a whole session with data on the Telkomsel SIM.
 
+### Map (milestone 6), both phones, 2026-10-14
+
+- moto: live track, tap card (NR cell `NSA_INFERRED`, PCI blank as copied from LTE, NR RSRP from SignalStrength
+  marked "(SS)", NR SS-SINR gray: the moto reports none), Show on map.
+- A56: live growth (44 → 58 → 63 → 98 ticks), Follow on/off (with Follow off the view stays where it was panned),
+  Network metric (NR_NSA purple), tap card (NR PCI 440 n41 `REPORTED`), marker, Show on map for the stopped session
+  (126/126 ticks). OSM tiles load over mobile data on both.
+- Not seen yet: a moving track framed over a longer route, and the map in airplane mode (no tiles).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
