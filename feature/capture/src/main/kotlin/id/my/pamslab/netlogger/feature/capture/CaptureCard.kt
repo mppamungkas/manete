@@ -54,6 +54,7 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
     val scope = rememberCoroutineScope()
     val pkg = remember { controller.pcapdroidPackage() }
     var mode by remember { mutableStateOf(controller.settings.mode) }
+    var mtu by remember { mutableStateOf(controller.settings.nativeMtu) }
     var apps by rememberSaveable { mutableStateOf(controller.settings.appFilter.joinToString(", ")) }
     val startLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         controller.onStartResult(it.resultCode == Activity.RESULT_OK)
@@ -118,6 +119,20 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                             )
                         }
                     }
+                    if (mode == CaptureMode.NATIVE) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(
+                                CaptureSettings.MTU_REALISTIC to "Realistic packets (MTU 1500)",
+                                CaptureSettings.MTU_FAST to "Fast (MTU 10 000)",
+                            ).forEach { (value, text) ->
+                                FilterChip(
+                                    selected = mtu == value,
+                                    onClick = { mtu = value; controller.settings.nativeMtu = value },
+                                    label = { Text(text) },
+                                )
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         apps, { apps = it }, Modifier.fillMaxWidth(), singleLine = true,
                         label = { Text("Apps (package names, comma separated; empty = all)") },
@@ -127,7 +142,8 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                             "NetLogger's own VPN. Captures the IP traffic of apps between each app and the VPN, plus " +
                                 "which app owns each connection; no radio signaling, and packet sizes and timing are " +
                                 "rebuilt by the forwarder, not the ones on the air. No other VPN at the same time. " +
-                                "Adds overhead; speed tests during a capture are flagged."
+                                "Adds overhead, more with MTU 1500 (fast links lose up to a quarter of their download " +
+                                "speed); speed tests during a capture are flagged."
                         } else {
                             "Captures the IP traffic of apps only, no radio signaling. Uses Android's VPN slot: no other " +
                                 "VPN at the same time. Adds overhead; speed tests during a capture are flagged."

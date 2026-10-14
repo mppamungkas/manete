@@ -90,6 +90,7 @@ class CaptureController @Inject constructor(
     private var nativeLastStatusMs = 0L
     private var nativeLastStats: NativeCaptureStats? = null
     private var nativeJob: Job? = null
+    private var nativeMtu = CaptureSettings.MTU_REALISTIC
 
     val state: StateFlow<CaptureState> = holder.state.asStateFlow()
 
@@ -307,8 +308,9 @@ class CaptureController @Inject constructor(
         nativeRequestedStop = null
         nativeLastStats = null
         nativeLastStatusMs = SystemClock.elapsedRealtime()
+        nativeMtu = settings.nativeMtu
         try {
-            NativeCaptureService.start(context, pcap, files.connections(uuid), settings.appFilter)
+            NativeCaptureService.start(context, pcap, files.connections(uuid), settings.appFilter, mtu = nativeMtu)
         } catch (e: Exception) {
             nativePcap = null
             fail("Native capture could not start: ${e.message}")
@@ -335,6 +337,7 @@ class CaptureController @Inject constructor(
     }
 
     private suspend fun onNativeStatus(status: NativeCaptureStatus.Status) = mutex.withLock {
+        if (status.standalone) return@withLock // debug capture from adb, no session
         val pcap = nativePcap
         if (pcap == null || status.pcapPath != pcap.absolutePath) {
             // Not ours (e.g. the main process restarted while ":vpn" kept capturing): stop it, it has no session.
@@ -383,11 +386,11 @@ class CaptureController @Inject constructor(
         holder.state.value = s.withNative(st).copy(running = true, startedElapsedNs = st.startElapsedNs, error = null)
         syncFile?.let {
             ClockSync.writeHeader(it)
-            ClockSync.append(it, "START", start, "pcap_offset clock_uncertainty_ns=${st.clockUncertaintyNs}")
+            ClockSync.append(it, "START", start, "pcap_offset clock_uncertainty_ns=${st.clockUncertaintyNs} mtu=$nativeMtu")
         }
         repository.setCaptureFile(sessionId, s.fileName)
-        repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, CaptureMode.NATIVE.name, "${s.fileName} ${start.describe()}", start))
-        Log.i(TAG, "capture started: NATIVE ${s.fileName} ${start.describe()}")
+        repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, CaptureMode.NATIVE.name, "${s.fileName} ${start.describe()} mtu=$nativeMtu", start))
+        Log.i(TAG, "capture started: NATIVE ${s.fileName} ${start.describe()} mtu=$nativeMtu")
     }
 
     /** Called under [mutex]. */

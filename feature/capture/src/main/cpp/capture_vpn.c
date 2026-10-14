@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <netinet/tcp.h>
+#include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -28,6 +29,8 @@
 #define PURGE_INTERVAL_NS (5 * 1000000000LL)
 #define PUBLISH_INTERVAL_NS (100 * 1000000LL)
 #define TUN_BUFFER_BYTES 65536
+/* Tun packets handled per select() round: after the first, more are read while the tun has any (poll, no wait). */
+#define TUN_BATCH 64
 
 struct capture_vpn {
     pthread_mutex_t lock;
@@ -300,10 +303,23 @@ int capture_vpn_run(capture_vpn_t *cv, const capture_vpn_config_t *config) {
             break;
         }
         if (FD_ISSET(config->tun_fd, &rd)) {
-            ssize_t n = read(config->tun_fd, cv->buffer, sizeof(cv->buffer));
-            if (n > 0) {
-                handle_tun_packet(cv, zdt, (int) n);
-            } else if (n == 0 || (errno != EINTR && errno != EAGAIN)) {
+            /* A burst of app packets (e.g. ACKs of a download) costs one select() over all sockets, not one each.
+             * zdtun's sockets are still only handled in rounds without tun packets, from a fresh fd set. */
+            int closed = 0;
+            for (int i = 0; i < TUN_BATCH && !cv->tun_failed; i++) {
+                if (i > 0) {
+                    struct pollfd p = { .fd = config->tun_fd, .events = POLLIN };
+                    if (poll(&p, 1, 0) != 1 || !(p.revents & POLLIN)) break;
+                }
+                ssize_t n = read(config->tun_fd, cv->buffer, sizeof(cv->buffer));
+                if (n > 0) {
+                    handle_tun_packet(cv, zdt, (int) n);
+                } else if (n == 0 || (errno != EINTR && errno != EAGAIN)) {
+                    closed = 1;
+                    break;
+                }
+            }
+            if (closed) {
                 reason = CAPTURE_EXIT_TUN_CLOSED;
                 break;
             }

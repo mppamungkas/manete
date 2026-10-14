@@ -118,3 +118,7 @@ app ──IP packets──► tun (VpnService) ──► NetLogger native thread
   (`system()`, `bind`/`listen` servers) are dropped from `libnetcapture` by hidden visibility and `--gc-sections`.
 - **Step 3:** `NetLoggerApplication` runs its abandoned-session recovery only in the main process; in `:vpn` it
   would close the session being recorded.
+- **Step 6 (D4 outcome):** MTU 1500 costs ~25 % of a ~140 Mbit/s download on the moto g45, MTU 10 000 ~3 %
+  (zdtun forwards one segment per socket per loop round). As planned, the MTU became a setting on the capture card:
+  1500 stays the default, 10 000 is offered as "Fast". Making zdtun read several segments per round would need a
+  change to zdtun itself, which D2 rules out without a new decision.

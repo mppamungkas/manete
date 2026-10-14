@@ -500,6 +500,29 @@ Static sessions 11–14, started and stopped through NetLogger's own UI (adb tap
   header written at once and rows flushed at most 1 s after a connection ends. Rows of connections still open at a
   crash are lost. Android keeps a dead `NativeCaptureService` record (`app=null`, `stopIfKilled=true`): not restarted.
 
+### moto g45, native capture throughput, Tri (510-89), NR NSA, static, 2026-10-15 (milestone 11, step 6)
+
+`curl` on the phone (shell uid), capture off and native capture alternating per round; every native run's pcap
+held all packets (dropped 0, pcap = expected).
+
+| Test | Capture off | Native, MTU 1500 | Native, MTU 10 000 |
+|---|---|---|---|
+| 10 MB download, speed.cloudflare.com, 3 rounds | 14.3 MB/s | 11.4 MB/s (−20 %) | – |
+| 5 MB upload (POST), speed.cloudflare.com, 3 rounds | 1.68 MB/s | 1.55 MB/s (−8 %) | – |
+| 20 MB download, speed.cloudflare.com, 3 rounds | 19.4 MB/s | 14.5 MB/s (−25 %) | 17.9 MB/s (−8 %) |
+| 20 MB HTTP range download, kartolo.sby.datautama.net.id (Surabaya), 4 rounds, batched tun reads | 17.3 MB/s | 13.0 MB/s (−25 %) | 16.8 MB/s (−3 %) |
+
+- **Why MTU matters:** zdtun reads one MSS-sized segment per readable socket per loop round, so every downstream
+  packet costs a `select()` + `recv()` + tun write. MTU 10 000 means ~6.8× fewer, larger packets (pcap: ~3,950
+  instead of ~21,700 records for 20 MB). Reading up to 64 waiting tun packets per round (the app's ACKs) did not
+  change the MTU 1500 result. With MTU 1500 the forwarder tops out around 13–15 MB/s (105–120 Mbit/s) on this phone;
+  slower links should lose little. Hence the capture card setting: "Realistic packets (MTU 1500)" (default, D4) or
+  "Fast (MTU 10 000)"; the MTU is stored in CAPTURE_STARTED and capture_sync.csv.
+- **Cloudflare rate limit:** after ~25 large downloads within minutes, `__down?bytes=…` answered HTTP 429 (1 byte)
+  for 10 and 20 MB. Check the HTTP status in scripted tests; the Surabaya mirror (plain HTTP, `Range`) worked.
+- **Debug captures from adb** (`NativeCaptureDebugActivity`) are marked standalone: without that, the main process
+  stopped them within 10 ms as "capture without a session" (the safety rule for a restarted main process).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

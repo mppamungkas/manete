@@ -15,7 +15,7 @@ import java.time.format.DateTimeFormatter
  *
  * ```
  * adb shell am start -n id.my.pamslab.netlogger/id.my.pamslab.netlogger.feature.capture.vpn.NativeCaptureDebugActivity \
- *     --es cmd start [--es apps com.example.a,com.example.b]
+ *     --es cmd start [--es apps com.example.a,com.example.b] [--ei mtu 10000]
  * adb shell am start -n ... --es cmd stop
  * ```
  * The pcap goes to files/captures/native-<time>.pcap, the connections to native-<time>_connections.csv. The VPN consent dialog, if shown, is for the user to answer.
@@ -56,7 +56,9 @@ class NativeCaptureDebugActivity : ComponentActivity() {
         val dir = File(filesDir, "captures")
         val file = File(dir, "native-$time.pcap")
         val apps = intent.getStringExtra("apps")?.split(',')?.map(String::trim)?.filter(String::isNotEmpty).orEmpty()
-        NativeCaptureService.start(this, file, File(dir, "native-${time}_connections.csv"), apps)
+        NativeCaptureService.start(this, file, File(dir, "native-${time}_connections.csv"), apps, standalone = true,
+            mtu = intent.getIntExtra("mtu", NativeCaptureService.MTU),
+        )
     }
 
     private companion object {

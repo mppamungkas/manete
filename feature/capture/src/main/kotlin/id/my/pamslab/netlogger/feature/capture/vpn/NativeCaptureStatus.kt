@@ -16,6 +16,8 @@ object NativeCaptureStatus {
     const val EXTRA_EXIT = "exit"
     const val EXTRA_WHY = "why"
     const val EXTRA_ERROR = "error"
+    /** A capture without a session (debug builds: started from adb); the main process leaves it alone. */
+    const val EXTRA_STANDALONE = "standalone"
 
     const val STATS = "STATS"
     const val ENDED = "ENDED"
@@ -30,9 +32,13 @@ object NativeCaptureStatus {
         val exit: NativeCaptureExit?,
         val why: Why?,
         val error: String?,
+        val standalone: Boolean,
     )
 
-    fun send(context: Context, event: String, pcapPath: String, stats: LongArray?, exit: NativeCaptureExit?, why: Why?, error: String?) {
+    fun send(
+        context: Context, event: String, pcapPath: String, stats: LongArray?, exit: NativeCaptureExit?, why: Why?,
+        error: String?, standalone: Boolean,
+    ) {
         context.sendBroadcast(
             Intent(ACTION).setPackage(context.packageName)
                 .putExtra(EXTRA_EVENT, event)
@@ -40,7 +46,8 @@ object NativeCaptureStatus {
                 .putExtra(EXTRA_STATS, stats)
                 .putExtra(EXTRA_EXIT, exit?.name)
                 .putExtra(EXTRA_WHY, why?.name)
-                .putExtra(EXTRA_ERROR, error),
+                .putExtra(EXTRA_ERROR, error)
+                .putExtra(EXTRA_STANDALONE, standalone),
         )
     }
 
@@ -55,6 +62,7 @@ object NativeCaptureStatus {
             exit = intent.getStringExtra(EXTRA_EXIT)?.let { name -> NativeCaptureExit.entries.firstOrNull { it.name == name } },
             why = intent.getStringExtra(EXTRA_WHY)?.let { name -> Why.entries.firstOrNull { it.name == name } },
             error = intent.getStringExtra(EXTRA_ERROR),
+            standalone = intent.getBooleanExtra(EXTRA_STANDALONE, false),
         )
     }
 }

@@ -42,6 +42,7 @@ class NativeCaptureService : VpnService() {
         val pcap: File,
         val connections: File?,
         val callbacks: NativeCaptureCallbacks,
+        val standalone: Boolean,
     ) {
         lateinit var thread: Thread
         @Volatile var exit: NativeCaptureExit? = null
@@ -54,7 +55,9 @@ class NativeCaptureService : VpnService() {
         override fun run() {
             val c = capture ?: return
             val raw = NativeCapture.statsArray(c.handle)
-            NativeCaptureStatus.send(this@NativeCaptureService, NativeCaptureStatus.STATS, c.pcap.absolutePath, raw, null, null, null)
+            NativeCaptureStatus.send(
+                this@NativeCaptureService, NativeCaptureStatus.STATS, c.pcap.absolutePath, raw, null, null, null, c.standalone,
+            )
             if (++ticks % LOG_EVERY == 0) raw?.let(NativeCaptureStats::of)?.let { Log.i(TAG, "native capture: ${it.summary()}") }
             main.postDelayed(this, STATUS_MS)
         }
@@ -72,6 +75,8 @@ class NativeCaptureService : VpnService() {
                         pcapFile,
                         intent.getStringExtra(EXTRA_CONNECTIONS_PATH)?.let(::File),
                         intent.getStringArrayExtra(EXTRA_ALLOWED_APPS)?.toList().orEmpty(),
+                        intent.getBooleanExtra(EXTRA_STANDALONE, false),
+                        intent.getIntExtra(EXTRA_MTU, MTU).coerceIn(MIN_MTU, MAX_MTU),
                     )
                 }
             }
@@ -114,19 +119,19 @@ class NativeCaptureService : VpnService() {
         false
     }
 
-    private fun start(pcapFile: File, connectionsFile: File?, allowedApps: List<String>) {
+    private fun start(pcapFile: File, connectionsFile: File?, allowedApps: List<String>, standalone: Boolean, mtu: Int) {
         if (capture != null) {
             Log.w(TAG, "native capture already running")
             return
         }
         fun failed(error: String) {
             Log.w(TAG, "native capture: $error")
-            NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, pcapFile.absolutePath, null, null, null, error)
+            NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, pcapFile.absolutePath, null, null, null, error, standalone)
         }
         if (!NativeCapture.available) return failed("libnetcapture not loaded: ${NativeCapture.loadError}")
         val plan = plan()
         val tun = try {
-            builder(plan, allowedApps).establish()
+            builder(plan, allowedApps, mtu).establish()
         } catch (e: Exception) {
             Log.w(TAG, "native capture: establish failed", e)
             null
@@ -149,9 +154,9 @@ class NativeCaptureService : VpnService() {
             tun.close()
             return failed("out of memory")
         }
-        val config = NativeCapture.Config(mtu = MTU, ipv6 = plan.ipv6)
+        val config = NativeCapture.Config(mtu = mtu, ipv6 = plan.ipv6)
         val callbacks = callbacks(handle, connectionsFile)
-        val running = Running(handle, tun, pcapFile, connectionsFile, callbacks)
+        val running = Running(handle, tun, pcapFile, connectionsFile, callbacks, standalone)
         running.thread = Thread({
             val exit = NativeCapture.run(handle, callbacks, tun.fd, pcapFd, config)
             running.exit = exit
@@ -160,7 +165,7 @@ class NativeCaptureService : VpnService() {
         capture = running
         Log.i(
             TAG,
-            "native capture started: ${pcapFile.name}, ipv6 ${plan.ipv6}, dns ${plan.dnsServers.map { it.hostAddress }}" +
+            "native capture started: ${pcapFile.name}, mtu $mtu, ipv6 ${plan.ipv6}, dns ${plan.dnsServers.map { it.hostAddress }}" +
                 (if (plan.dnsFallback) " (fallback)" else "") +
                 ", apps ${allowedApps.ifEmpty { listOf("all") }}, ${NativeCapture.version()}",
         )
@@ -203,7 +208,7 @@ class NativeCaptureService : VpnService() {
             )
         }
         // After connections.csv is closed: the main process may export right away.
-        NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, c.pcap.absolutePath, raw, exit, stopWhy, null)
+        NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, c.pcap.absolutePath, raw, exit, stopWhy, null, c.standalone)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -245,10 +250,10 @@ class NativeCaptureService : VpnService() {
         )
     }
 
-    private fun builder(plan: TunPlan, allowedApps: List<String>): Builder {
+    private fun builder(plan: TunPlan, allowedApps: List<String>, mtu: Int): Builder {
         val b = Builder()
             .setSession("NetLogger capture")
-            .setMtu(MTU)
+            .setMtu(mtu)
             .setBlocking(true)
             // Metered like the network underneath, instead of always metered.
             .setMetered(false)
@@ -301,23 +306,33 @@ class NativeCaptureService : VpnService() {
         private const val DESTROY_JOIN_MS = 2_000L
         private const val CSV_BUFFER = 64 * 1024
 
-        /** Tun MTU (decision D4): captured packets keep realistic sizes. */
+        /** Default tun MTU (decision D4): captured packets keep realistic sizes. */
         const val MTU = 1500
+        const val MIN_MTU = 1280 // IPv6 minimum
+        const val MAX_MTU = 16_000
 
         const val ACTION_START = "id.my.pamslab.netlogger.capture.NATIVE_START"
         const val ACTION_STOP = "id.my.pamslab.netlogger.capture.NATIVE_STOP"
         const val EXTRA_PCAP_PATH = "pcap_path"
         const val EXTRA_ALLOWED_APPS = "allowed_apps"
         const val EXTRA_CONNECTIONS_PATH = "connections_path"
+        const val EXTRA_STANDALONE = NativeCaptureStatus.EXTRA_STANDALONE
+        const val EXTRA_MTU = "mtu"
 
         /** Needs VPN consent first: [VpnService.prepare] must return null. */
-        fun start(context: Context, pcapFile: File, connectionsFile: File?, allowedApps: List<String>) {
+        /** [standalone]: no session (debug builds only, from adb); the main process doesn't stop it. */
+        fun start(
+            context: Context, pcapFile: File, connectionsFile: File?, allowedApps: List<String>,
+            standalone: Boolean = false, mtu: Int = MTU,
+        ) {
             context.startForegroundService(
                 Intent(context, NativeCaptureService::class.java)
                     .setAction(ACTION_START)
                     .putExtra(EXTRA_PCAP_PATH, pcapFile.absolutePath)
                     .putExtra(EXTRA_CONNECTIONS_PATH, connectionsFile?.absolutePath)
-                    .putExtra(EXTRA_ALLOWED_APPS, allowedApps.toTypedArray()),
+                    .putExtra(EXTRA_ALLOWED_APPS, allowedApps.toTypedArray())
+                    .putExtra(EXTRA_STANDALONE, standalone)
+                    .putExtra(EXTRA_MTU, mtu),
             )
         }
 
