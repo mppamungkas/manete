@@ -16,6 +16,8 @@ import id.my.pamslab.netlogger.core.export.ExportResult
 import id.my.pamslab.netlogger.core.export.SessionExporter
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
+import id.my.pamslab.netlogger.feature.sessions.charts.ChartData
+import id.my.pamslab.netlogger.feature.sessions.charts.ChartLoader
 import id.my.pamslab.netlogger.feature.sessions.navigation.SessionDetailRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -39,11 +41,19 @@ class SessionsViewModel @Inject constructor(repository: SessionRepository) : Vie
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
+sealed interface ChartState {
+    data object Loading : ChartState
+    data object Empty : ChartState
+    data class Ready(val data: ChartData) : ChartState
+    data class Failed(val message: String) : ChartState
+}
+
 @HiltViewModel
 class SessionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: SessionRepository,
     private val exporter: SessionExporter,
+    private val chartLoader: ChartLoader,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -51,6 +61,28 @@ class SessionDetailViewModel @Inject constructor(
 
     val session: StateFlow<SessionSummary?> = repository.observeSession(id)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _charts = MutableStateFlow<ChartState>(ChartState.Loading)
+    val charts: StateFlow<ChartState> = _charts.asStateFlow()
+
+    init {
+        reloadCharts()
+    }
+
+    /** Charts are a snapshot; a recording session needs a reload to show newer ticks. */
+    fun reloadCharts() {
+        _charts.value = ChartState.Loading
+        viewModelScope.launch {
+            _charts.value = try {
+                val data = withContext(Dispatchers.IO) { chartLoader.load(id) }
+                if (data == null || data.ticks.isEmpty()) ChartState.Empty else ChartState.Ready(data)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                Log.w(TAG, "charts not loaded", e)
+                ChartState.Failed(e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()

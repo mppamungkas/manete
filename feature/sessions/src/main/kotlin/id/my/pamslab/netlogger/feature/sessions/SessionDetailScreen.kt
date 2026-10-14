@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -36,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
+import id.my.pamslab.netlogger.feature.sessions.charts.SessionCharts
 import kotlinx.coroutines.launch
 
 @Composable
@@ -48,6 +50,7 @@ internal fun SessionDetailScreen(
     val session by viewModel.session.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
+    val charts by viewModel.charts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -69,6 +72,7 @@ internal fun SessionDetailScreen(
         onShareZip = viewModel::share,
         onShowOnMap = { onShowOnMap(s.id) },
         onBack = onBack, modifier = modifier,
+        charts = { ChartsSection(charts, recording = s.endedAtMs == null, onReload = viewModel::reloadCharts) },
     )
 }
 
@@ -84,6 +88,7 @@ private fun DetailContent(
     onShowOnMap: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    charts: @Composable () -> Unit = {},
 ) {
     var label by rememberSaveable(s.id) { mutableStateOf(s.label.orEmpty()) }
     var notes by rememberSaveable(s.id) { mutableStateOf(s.notes.orEmpty()) }
@@ -107,6 +112,7 @@ private fun DetailContent(
         Info("Markers", s.markers.toString())
         Info("Warnings (distinct)", s.warnings.toString())
         Info("UUID", s.uuid)
+        charts()
 
         OutlinedTextField(label, { label = it }, Modifier.fillMaxWidth(), label = { Text("Label") }, singleLine = true)
         OutlinedTextField(notes, { notes = it }, Modifier.fillMaxWidth(), label = { Text("Notes") }, minLines = 3)
@@ -146,6 +152,22 @@ private fun DetailContent(
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun ChartsSection(state: ChartState, recording: Boolean, onReload: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Charts", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            if (recording) TextButton(onClick = onReload) { Text("Reload") }
+        }
+        when (state) {
+            ChartState.Loading -> Text("Loading…", style = MaterialTheme.typography.bodySmall)
+            ChartState.Empty -> Text("No ticks in this session.", style = MaterialTheme.typography.bodySmall)
+            is ChartState.Failed -> Text("Charts not loaded: ${state.message}", color = MaterialTheme.colorScheme.error)
+            is ChartState.Ready -> SessionCharts(state.data, Modifier.fillMaxWidth())
+        }
     }
 }
 

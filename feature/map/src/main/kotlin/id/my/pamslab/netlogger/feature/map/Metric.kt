@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.feature.map
 
+import id.my.pamslab.netlogger.core.ui.signal.NetworkColors
 import id.my.pamslab.netlogger.core.ui.signal.SignalLevel
 
 /** What colors the track. */
@@ -37,17 +38,4 @@ enum class Metric(val label: String) {
         )
         NETWORK_TYPE -> NetworkColors.ARGB.entries.map { it.value to it.key }
     }
-}
-
-object NetworkColors {
-    val ARGB: Map<String, Long> = linkedMapOf(
-        "NR_SA" to 0xFFD81B60,
-        "NR_NSA" to 0xFF8E24AA,
-        "LTE" to 0xFF1E88E5,
-        "WCDMA" to 0xFF00897B,
-        "GSM" to 0xFF6D4C41,
-        "NONE" to SignalLevel.NONE.argb,
-    )
-
-    fun hex(networkType: String): String = "#%06X".format((ARGB[networkType] ?: SignalLevel.NONE.argb) and 0xFFFFFF)
 }

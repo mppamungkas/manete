@@ -2,6 +2,7 @@ package id.my.pamslab.netlogger.feature.map
 
 import id.my.pamslab.netlogger.core.data.db.EventEntity
 import id.my.pamslab.netlogger.core.export.FlatRow
+import id.my.pamslab.netlogger.core.ui.signal.NetworkColors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList

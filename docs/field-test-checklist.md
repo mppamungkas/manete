@@ -100,3 +100,12 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
       `startedElapsedNs` falls inside the session's ticks
 - [ ] Data used per test stays under 250 MB (200 MB down, 50 MB up caps)
 - [ ] Server down / wrong URL: the phases have `error` set, no crash, logging continues
+
+## Milestone 9: session charts
+
+- [ ] Session detail of a drive: RSRP and SINR charts (LTE blue, NR purple) over the map's color bands; timeline
+      rows for network type, screen off and speed tests; times at start / middle / end match the session
+- [ ] Gaps: no line across missing values or missed ticks; moto LTE SINR mostly empty with the screen off (stale rule)
+- [ ] Tap and drag on any chart: cursor on all charts, readout with time, tick, network type, values, "(SS)" marks
+- [ ] A 1-hour session: charts load in a few seconds, scrolling stays smooth
+- [ ] A recording session: "Reload" shows newer ticks
