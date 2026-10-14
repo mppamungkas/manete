@@ -63,6 +63,7 @@ data class CellSample(
     val pci: Int?,
     /** EARFCN / NR-ARFCN / UARFCN / ARFCN. */
     val arfcn: Int?,
+    /** LTE/NR/WCDMA band number; GSM band by frequency in MHz (850, 900, 1800, 1900). */
     val band: Int?,
     val bandSource: BandSource?,
     val bandwidthKhz: Int?,
@@ -157,8 +158,9 @@ enum class WarningCode {
     NR_NSA_TAC_ZERO,
 
     /**
-     * getBands() contradicts the country's known band for this ARFCN (A56: n7 reported for an n41 carrier). The
-     * mapped band is used with bandSource MAPPED; `rawValue` holds the reported bands.
+     * getBands() contradicts the band the ARFCN settles: the only band containing it (moto g45: band 1 for LTE EARFCN
+     * 1625 right after a handover) or the country's known band (A56: n7 reported for an n41 carrier). The mapped band
+     * is used with bandSource MAPPED; `rawValue` holds the reported bands.
      */
     API_BAND_CONFLICT,
 

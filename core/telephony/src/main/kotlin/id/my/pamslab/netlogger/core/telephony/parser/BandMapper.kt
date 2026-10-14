@@ -9,7 +9,10 @@ import id.my.pamslab.netlogger.core.model.radio.Rat
  */
 data class BandMapping(val band: Int, val candidates: List<Int>, val countryPreferred: Boolean = false)
 
-/** Maps an ARFCN to a band when getBands() is empty. Used only as a fallback; results are marked MAPPED. */
+/**
+ * Maps an ARFCN to a band when getBands() is empty (results are marked MAPPED), and checks getBands() where the ARFCN
+ * allows only one band or the country's band is known.
+ */
 fun interface BandMapper {
     /** [mcc] is the registered network's MCC, used to choose between overlapping bands. */
     fun map(rat: Rat, arfcn: Int, mcc: String?): BandMapping?
@@ -17,8 +20,14 @@ fun interface BandMapper {
     companion object {
         val None = BandMapper { _, _, _ -> null }
 
-        /** NR from [NrBandTable]. LTE, WCDMA and GSM follow in milestone 7. */
-        val Standard = BandMapper { rat, arfcn, mcc -> if (rat == Rat.NR) NrBandTable.map(arfcn, mcc) else null }
+        val Standard = BandMapper { rat, arfcn, mcc ->
+            when (rat) {
+                Rat.LTE -> LteBandTable.map(arfcn)
+                Rat.NR -> NrBandTable.map(arfcn, mcc)
+                Rat.WCDMA -> WcdmaBandTable.map(arfcn)
+                Rat.GSM -> GsmBandTable.map(arfcn, mcc)
+            }
+        }
     }
 }
 
@@ -61,9 +70,10 @@ object NrBandTable {
     /**
      * Bands an operator in this country is known to use, tried first when a frequency falls in several bands.
      * Indonesia (510): NR at 2.6 GHz is TDD n41 (seen on Tri/IOH with G-NetTrack Pro, 2026-10-13), not n7 or
-     * n90. To be checked against field data from all operators before it is final (decision 001).
+     * n90. To be checked against field data from all operators before it is final (decision 001). 700 MHz follows the
+     * APT plan (n28), not the US n14 inside it.
      */
-    private val PREFERRED_BY_MCC = mapOf("510" to listOf(41))
+    private val PREFERRED_BY_MCC = mapOf("510" to listOf(41, 28))
 
     /** Countries where an ambiguous frequency is resolved to a TDD band before an FDD/SDL one. */
     private val TDD_FIRST_MCC = setOf("510")
@@ -97,5 +107,73 @@ object NrBandTable {
         val band = matches.filter { mcc in TDD_FIRST_MCC && it.duplex == Duplex.TDD }.minWithOrNull(byWidth)?.number
             ?: matches.minWith(byWidth).number
         return BandMapping(band, numbers)
+    }
+}
+
+/**
+ * EARFCN → E-UTRA operating band, from the downlink EARFCN ranges in 3GPP TS 36.101 Table 5.7.3-1. Each band has its
+ * own EARFCN range, so the result is unique. Bands used in Indonesia (1, 3, 5, 8, 40) are checked against getBands()
+ * on our phones (see LteBandTableTest); the rest is from the table only.
+ */
+object LteBandTable {
+
+    private class Band(val number: Int, val first: Int, val last: Int)
+
+    // (band, first DL EARFCN = N_Offs-DL, last DL EARFCN)
+    private val BANDS = listOf(
+        Band(1, 0, 599), Band(2, 600, 1199), Band(3, 1200, 1949), Band(4, 1950, 2399), Band(5, 2400, 2649),
+        Band(6, 2650, 2749), Band(7, 2750, 3449), Band(8, 3450, 3799), Band(9, 3800, 4149), Band(10, 4150, 4749),
+        Band(11, 4750, 4949), Band(12, 5010, 5179), Band(13, 5180, 5279), Band(14, 5280, 5379), Band(17, 5730, 5849),
+        Band(18, 5850, 5999), Band(19, 6000, 6149), Band(20, 6150, 6449), Band(21, 6450, 6599), Band(22, 6600, 7399),
+        Band(23, 7500, 7699), Band(24, 7700, 8039), Band(25, 8040, 8689), Band(26, 8690, 9039), Band(27, 9040, 9209),
+        Band(28, 9210, 9659), Band(29, 9660, 9769), Band(30, 9770, 9869), Band(31, 9870, 9919), Band(32, 9920, 10359),
+        Band(33, 36000, 36199), Band(34, 36200, 36349), Band(35, 36350, 36949), Band(36, 36950, 37549),
+        Band(37, 37550, 37749), Band(38, 37750, 38249), Band(39, 38250, 38649), Band(40, 38650, 39649),
+        Band(41, 39650, 41589), Band(42, 41590, 43589), Band(43, 43590, 45589), Band(44, 45590, 46589),
+        Band(45, 46590, 46789), Band(46, 46790, 54539), Band(47, 54540, 55239), Band(48, 55240, 56739),
+        Band(49, 56740, 58239), Band(50, 58240, 59089), Band(51, 59090, 59139), Band(52, 59140, 60139),
+        Band(53, 60140, 60254), Band(65, 65536, 66435), Band(66, 66436, 67335), Band(67, 67336, 67535),
+        Band(68, 67536, 67835), Band(69, 67836, 68335), Band(70, 68336, 68585), Band(71, 68586, 68935),
+        Band(72, 68936, 68985), Band(73, 68986, 69035), Band(74, 69036, 69465), Band(75, 69466, 70315),
+        Band(76, 70316, 70365), Band(85, 70366, 70545),
+    )
+
+    fun map(earfcn: Int): BandMapping? =
+        BANDS.firstOrNull { earfcn in it.first..it.last }?.let { BandMapping(it.number, listOf(it.number)) }
+}
+
+/**
+ * UARFCN → UTRA FDD band, from the downlink general UARFCN ranges in 3GPP TS 25.101 Table 5.2. Only bands whose
+ * ranges do not overlap are listed (band VI and XIX, inside band V, and the additional channels are left out).
+ */
+object WcdmaBandTable {
+
+    private class Band(val number: Int, val first: Int, val last: Int)
+
+    private val BANDS = listOf(
+        Band(1, 10562, 10838), Band(2, 9662, 9938), Band(3, 1162, 1513), Band(4, 1537, 1738),
+        Band(5, 4357, 4458), Band(8, 2937, 3088), Band(9, 9237, 9387),
+    )
+
+    fun map(uarfcn: Int): BandMapping? =
+        BANDS.firstOrNull { uarfcn in it.first..it.last }?.let { BandMapping(it.number, listOf(it.number)) }
+}
+
+/**
+ * GSM ARFCN → band, named by its frequency in MHz (850, 900, 1800, 1900) because GSM bands have no common number
+ * (3GPP TS 45.005 clause 2). ARFCN 512–810 is DCS 1800 or PCS 1900: PCS in the Americas (MCC 3xx and 7xx), DCS
+ * elsewhere and when the MCC is unknown.
+ */
+object GsmBandTable {
+
+    fun map(arfcn: Int, mcc: String?): BandMapping? = when (arfcn) {
+        in 0..124, in 955..1023 -> BandMapping(900, listOf(900))
+        in 128..251 -> BandMapping(850, listOf(850))
+        in 512..810 -> {
+            val pcs = mcc?.firstOrNull() == '3' || mcc?.firstOrNull() == '7'
+            BandMapping(if (pcs) 1900 else 1800, listOf(1800, 1900))
+        }
+        in 811..885 -> BandMapping(1800, listOf(1800))
+        else -> null
     }
 }

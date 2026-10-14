@@ -363,11 +363,16 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
         fun wcdma(raw: RawWcdmaCell): CellSample {
             val v = Validator(warnings, Rat.WCDMA, raw.psc)
+            val uarfcn = v.int("uarfcn", raw.uarfcn, Ranges.UARFCN)
+            // CellIdentityWcdma has no getBands(): the band always comes from the mapper.
+            val (band, bandSource) = band(Rat.WCDMA, null, uarfcn, IntRange.EMPTY, raw.psc)
             return base(raw, Rat.WCDMA).copy(
                 cellId = v.long("cid", raw.cid?.toLong(), Ranges.WCDMA_CID),
                 tac = v.int("lac", raw.lac, Ranges.TAC_16),
                 pci = v.int("psc", raw.psc, Ranges.PSC),
-                arfcn = v.int("uarfcn", raw.uarfcn, Ranges.UARFCN),
+                arfcn = uarfcn,
+                band = band,
+                bandSource = bandSource,
                 mcc = v.mcc(raw.mcc),
                 mnc = v.mnc(raw.mnc),
                 rscpDbm = v.int("rscp", raw.signal?.dbm, Ranges.RSCP),
@@ -377,11 +382,16 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
 
         fun gsm(raw: RawGsmCell): CellSample {
             val v = Validator(warnings, Rat.GSM, raw.bsic)
+            val arfcn = v.int("arfcn", raw.arfcn, Ranges.GSM_ARFCN)
+            // CellIdentityGsm has no getBands(): the band (in MHz) always comes from the mapper.
+            val (band, bandSource) = band(Rat.GSM, null, arfcn, IntRange.EMPTY, raw.bsic)
             return base(raw, Rat.GSM).copy(
                 cellId = v.long("cid", raw.cid?.toLong(), Ranges.GSM_CID),
                 tac = v.int("lac", raw.lac, Ranges.TAC_16),
                 pci = v.int("bsic", raw.bsic, Ranges.BSIC),
-                arfcn = v.int("arfcn", raw.arfcn, Ranges.GSM_ARFCN),
+                arfcn = arfcn,
+                band = band,
+                bandSource = bandSource,
                 mcc = v.mcc(raw.mcc),
                 mnc = v.mnc(raw.mnc),
                 rssiDbm = v.int("rssi", raw.signal?.rssi, Ranges.GSM_RSSI),
@@ -446,8 +456,9 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         }
 
         /**
-         * getBands() first; the mapper when the API gives nothing, or when getBands() contradicts the country's
-         * known band for this ARFCN (A56: n7 for an n41 carrier), with an API_BAND_CONFLICT warning.
+         * getBands() first; the mapper when the API gives nothing, or with an API_BAND_CONFLICT warning when getBands()
+         * contradicts a band the ARFCN settles: the only band containing it (moto g45: band 1 reported for EARFCN 1625
+         * right after a handover) or the country's known band (A56: n7 for an n41 carrier).
          */
         private fun band(rat: Rat, bands: List<Int>?, arfcn: Int?, range: IntRange, pci: Int?): Pair<Int?, BandSource?> {
             val reported = bands.orEmpty()
@@ -460,7 +471,8 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             }
             val mapped = arfcn?.let { bandMapper.map(rat, it, mcc) }
             if (valid.isNotEmpty()) {
-                if (mapped == null || !mapped.countryPreferred) return valid.first() to BandSource.API
+                val settled = mapped != null && (mapped.countryPreferred || mapped.candidates.size == 1)
+                if (mapped == null || !settled) return valid.first() to BandSource.API
                 if (mapped.band in valid) return mapped.band to BandSource.API
                 warnings += ParseWarning(WarningCode.API_BAND_CONFLICT, rat, pci, "bands", valid.toString())
                 return mapped.band to mappedSource(mapped)

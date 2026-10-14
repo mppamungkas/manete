@@ -353,6 +353,9 @@ Both phones unplugged, screen off for most of the drive (moto 1218 / 1411 ticks,
   a fresh (< 10 s) NR SignalStrength entry and the unregistered CellInfoNr, but override 0: kept as NR_NSA by the
   rule; 111 older NR entries were marked `NR_SIGNAL_STRENGTH_STALE` and did not count.
 - **CQI:** moto none (CellInfo or SignalStrength), A56 present.
+- **moto: wrong `getBands()` right after a handover.** In 197 rows of the registered LTE cell (all moto sessions of the day), getBands() still held the
+  previous cell's band (EARFCN 75 / 200 with band 3 or 8, 1475 / 1625 with band 1, 3652 with band 3), always the
+  registered cell, never a neighbor. Fixed in milestone 7: the EARFCN settles the band (`API_BAND_CONFLICT`, MAPPED).
 - **Map:** the moving track draws on the moto (1411 / 1411 points with GPS). Zoomed out, the dense points' dark
   outline makes the line look almost black; colors are clear when zoomed in.
 

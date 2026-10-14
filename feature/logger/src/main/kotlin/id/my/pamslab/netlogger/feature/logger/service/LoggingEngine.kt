@@ -10,7 +10,6 @@ import id.my.pamslab.netlogger.core.model.device.DeviceInfo
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
-import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.TickStats
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -21,6 +20,7 @@ import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
+import id.my.pamslab.netlogger.core.telephony.EventDetector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -104,17 +104,19 @@ class LoggingEngine @Inject constructor(
                 }
                 var seq = 0L
                 val window = TickWindow()
-                var lastDataSubId: Int? = null
+                val detector = EventDetector()
                 radio.samples(intervalMs).collect { snapshot ->
                     val tick = buildTick(seq, snapshot, locationState.get(), recentFixes.get(), device.snapshot())
                     seq++
                     window.add(tick)
-                    val dataSimEvent = dataSimChange(lastDataSubId, tick)
-                    lastDataSubId = snapshot.dataSubscriptionId
+                    val events = detector.detect(tick)
+                    window.events += events.size
                     val writeFailed = try {
                         window.writeMs(session.record(tick))
-                        dataSimEvent?.let {
-                            log("data SIM changed ${it.fromValue} -> ${it.toValue}; session keeps subId ${snapshot.subscriptionId}")
+                        events.forEach {
+                            if (it.type == EventType.DATA_SIM_CHANGED) {
+                                log("data SIM changed ${it.fromValue} -> ${it.toValue}; session keeps subId ${snapshot.subscriptionId}")
+                            }
                             session.addEvent(it)
                         }
                         false
@@ -157,16 +159,6 @@ class LoggingEngine @Inject constructor(
         }
     }
 
-    /** DATA_SIM_CHANGED when the default data SIM differs from the previous tick's (the first tick has none). */
-    private fun dataSimChange(previous: Int?, tick: Tick): SessionEvent? {
-        val current = tick.radio.dataSubscriptionId
-        if (tick.seq == 0L || previous == current) return null
-        return SessionEvent(
-            EventType.DATA_SIM_CHANGED, tick.radio.wallTimeMs, tick.radio.elapsedRealtimeNs,
-            previous?.toString(), current?.toString(), tick.location?.latitude, tick.location?.longitude,
-        )
-    }
-
     /**
      * Records a marker (USER_MARKER event) at the current time and last known position; null when not logging.
      */
@@ -202,6 +194,7 @@ class LoggingEngine @Inject constructor(
         private var screenOff = 0
         private var nrTicks = 0
         private var maxWriteMs = 0L
+        var events = 0
 
         fun writeMs(ms: Long) {
             maxWriteMs = maxOf(maxWriteMs, ms)
@@ -218,7 +211,7 @@ class LoggingEngine @Inject constructor(
 
         fun summary(recorded: Long, expected: Long) =
             "ticks $recorded/$expected · cellInfo $origins · maxServingCellAge ${maxCellAgeMs}ms · " +
-                "maxGpsAge ${maxLocationAgeMs}ms · screenOff $screenOff · nr $nrTicks · maxWrite ${maxWriteMs}ms"
+                "maxGpsAge ${maxLocationAgeMs}ms · screenOff $screenOff · nr $nrTicks · events $events · maxWrite ${maxWriteMs}ms"
 
         fun clear() {
             origins.clear()
@@ -227,6 +220,7 @@ class LoggingEngine @Inject constructor(
             screenOff = 0
             nrTicks = 0
             maxWriteMs = 0
+            events = 0
         }
     }
 

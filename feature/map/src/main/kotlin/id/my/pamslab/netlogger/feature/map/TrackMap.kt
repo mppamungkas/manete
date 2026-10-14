@@ -108,7 +108,8 @@ internal fun TrackMap(
                 )
                 s.addLayer(
                     CircleLayer(LAYER_EVENTS, SRC_EVENTS).withProperties(
-                        circleColor("#000000"), circleRadius(7f), circleStrokeColor("#FFFFFF"), circleStrokeWidth(2f),
+                        circleColor(get("fill")), circleRadius(get("radius")),
+                        circleStrokeColor(get("stroke")), circleStrokeWidth(get("strokeWidth")),
                     ),
                 )
                 s.addLayer(
@@ -152,7 +153,14 @@ internal fun TrackMap(
                 track?.events.orEmpty().mapNotNull { e ->
                     val lat = e.lat ?: return@mapNotNull null
                     val lon = e.lon ?: return@mapNotNull null
-                    Feature.fromGeometry(Point.fromLngLat(lon, lat))
+                    val style = EventStyle.of(e.type)
+                    Feature.fromGeometry(Point.fromLngLat(lon, lat)).apply {
+                        addStringProperty("type", e.type)
+                        addStringProperty("fill", style.fill)
+                        addStringProperty("stroke", style.stroke)
+                        addNumberProperty("radius", style.radius)
+                        addNumberProperty("strokeWidth", style.strokeWidth)
+                    }
                 },
             ),
         )

@@ -228,6 +228,36 @@ class CellParserTest {
     }
 
     @Test
+    fun `WCDMA and GSM bands come from the mapper`() {
+        val cells = parse(cellInfo(wcdmaCell(registered = true), gsmCell()), mcc = "510", parser = CellParser(BandMapper.Standard)).cells
+        val wcdma = cells.single { it.rat == Rat.WCDMA }
+        assertEquals(1, wcdma.band); assertEquals(BandSource.MAPPED, wcdma.bandSource)
+        val gsm = cells.single { it.rat == Rat.GSM }
+        assertEquals(900, gsm.band); assertEquals(BandSource.MAPPED, gsm.bandSource)
+    }
+
+    @Test
+    fun `moto handover - getBands() keeps the old band for the new EARFCN, the EARFCN settles it`() {
+        // moto g45, 2026-10-14: registered cell on EARFCN 1625 (only band 3) reported with getBands() = [1] for a tick.
+        val result = parse(cellInfo(lteCell(pci = 281, earfcn = 1625, bands = listOf(1))), mcc = "510", parser = CellParser(BandMapper.Standard))
+        val cell = result.cells.single()
+        assertEquals(3, cell.band)
+        assertEquals(BandSource.MAPPED, cell.bandSource)
+        assertEquals("[1]", result.warnings.single { it.code == WarningCode.API_BAND_CONFLICT }.rawValue)
+
+        val agree = parse(cellInfo(lteCell(earfcn = 1625, bands = listOf(3))), mcc = "510", parser = CellParser(BandMapper.Standard))
+        assertEquals(BandSource.API, agree.cells.single().bandSource)
+        assertTrue(agree.warnings.none { it.code == WarningCode.API_BAND_CONFLICT })
+    }
+
+    @Test
+    fun `LTE band mapped when getBands() is empty`() {
+        val cell = parse(cellInfo(lteCell(earfcn = 3652, bands = emptyList())), parser = CellParser(BandMapper.Standard)).cells.single()
+        assertEquals(8, cell.band)
+        assertEquals(BandSource.MAPPED, cell.bandSource)
+    }
+
+    @Test
     fun `invalid PLMN strings are dropped`() {
         val raw = lteCell().copy(mcc = "51O", mnc = "")
         val result = parse(cellInfo(raw))

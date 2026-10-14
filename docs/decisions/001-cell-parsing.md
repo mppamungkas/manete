@@ -181,3 +181,13 @@ no RSSNR, so its flat.csv `lteSinr` was mostly an old value. A SIGNAL_STRENGTH L
 (raw values), `servingInferred = false`, an `LTE_SIGNAL_STRENGTH_STALE` warning with its age, never used as the
 flat.csv / map fallback. Unlike NR there is no further condition (LTE stays the anchor). A steady signal can also leave
 the entry unrefreshed while still true; that value is dropped from flat.csv too, but stays in cells.csv.
+
+## Addendum (2026-10-14): bands for LTE, WCDMA and GSM (milestone 7)
+
+`BandMapper.Standard` now covers LTE (EARFCN ranges, TS 36.101 Table 5.7.3-1), WCDMA (non-overlapping UARFCN ranges,
+TS 25.101 Table 5.2) and GSM (TS 45.005; band named by MHz, 1800 vs. 1900 by MCC). An EARFCN lies in exactly one band,
+so the mapped band is definitive. The moto g45 sometimes keeps the previous cell's `getBands()` for the newly
+registered cell right after a handover (197 serving-cell rows on 2026-10-14, e.g. EARFCN 1625 with band 1). Rule: when
+`getBands()` contradicts a band the ARFCN settles (a single candidate, or the country's known band), the mapped band is
+stored with `bandSource = MAPPED` and an `API_BAND_CONFLICT` warning keeps the reported bands. In Indonesia, 700 MHz NR is
+taken as n28 (APT plan), not n14.

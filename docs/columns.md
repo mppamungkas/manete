@@ -91,8 +91,8 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `tac` | | TAC (LTE/NR) or LAC (WCDMA/GSM) |
 | `pci` | | PCI (LTE 0–503, NR 0–1007), PSC (WCDMA) or BSIC (GSM) |
 | `arfcn` | | EARFCN, NR-ARFCN, UARFCN or ARFCN |
-| `band` | | 3GPP band number (NR without the `n`) |
-| `bandSource` | | `API` (`getBands()`), `MAPPED` (from the ARFCN, TS 36.101 / 38.101), `MAPPED_MCC_FALLBACK` (mapped with the registered cell's MCC because the network MCC was not known yet) |
+| `band` | | 3GPP band number (NR without the `n`); GSM: band by frequency in MHz (850, 900, 1800, 1900) |
+| `bandSource` | | `API` (`getBands()`), `MAPPED` (from the ARFCN: TS 36.101 / 38.101 / 25.101 / 45.005; also when `getBands()` contradicts a band the ARFCN settles, see `API_BAND_CONFLICT`), `MAPPED_MCC_FALLBACK` (mapped with the registered cell's MCC because the network MCC was not known yet) |
 | `bandwidthKhz` | kHz | LTE cell bandwidth (`CellIdentityLte.getBandwidth()`) |
 | `mcc` | | Cell's MCC |
 | `mnc` | | Cell's MNC (may differ from the SIM operator under network sharing) |
@@ -194,11 +194,30 @@ had it). The two sources are sampled at different times; compare `*CellInfoAgeMs
 | `time` | ISO-8601 | Event wall time |
 | `wallTimeMs` | ms | Event wall time, Unix epoch |
 | `elapsedRealtimeNs` | ns | Event time since boot |
-| `type` | | `USER_MARKER` (Live button or notification); `DATA_SIM_CHANGED` (default data SIM changed during the session; `fromValue`/`toValue` are subscription IDs; the session keeps logging its own SIM); RAT/PCI/NR/GPS events from milestone 7 |
-| `fromValue` | | Previous value (network events) |
-| `toValue` | | New value (network events) |
+| `type` | | See the table below |
+| `fromValue` | | Previous value; empty when there is none |
+| `toValue` | | New value; empty when there is none |
 | `lat` | ° | Location at the event; empty without a fix |
 | `lon` | ° | Location at the event |
+
+Detected events compare each tick with the previous one (`EventDetector`). There is **no debouncing**: every change
+at tick resolution is an event, so ping-pong between cells within a few ticks stays visible; filter in analysis. A value
+missing for one tick (no CellInfo cell, unknown service state) is not a change. The first tick of a session only sets
+the state. The serving cells are chosen as in flat.csv.
+
+| Type | fromValue → toValue | When |
+|---|---|---|
+| `USER_MARKER` | – | Live button or notification |
+| `RAT_CHANGE` | `networkType` → `networkType` | `networkType` changed |
+| `PCI_CHANGE_LTE` | `pci/earfcn` → `pci/earfcn` | Serving LTE cell changed (PCI or EARFCN) |
+| `PCI_CHANGE_NR` | `pci/arfcn` → `pci/arfcn` | Serving NR cell changed while NR stayed up; only cells with a known PCI (none on the moto g45) |
+| `NR_ADDED` | – → `pci/arfcn` or empty | A serving NR cell or a current NR SignalStrength appeared (`nsaNrCellInfo` or `nsaNrSignal`); the NR leg, not the 5G icon |
+| `NR_REMOVED` | `pci/arfcn` or empty → – | Both went away |
+| `NO_SERVICE` | `serviceState` → `serviceState` | ServiceState left IN_SERVICE (0) |
+| `SERVICE_RESTORED` | `serviceState` → `serviceState` | Back to IN_SERVICE, also when the session started without service |
+| `GPS_LOST` | – → reason | After a first fix: location status not OK (status name), no fix (`NO_FIX`) or fix older than 5 s (`STALE_FIX`) |
+| `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
+| `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
 
 ## warnings.csv
 

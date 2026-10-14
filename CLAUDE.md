@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.6** · last updated 2026-10-14
+**CLAUDE.md version 1.5.7** · last updated 2026-10-14
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track and airplane mode still to see in the field). Then: the 1-hour drive test for the MVP definition of done.
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Still open for the MVP definition of done: the 1-hour screen-off drive.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.7:** Events (milestone 7) are detected per tick without debouncing (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
 - **1.5.6:** Maps: MapLibre Native (13.6.1) replaces osmdroid (archived). SINR map colors: >= 20 / 13–20 / 0–13 / < 0 dB.
 - **1.5.5:** Schema v1 frozen from the first real field session on. Data model: `cell.reportedServing`, `servingInferred` (was `isServing`), `servingSource`; `measurement.warningCount`; `bandSource` `MAPPED_MCC_FALLBACK`.
 - **1.5.4:** Definition of done: instrumented database smoke test must pass on both phones before a release.

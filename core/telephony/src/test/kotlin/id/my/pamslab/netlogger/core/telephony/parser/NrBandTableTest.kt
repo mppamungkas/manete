@@ -1,6 +1,5 @@
 package id.my.pamslab.netlogger.core.telephony.parser
 
-import id.my.pamslab.netlogger.core.model.radio.Rat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -45,11 +44,5 @@ class NrBandTableTest {
         assertEquals(1, NrBandTable.map(428_000, "510")?.band)
         assertEquals(listOf(8), NrBandTable.candidates(188_500)) // 942.5 MHz
         assertEquals(listOf(258), NrBandTable.candidates(2_029_167)) // ~25 GHz
-    }
-
-    @Test
-    fun `mapper only handles NR for now`() {
-        assertNull(BandMapper.Standard.map(Rat.LTE, 1850, "510"))
-        assertEquals(41, BandMapper.Standard.map(Rat.NR, 531_870, "510")?.band)
     }
 }
