@@ -44,7 +44,10 @@ object NativeCapture {
 
     internal fun stop(handle: Long) = nativeStop(handle)
 
-    internal fun stats(handle: Long): NativeCaptureStats? = nativeStats(handle)?.let(NativeCaptureStats::of)
+    internal fun stats(handle: Long): NativeCaptureStats? = statsArray(handle)?.let(NativeCaptureStats::of)
+
+    /** The raw counters, as sent to the main process (NativeCaptureStatus). */
+    internal fun statsArray(handle: Long): LongArray? = nativeStats(handle)
 
     internal fun destroy(handle: Long) = nativeDestroy(handle)
 

@@ -47,13 +47,20 @@ class NativeCaptureService : VpnService() {
         @Volatile var exit: NativeCaptureExit? = null
     }
 
-    private val statsLogger = object : Runnable {
+    /** Every second: counters to the main process; every [LOG_EVERY] seconds also to logcat. */
+    private val statusTicker = object : Runnable {
+        private var ticks = 0
+
         override fun run() {
             val c = capture ?: return
-            NativeCapture.stats(c.handle)?.let { Log.i(TAG, "native capture: ${it.summary()}") }
-            main.postDelayed(this, STATS_LOG_MS)
+            val raw = NativeCapture.statsArray(c.handle)
+            NativeCaptureStatus.send(this@NativeCaptureService, NativeCaptureStatus.STATS, c.pcap.absolutePath, raw, null, null, null)
+            if (++ticks % LOG_EVERY == 0) raw?.let(NativeCaptureStats::of)?.let { Log.i(TAG, "native capture: ${it.summary()}") }
+            main.postDelayed(this, STATUS_MS)
         }
     }
+
+    private var stopWhy: NativeCaptureStatus.Why? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -68,7 +75,7 @@ class NativeCaptureService : VpnService() {
                     )
                 }
             }
-            ACTION_STOP -> stop("stop requested")
+            ACTION_STOP -> stop(NativeCaptureStatus.Why.USER)
         }
         if (capture == null) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -79,14 +86,14 @@ class NativeCaptureService : VpnService() {
 
     override fun onRevoke() {
         // Another VPN started, or the user turned ours off in the system settings.
-        stop("VPN revoked")
+        stop(NativeCaptureStatus.Why.REVOKED)
         super.onRevoke()
     }
 
     override fun onDestroy() {
         // Finish the pcap before the process may go away: the loop ends within one select timeout (250 ms).
         capture?.let { c ->
-            stop("service destroyed")
+            stop(NativeCaptureStatus.Why.DESTROYED)
             c.thread.join(DESTROY_JOIN_MS)
             c.exit?.let(::onLoopEnded) ?: Log.w(TAG, "native capture loop still running at onDestroy")
         }
@@ -112,10 +119,11 @@ class NativeCaptureService : VpnService() {
             Log.w(TAG, "native capture already running")
             return
         }
-        if (!NativeCapture.available) {
-            Log.w(TAG, "native capture unavailable: ${NativeCapture.loadError}")
-            return
+        fun failed(error: String) {
+            Log.w(TAG, "native capture: $error")
+            NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, pcapFile.absolutePath, null, null, null, error)
         }
+        if (!NativeCapture.available) return failed("libnetcapture not loaded: ${NativeCapture.loadError}")
         val plan = plan()
         val tun = try {
             builder(plan, allowedApps).establish()
@@ -123,11 +131,8 @@ class NativeCaptureService : VpnService() {
             Log.w(TAG, "native capture: establish failed", e)
             null
         }
-        if (tun == null) {
-            // Not prepared (no VPN consent) or the system refused.
-            Log.w(TAG, "native capture: no tun (VPN consent missing?)")
-            return
-        }
+        // Not prepared (no VPN consent), or the system refused.
+        if (tun == null) return failed("Android refused the VPN (consent missing or revoked)")
         val pcapFd = try {
             pcapFile.parentFile?.mkdirs()
             ParcelFileDescriptor.open(
@@ -135,15 +140,14 @@ class NativeCaptureService : VpnService() {
                 ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE or ParcelFileDescriptor.MODE_WRITE_ONLY,
             ).detachFd()
         } catch (e: IOException) {
-            Log.w(TAG, "native capture: can't open $pcapFile", e)
             tun.close()
-            return
+            return failed("can't open ${pcapFile.name}: ${e.message}")
         }
         val handle = NativeCapture.create()
         if (handle == 0L) {
             ParcelFileDescriptor.adoptFd(pcapFd).close()
             tun.close()
-            return
+            return failed("out of memory")
         }
         val config = NativeCapture.Config(mtu = MTU, ipv6 = plan.ipv6)
         val callbacks = callbacks(handle, connectionsFile)
@@ -160,22 +164,25 @@ class NativeCaptureService : VpnService() {
                 (if (plan.dnsFallback) " (fallback)" else "") +
                 ", apps ${allowedApps.ifEmpty { listOf("all") }}, ${NativeCapture.version()}",
         )
+        stopWhy = null
         running.thread.start()
-        main.postDelayed(statsLogger, STATS_LOG_MS)
+        main.post(statusTicker)
     }
 
     /** Asks the loop to end; [onLoopEnded] cleans up. */
-    private fun stop(why: String) {
+    private fun stop(why: NativeCaptureStatus.Why) {
         val c = capture ?: return
         Log.i(TAG, "native capture stopping: $why")
+        if (stopWhy == null) stopWhy = why
         NativeCapture.stop(c.handle)
     }
 
     private fun onLoopEnded(exit: NativeCaptureExit) {
         val c = capture ?: return
         capture = null
-        main.removeCallbacks(statsLogger)
-        val stats = NativeCapture.stats(c.handle)
+        main.removeCallbacks(statusTicker)
+        val raw = NativeCapture.statsArray(c.handle)
+        val stats = raw?.let(NativeCaptureStats::of)
         NativeCapture.destroy(c.handle)
         c.callbacks.close()
         try {
@@ -195,6 +202,8 @@ class NativeCaptureService : VpnService() {
                     "elapsed ${it.startElapsedNs}..${it.stopElapsedNs}",
             )
         }
+        // After connections.csv is closed: the main process may export right away.
+        NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, c.pcap.absolutePath, raw, exit, stopWhy, null)
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -212,10 +221,16 @@ class NativeCaptureService : VpnService() {
         }
         // The capture's own clock offset (set before the first packet), so connection times match the pcap.
         var offset: Long? = null
-        val csv = out?.let {
-            ConnectionsCsv(it, IsoTime(ZoneId.systemDefault()), {
+        val csv = out?.let { writer ->
+            ConnectionsCsv(writer, IsoTime(ZoneId.systemDefault()), {
                 offset ?: NativeCapture.stats(handle)?.wallMinusElapsedNs?.takeIf { o -> o != 0L }?.also { o -> offset = o }
-            }, AppNames(packageManager)::of).apply { header() }
+            }, AppNames(packageManager)::of)
+        }
+        try {
+            csv?.header()
+            out?.flush() // the file is valid (header only) even if ":vpn" dies before the first connection ends
+        } catch (e: IOException) {
+            Log.w(TAG, "native capture: writing the connections.csv header failed", e)
         }
         return NativeCaptureCallbacks(this, getSystemService(ConnectivityManager::class.java), csv, out)
     }
@@ -281,7 +296,8 @@ class NativeCaptureService : VpnService() {
         private const val TAG = "NetLogger"
         private const val CHANNEL_ID = "capture"
         private const val NOTIFICATION_ID = 11
-        private const val STATS_LOG_MS = 5_000L
+        private const val STATUS_MS = 1_000L
+        private const val LOG_EVERY = 5
         private const val DESTROY_JOIN_MS = 2_000L
         private const val CSV_BUFFER = 64 * 1024
 

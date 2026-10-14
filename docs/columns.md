@@ -11,8 +11,9 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `events.csv` | Events: user markers and detected network, GPS and data-SIM events |
 | `warnings.csv` | Parse warnings and flagged corrections, one row per (code, RAT, PCI, field) per session |
 | `throughput.csv` | Speed test results, one row per phase (ping, download, upload) |
-| `capture.pcap` | Only with a PCAPdroid capture in "Into NetLogger" (TCP) mode: the captured IP packets (classic PCAP, LINKTYPE_RAW, PCAPdroid's timestamps) |
+| `capture.pcap` | Only with a capture NetLogger wrote itself: PCAPdroid in "PCAPdroid → NetLogger" (TCP) mode (classic PCAP, microsecond timestamps from PCAPdroid) or native mode (classic PCAP with nanosecond timestamps, magic `0xa1b23c4d`). Both LINKTYPE_RAW (IP packets, no link layer) |
 | `capture_sync.csv` | With `capture.pcap`: time alignment, below |
+| `connections.csv` | Native mode only: one row per connection with its app, below |
 | `track.geojson` | GPS track (LineString) and events with a location (Points), RFC 7946 |
 
 ## Format rules (all CSV files)
@@ -224,8 +225,8 @@ the state. The serving cells are chosen as in flat.csv.
 | `GPS_LOST` | – → reason | After a first fix: location status not OK (status name), no fix (`NO_FIX`) or fix older than 5 s (`STALE_FIX`) |
 | `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
 | `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
-| `CAPTURE_STARTED` | mode (`TCP` / `FILE`) → file name and `wallMinusElapsedNs` | PCAPdroid accepted the start request (Phase 3a); at most one capture per session |
-| `CAPTURE_STOPPED` | reason (`USER`, `SESSION_END`, `PCAPDROID`) → counts | Capture ended: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus NetLogger's count; slightly negative is normal, PCAPdroid reads its counters just before its last packets are dumped; positive means loss), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`, `wallMinusElapsedNs` |
+| `CAPTURE_STARTED` | mode (`TCP` / `FILE` / `NATIVE`) → file name and `wallMinusElapsedNs` | PCAPdroid accepted the start request (Phase 3a), or NetLogger's VPN reported its first packet counters (native, Phase 3b); at most one capture per session |
+| `CAPTURE_STOPPED` | reason → counts | Capture ended. Reason: `USER` (stop button), `SESSION_END`, `PCAPDROID` (PCAPdroid stopped by itself), `VPN_REVOKED` (native: another VPN started or the VPN was turned off in Android's settings), `ERROR` (native capture loop failed), `PROCESS_DIED` (native: the capture process ended without reporting; the pcap is valid up to its last flush, at most ~1 s lost). PCAPdroid counts: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus NetLogger's count; slightly negative is normal, PCAPdroid reads its counters just before its last packets are dumped; positive means loss), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`. Native counts: `pcap_packets`, `pcap_bytes`, `expected_packets` (packets that crossed the VPN; equal to `pcap_packets` unless `dropped` > 0), `dropped` (pcap write errors), `tun_rx_packets` (from apps), `tun_tx_packets` (to apps), `tun_tx_errors`, `connections_tcp/udp/icmp`, `uid_unknown`, `conns_failed`, `unparsed` / `fragments` / `tcp_without_conn` (captured but not forwarded: e.g. IPv6 control packets, IP fragments, TCP segments of connections older than the capture), `exit`. Both: `wallMinusElapsedNs` |
 
 ## throughput.csv
 
@@ -250,7 +251,7 @@ server). Align with measurements.csv by `startedElapsedNs`.
 | `rttMaxMs` | ms | PING: slowest round trip |
 | `jitterMs` | ms | PING: mean absolute difference between consecutive round trips |
 | `lossPct` | % | PING: failed counted requests (3 s timeout each) |
-| `captureActive` | | Traffic capture was running (Phase 3; always `false` for now) |
+| `captureActive` | | A traffic capture (PCAPdroid or native) was running when the test started: its overhead may lower the result |
 | `error` | | Why the phase failed or was refused; empty when it worked. A failed phase keeps what it measured |
 
 Limits per test: 10 s per throughput phase, at most 200 MB download and 50 MB upload.
@@ -262,13 +263,19 @@ Packets keep PCAPdroid's own timestamps (the phone's wall clock). This file pair
 `elapsedRealtimeNs = pcapTsSec × 10^9 + pcapTsUsec × 10^3 - wallMinusElapsedNs`. If START and STOP differ, the wall
 clock was changed (or synced) during the capture; interpolate or split there. Not checked by ColumnsDocTest.
 
+**Native mode:** packet timestamps are `elapsedRealtimeNs + wallMinusElapsedNs` with the START row's offset, fixed
+for the whole file (measured to within a few hundred ns, `clock_uncertainty_ns`), so
+`elapsedRealtimeNs = pcapTsSec × 10^9 + pcapTsNsec - wallMinusElapsedNs(START)` exactly, even if the wall clock
+changes. `CHECK` (every 60 s) and `STOP` read both clocks again: a different `wallMinusElapsedNs` there means the
+phone's wall clock moved (NTP or user), which shifts `firstSeen`/wall times only, not the alignment.
+
 | Column | Unit | Description |
 |---|---|---|
-| `point` | | `START` (PCAPdroid accepted) or `STOP` |
+| `point` | | `START` (PCAPdroid accepted / native capture running), `CHECK` (native: every 60 s) or `STOP` |
 | `wallTimeMs` | ms | Wall clock at that moment, Unix epoch |
 | `elapsedRealtimeNs` | ns | elapsedRealtimeNs at the same moment (midpoint of two reads around the wall-clock read) |
 | `wallMinusElapsedNs` | ns | `wallTimeMs × 10^6 - elapsedRealtimeNs` |
-| `counts` | | STOP only: as in the CAPTURE_STOPPED event |
+| `counts` | | STOP: as in the CAPTURE_STOPPED event. Native START: `pcap_offset clock_uncertainty_ns=…` |
 
 ## connections.csv
 
@@ -339,6 +346,6 @@ A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 | `appVersion`, `schemaVersion` | NetLogger version and database schema version |
 | `device` | `manufacturer`, `model`, `androidVersion`, `basebandVersion` |
 | `network` | `subscriptionId`, `simSlot`, `operatorName`, `mcc`, `mnc` of the logged SIM |
-| `captureFile` | Traffic capture: `<uuid>.pcap` (TCP mode, in the ZIP as capture.pcap) or `Download/PCAPdroid/<name>` (PCAPdroid file mode, stays on the phone); empty without a capture |
+| `captureFile` | Traffic capture: `<uuid>.pcap` (PCAPdroid TCP mode or native mode, in the ZIP as capture.pcap) or `Download/PCAPdroid/<name>` (PCAPdroid file mode, stays on the phone); empty without a capture |
 | `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, `throughputTests`, and `trackPoints` (ticks with a fix) |
 | `files` | Files in the bundle |

@@ -14,13 +14,18 @@ class CaptureStateHolder @Inject constructor() {
     val state = MutableStateFlow(CaptureState())
 }
 
-/** Where TCP-mode captures are stored: app-private files/captures/<session uuid>.pcap (+ _sync.csv). */
+/**
+ * Where NetLogger's own captures are stored (PCAPdroid TCP mode and native mode): app-private
+ * files/captures/<session uuid>.pcap, + _sync.csv, + _connections.csv (native mode only).
+ */
 interface CaptureFileStore {
     fun pcap(sessionUuid: String): File
     fun sync(sessionUuid: String): File
+    fun connections(sessionUuid: String): File
 
-    /** Both files of a session, if present. */
-    fun existing(sessionUuid: String): List<File> = listOf(pcap(sessionUuid), sync(sessionUuid)).filter { it.isFile }
+    /** The session's capture files, if present. */
+    fun existing(sessionUuid: String): List<File> =
+        listOf(pcap(sessionUuid), sync(sessionUuid), connections(sessionUuid)).filter { it.isFile }
 
     fun delete(sessionUuid: String) = existing(sessionUuid).forEach { it.delete() }
 }
@@ -31,4 +36,5 @@ class AppCaptureFileStore @Inject constructor(@ApplicationContext context: Conte
 
     override fun pcap(sessionUuid: String) = File(dir.apply { mkdirs() }, "$sessionUuid.pcap")
     override fun sync(sessionUuid: String) = File(dir.apply { mkdirs() }, "${sessionUuid}_sync.csv")
+    override fun connections(sessionUuid: String) = File(dir.apply { mkdirs() }, "${sessionUuid}_connections.csv")
 }

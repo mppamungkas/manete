@@ -74,21 +74,25 @@ class SessionExporterTest {
     }
 
     @Test
-    fun `a TCP-mode traffic capture is copied into the bundle and listed`() = runTest {
+    fun `a traffic capture is copied into the bundle and listed`() = runTest {
         val dir = Files.createTempDirectory("captures").toFile()
         val store = object : CaptureFileStore {
             override fun pcap(sessionUuid: String) = File(dir, "$sessionUuid.pcap")
             override fun sync(sessionUuid: String) = File(dir, "${sessionUuid}_sync.csv")
+            override fun connections(sessionUuid: String) = File(dir, "${sessionUuid}_connections.csv")
         }
         val uuid = session().uuid
         store.pcap(uuid).writeText("pcap-bytes")
         store.sync(uuid).writeText("packet,arrivalElapsedNs\n")
+        store.connections(uuid).writeText("protocol,ipVersion\r\nTCP,4\r\n")
         val (_, files) = exportZip(FakeExportDao(session = session().copy(captureFile = "$uuid.pcap")), store)
         assertEquals("pcap-bytes", files.getValue("capture.pcap"))
         assertEquals("packet,arrivalElapsedNs\n", files.getValue("capture_sync.csv"))
+        assertEquals("protocol,ipVersion\r\nTCP,4\r\n", files.getValue("connections.csv"))
         val json = Json.parseToJsonElement(files.getValue("session.json")).jsonObject
         assertEquals("$uuid.pcap", json["captureFile"]?.jsonPrimitive?.content)
         assertTrue(json.getValue("files").toString().contains("capture.pcap"))
+        assertTrue(json.getValue("files").toString().contains("connections.csv"))
         dir.deleteRecursively()
 
         val (_, without) = exportZip(FakeExportDao(), store)

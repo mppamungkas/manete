@@ -41,6 +41,8 @@ class NativeCaptureCallbacks(
         }
     }
 
+    private var lastFlushNs = 0L
+
     fun connectionClosed(
         ipVersion: Int, protocol: Int, src: ByteArray, srcPort: Int, dst: ByteArray, dstPort: Int, uid: Int,
         firstElapsedNs: Long, lastElapsedNs: Long, packetsOut: Long, bytesOut: Long, packetsIn: Long, bytesIn: Long,
@@ -55,6 +57,12 @@ class NativeCaptureCallbacks(
                     status, socketError,
                 ),
             )
+            // Like the pcap: if ":vpn" dies, at most about a second of rows is lost.
+            val now = System.nanoTime()
+            if (now - lastFlushNs >= FLUSH_INTERVAL_NS) {
+                connectionsOut?.flush()
+                lastFlushNs = now
+            }
         } catch (e: Exception) {
             Log.w(TAG, "connections.csv row failed", e)
         }
@@ -71,6 +79,7 @@ class NativeCaptureCallbacks(
 
     private companion object {
         const val TAG = "NetLogger"
+        const val FLUSH_INTERVAL_NS = 1_000_000_000L
     }
 }
 

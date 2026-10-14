@@ -42,6 +42,7 @@ object Pcapdroid {
                 extras["pcap_dump_mode"] = "pcap_file"
                 extras["pcap_name"] = requireNotNull(pcapName)
             }
+            CaptureMode.NATIVE -> throw IllegalArgumentException("NATIVE is NetLogger's own capture, not PCAPdroid")
         }
         val apps = appFilter.map(String::trim).filter(String::isNotEmpty)
         if (apps.isNotEmpty()) extras["app_filter"] = apps.joinToString(",")

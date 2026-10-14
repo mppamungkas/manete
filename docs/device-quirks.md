@@ -481,6 +481,25 @@ API has no ICMP). uid 1051 (the system DNS resolver, no package) opens TCP 853 (
 DNS) to the operator's DNS servers: 4 packets out, none back, so Tri's resolvers don't offer DoT and plain DNS
 (UDP 53) is used. curl downloads end with `SOCKET_ERROR` / errno 32 (EPIPE, curl closed first).
 
+### moto g45, native capture from the capture card, Tri (510-89), 2026-10-15 (milestone 11, step 5)
+
+Static sessions 11–14, started and stopped through NetLogger's own UI (adb taps). The VPN consent was given in step
+3, so no dialog appeared.
+
+- **Start:** the main process recorded CAPTURE_STARTED 50 ms after the `:vpn` process reported its first counters.
+  `wallMinusElapsedNs` was identical to the nanosecond in step 3 (1,791,872,176,837,475,483): Android keeps the
+  realtime − boottime offset as one kernel value, and the best of 5 reads finds it exactly. It changes only when the
+  wall clock is set or slewed (later captures: …509, then …414,735 at STOP).
+- **CHECK rows** (every 60 s) read the wall clock in milliseconds, so they differ from START by up to 1 ms without any
+  clock change (seen: −0.55 ms).
+- **Stop from the card** (session 11): VPN stopped in 53 ms; pcap 34,325 = expected, dropped 0; 14 connections, all
+  with an app. **Session end** (session 14): CAPTURE_STOPPED SESSION_END 0.2 s after Stop, VPN gone.
+- **Capture process killed** (`am crash` of `:vpn`, sessions 12 and 13): logging went on (session 12: 130/130
+  ticks), CAPTURE_STOPPED PROCESS_DIED after 5.6 s, VPN gone, pcap valid to the end (6,317 records, the last flush
+  came before the crash). The first try left connections.csv empty (buffered rows died with the process): fixed,
+  header written at once and rows flushed at most 1 s after a connection ends. Rows of connections still open at a
+  crash are lost. Android keeps a dead `NativeCaptureService` record (`app=null`, `stopIfKilled=true`): not restarted.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

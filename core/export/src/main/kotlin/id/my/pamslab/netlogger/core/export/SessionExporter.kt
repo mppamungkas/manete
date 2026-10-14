@@ -96,12 +96,13 @@ class SessionExporter @Inject constructor(
             }
             geo.finish(events)
         }
-        // Traffic capture written by NetLogger (TCP mode): copied byte for byte. A FILE-mode capture stays in
+        // Traffic capture written by NetLogger (PCAPdroid TCP mode or native mode): copied byte for byte. A FILE-mode capture stays in
         // PCAPdroid's Download folder (session.captureFile names it); NetLogger cannot read it.
         val captureFiles = captures?.let { store ->
             listOfNotNull(
                 store.pcap(session.uuid).takeIf { it.isFile }?.let { CAPTURE to it },
                 store.sync(session.uuid).takeIf { it.isFile }?.let { CAPTURE_SYNC to it },
+                store.connections(session.uuid).takeIf { it.isFile }?.let { CONNECTIONS to it },
             )
         }.orEmpty()
         captureFiles.forEach { (name, file) ->
@@ -170,6 +171,7 @@ class SessionExporter @Inject constructor(
         const val THROUGHPUT = "throughput.csv"
         const val CAPTURE = "capture.pcap"
         const val CAPTURE_SYNC = "capture_sync.csv"
+        const val CONNECTIONS = "connections.csv"
         const val FLAT = "flat.csv"
         const val TRACK = "track.geojson"
         val FILES = listOf(SESSION, MEASUREMENTS, CELLS, EVENTS, WARNINGS, THROUGHPUT, FLAT, TRACK)

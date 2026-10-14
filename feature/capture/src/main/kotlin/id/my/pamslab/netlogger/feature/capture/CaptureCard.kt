@@ -39,7 +39,7 @@ import javax.inject.Inject
 class CaptureViewModel @Inject constructor(val controller: CaptureController) : ViewModel()
 
 /**
- * Live screen card for PCAPdroid traffic capture (Phase 3a). Shown while a session records, or while PCAPdroid may
+ * Live screen card for traffic capture: PCAPdroid (Phase 3a) or NetLogger's own VPN (native, Phase 3b). Shown while a session records, or while PCAPdroid may
  * still capture after the session ended. Limits shown to the user: IP traffic of apps only (no radio signaling), no
  * other VPN at the same time, and capture overhead (speed tests during a capture are flagged captureActive).
  */
@@ -72,15 +72,20 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
 
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Traffic capture (PCAPdroid)", style = MaterialTheme.typography.titleSmall)
+            Text("Traffic capture", style = MaterialTheme.typography.titleSmall)
             when {
-                pkg == null -> Text(
-                    "PCAPdroid is not installed. Install it (F-Droid or Play Store) to capture the phone's IP traffic " +
-                        "with this session.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                state.running && state.mode == CaptureMode.NATIVE -> {
+                    Text("Capturing · native VPN · ${state.fileName}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "%d packets · %.1f MB · %d connections".format(
+                            Locale.ROOT, state.packets, state.bytes / 1e6, state.connections ?: 0,
+                        ) + (state.droppedPackets?.takeIf { it > 0 }?.let { " · $it not written" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Button(onClick = { controller.stopNative() }) { Text("Stop capture") }
+                }
                 state.running -> {
-                    Text("Capturing · ${state.mode} · ${state.fileName}", style = MaterialTheme.typography.bodySmall)
+                    Text("Capturing · PCAPdroid ${state.mode} · ${state.fileName}", style = MaterialTheme.typography.bodySmall)
                     if (state.mode == CaptureMode.TCP) {
                         Text(
                             "NetLogger received %d packets · %.1f MB".format(Locale.ROOT, state.packets, state.bytes / 1e6),
@@ -97,11 +102,19 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                 }
                 else -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        CaptureMode.entries.forEach { m ->
+                        CaptureMode.entries.filter { it != CaptureMode.NATIVE || controller.nativeAvailable }.forEach { m ->
                             FilterChip(
                                 selected = m == mode,
                                 onClick = { mode = m; controller.settings.mode = m },
-                                label = { Text(if (m == CaptureMode.TCP) "Into NetLogger" else "PCAPdroid file") },
+                                label = {
+                                    Text(
+                                        when (m) {
+                                            CaptureMode.NATIVE -> "Native (VPN)"
+                                            CaptureMode.TCP -> "PCAPdroid → NetLogger"
+                                            CaptureMode.FILE -> "PCAPdroid file"
+                                        },
+                                    )
+                                },
                             )
                         }
                     }
@@ -110,32 +123,59 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                         label = { Text("Apps (package names, comma separated; empty = all)") },
                     )
                     Text(
-                        "Captures the IP traffic of apps only, no radio signaling. Uses Android's VPN slot: no other VPN at " +
-                            "the same time. Adds overhead; speed tests during a capture are flagged.",
+                        if (mode == CaptureMode.NATIVE) {
+                            "NetLogger's own VPN. Captures the IP traffic of apps between each app and the VPN, plus " +
+                                "which app owns each connection; no radio signaling, and packet sizes and timing are " +
+                                "rebuilt by the forwarder, not the ones on the air. No other VPN at the same time. " +
+                                "Adds overhead; speed tests during a capture are flagged."
+                        } else {
+                            "Captures the IP traffic of apps only, no radio signaling. Uses Android's VPN slot: no other " +
+                                "VPN at the same time. Adds overhead; speed tests during a capture are flagged."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Button(onClick = {
-                        controller.settings.appFilter = apps.split(',')
-                        scope.launch {
-                            val intent = controller.prepareStart() ?: return@launch
-                            try {
-                                startLauncher.launch(intent)
-                            } catch (e: ActivityNotFoundException) {
-                                Log.w("NetLogger", "PCAPdroid not found", e)
-                                controller.onStartResult(false)
+                    if (mode != CaptureMode.NATIVE && pkg == null) {
+                        Text(
+                            "PCAPdroid is not installed. Install it (F-Droid or Play Store), or use the native mode.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        Button(onClick = {
+                            controller.settings.appFilter = apps.split(',')
+                            scope.launch {
+                                // NATIVE: null also when the VPN consent was given before and the capture is starting.
+                                val intent = controller.prepareStart() ?: return@launch
+                                try {
+                                    startLauncher.launch(intent)
+                                } catch (e: ActivityNotFoundException) {
+                                    Log.w("NetLogger", "start activity not found", e)
+                                    controller.onStartResult(false)
+                                }
                             }
-                        }
-                    }) { Text("Start capture") }
+                        }) { Text("Start capture") }
+                    }
                 }
             }
-            if (!state.running && state.mode == CaptureMode.TCP && state.fileName != null) {
+            if (!state.running && state.fileName != null) {
                 // The last capture: loss is always visible.
-                val pcapdroid = state.pcapdroidPackets
-                Text(
-                    "Last capture: NetLogger received ${state.packets} packets · PCAPdroid counted ${pcapdroid ?: "–"}" +
-                        (pcapdroid?.let { " · missing ${it - state.packets}" } ?: ""),
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                when (state.mode) {
+                    CaptureMode.TCP -> {
+                        val pcapdroid = state.pcapdroidPackets
+                        Text(
+                            "Last capture: NetLogger received ${state.packets} packets · PCAPdroid counted ${pcapdroid ?: "–"}" +
+                                (pcapdroid?.let { " · missing ${it - state.packets}" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    CaptureMode.NATIVE -> state.expectedPackets?.let { expected ->
+                        Text(
+                            "Last capture: ${state.packets} of $expected packets in the pcap · " +
+                                "${state.droppedPackets ?: 0} not written · ${state.connections ?: 0} connections",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    else -> Unit
+                }
             }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
