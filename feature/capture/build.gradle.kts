@@ -21,6 +21,8 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    // CsvWriter and IsoTime for connections.csv: the same CSV rules as the session export.
+    implementation(project(":core:export"))
     implementation(libs.kotlinx.coroutines.core)
     // rememberLauncherForActivityResult: PCAPdroid's API wants startActivityForResult (already used by :app).
     implementation(libs.androidx.activity.compose)

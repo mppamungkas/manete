@@ -472,6 +472,15 @@ consent dialog ("Connection request") appeared once; the user tapped OK.
   0.23 ms after the capture start.
 - **Stop:** the loop ended 49 ms after the stop request; the VPN network disappeared.
 
+### moto g45, native capture: app per connection, Tri (510-89), 2026-10-15 (milestone 11, step 4)
+
+`getConnectionOwnerUid()` resolved the app of all 14 TCP/UDP connections (`uidUnknown 0`): shell `curl`
+(uid 2000), Google Play services DNS, QUIC (UDP 443) and port 5228 (uid 10196, shared uid listed as
+`com.google.android.gms|com.google.android.gsf`), Play Store. `ping` appears as one ICMP row without uid (the
+API has no ICMP). uid 1051 (the system DNS resolver, no package) opens TCP 853 (DNS over TLS, "automatic" Private
+DNS) to the operator's DNS servers: 4 packets out, none back, so Tri's resolvers don't offer DoT and plain DNS
+(UDP 53) is used. curl downloads end with `SOCKET_ERROR` / errno 32 (EPIPE, curl closed first).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

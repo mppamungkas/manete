@@ -18,7 +18,7 @@ import java.time.format.DateTimeFormatter
  *     --es cmd start [--es apps com.example.a,com.example.b]
  * adb shell am start -n ... --es cmd stop
  * ```
- * The pcap goes to files/captures/native-<time>.pcap. The VPN consent dialog, if shown, is for the user to answer.
+ * The pcap goes to files/captures/native-<time>.pcap, the connections to native-<time>_connections.csv. The VPN consent dialog, if shown, is for the user to answer.
  */
 class NativeCaptureDebugActivity : ComponentActivity() {
 
@@ -53,9 +53,10 @@ class NativeCaptureDebugActivity : ComponentActivity() {
 
     private fun startCapture() {
         val time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
-        val file = File(File(filesDir, "captures"), "native-$time.pcap")
+        val dir = File(filesDir, "captures")
+        val file = File(dir, "native-$time.pcap")
         val apps = intent.getStringExtra("apps")?.split(',')?.map(String::trim)?.filter(String::isNotEmpty).orEmpty()
-        NativeCaptureService.start(this, file, apps)
+        NativeCaptureService.start(this, file, File(dir, "native-${time}_connections.csv"), apps)
     }
 
     private companion object {

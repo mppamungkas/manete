@@ -121,6 +121,27 @@ static int count_protect(void *userdata, int sock) {
     return 0;
 }
 
+static capture_conn_t closed[8];
+static int closed_count;
+static char closed_status[8][32];
+static int resolve_calls;
+
+static int fake_uid(void *userdata, const capture_conn_t *c) {
+    (void) userdata;
+    resolve_calls++;
+    return c->ipproto == IPPROTO_UDP ? 4242 : -1;
+}
+
+static void record_closed(void *userdata, const capture_conn_t *c) {
+    (void) userdata;
+    if (closed_count < 8) {
+        closed[closed_count] = *c;
+        snprintf(closed_status[closed_count], sizeof(closed_status[0]), "%s", c->status);
+        closed[closed_count].status = closed_status[closed_count];
+        closed_count++;
+    }
+}
+
 typedef struct { capture_vpn_t *cv; capture_vpn_config_t config; int result; pthread_t thread; } loop_t;
 
 static void *loop_main(void *arg) {
@@ -138,6 +159,7 @@ static void loop_start(loop_t *l, int tun_fd) {
     l->config = (capture_vpn_config_t) {
         .tun_fd = tun_fd, .pcap_fd = pcap_fd, .mtu = 1500, .snaplen = 65535, .pcap_buffer_bytes = 1 << 16,
         .pcap_flush_interval_ns = 1000000000ull, .ipv6_enabled = 0, .protect_socket = count_protect,
+        .resolve_uid = fake_uid, .connection_closed = record_closed,
     };
     pthread_create(&l->thread, NULL, loop_main, l);
 }
@@ -183,6 +205,8 @@ static void test_udp_round_trip(void) {
     CHECK(socketpair(AF_UNIX, SOCK_SEQPACKET, 0, tun) == 0);
     loop_t l;
     protect_calls = 0;
+    closed_count = 0;
+    resolve_calls = 0;
     loop_start(&l, tun[0]);
 
     uint8_t pkt[256], reply[2048];
@@ -242,6 +266,29 @@ static void test_udp_round_trip(void) {
     CHECK_EQ(s.conns_active, 0);
     CHECK(s.stop_boot_ns >= s.start_boot_ns);
     CHECK_EQ(pcap_records(), 5);
+
+    /* The UDP flow, reported once when the capture stopped (zdtun_finalize). */
+    CHECK_EQ(resolve_calls, 1);
+    CHECK_EQ(s.conns_uid_unknown, 0);
+    CHECK_EQ(closed_count, 1);
+    if (closed_count == 1) {
+        capture_conn_t *c = &closed[0];
+        CHECK_EQ(c->ipver, 4);
+        CHECK_EQ(c->ipproto, IPPROTO_UDP);
+        CHECK(memcmp(c->src_ip, pkt + 12, 4) == 0);
+        CHECK(memcmp(c->dst_ip, pkt + 16, 4) == 0);
+        CHECK_EQ(c->src_port, 40000);
+        CHECK_EQ(c->dst_port, echo.port);
+        CHECK_EQ(c->uid, 4242);
+        CHECK_EQ(c->packets_out, 1);
+        CHECK_EQ(c->bytes_out, len);
+        CHECK_EQ(c->packets_in, 1);
+        CHECK_EQ(c->bytes_in, len);
+        CHECK(c->first_boot_ns >= s.start_boot_ns);
+        CHECK(c->last_boot_ns >= c->first_boot_ns);
+        CHECK(c->last_boot_ns <= s.stop_boot_ns);
+        CHECK(strcmp(c->status, "CLOSED") == 0);
+    }
     capture_vpn_destroy(l.cv);
     close(tun[0]);
     close(tun[1]);

@@ -1,6 +1,5 @@
 package id.my.pamslab.netlogger.feature.capture.vpn
 
-import android.net.VpnService
 import android.util.Log
 
 /**
@@ -33,12 +32,12 @@ object NativeCapture {
 
     /**
      * Runs the capture loop on the calling thread until [stop] or until the tun fails. Takes over [pcapFd] (closed
-     * at the end); [tunFd] stays open (the caller closes the tun). Sockets are excluded with [service]'s protect().
+     * at the end); [tunFd] stays open (the caller closes the tun). [callbacks] are called on this thread.
      */
-    internal fun run(handle: Long, service: VpnService, tunFd: Int, pcapFd: Int, config: Config): NativeCaptureExit =
+    internal fun run(handle: Long, callbacks: NativeCaptureCallbacks, tunFd: Int, pcapFd: Int, config: Config): NativeCaptureExit =
         NativeCaptureExit.of(
             nativeRun(
-                handle, service, tunFd, pcapFd, config.mtu, config.snaplen, config.pcapBufferBytes,
+                handle, callbacks, tunFd, pcapFd, config.mtu, config.snaplen, config.pcapBufferBytes,
                 config.pcapFlushIntervalMs, config.ipv6,
             ),
         )
@@ -60,7 +59,7 @@ object NativeCapture {
     @JvmStatic private external fun nativeVersion(): String
     @JvmStatic private external fun nativeCreate(): Long
     @JvmStatic private external fun nativeRun(
-        handle: Long, service: VpnService, tunFd: Int, pcapFd: Int, mtu: Int, snaplen: Int, bufferBytes: Int,
+        handle: Long, callbacks: NativeCaptureCallbacks, tunFd: Int, pcapFd: Int, mtu: Int, snaplen: Int, bufferBytes: Int,
         flushIntervalMs: Long, ipv6: Boolean,
     ): Int
     @JvmStatic private external fun nativeStop(handle: Long)
@@ -106,6 +105,8 @@ data class NativeCaptureStats(
     val clockUncertaintyNs: Long,
     val startElapsedNs: Long,
     val stopElapsedNs: Long,
+    /** TCP/UDP connections whose owning app could not be resolved. */
+    val connsUidUnknown: Long,
 ) {
     /** Packets the pcap should hold: every packet read from the tun and every packet written to it. */
     val expectedPcapPackets: Long get() = tunRxPackets + tunTxPackets
@@ -114,10 +115,10 @@ data class NativeCaptureStats(
         "pcap $pcapPackets (dropped $pcapDropped, expected $expectedPcapPackets), " +
         "conns tcp $connsTcp udp $connsUdp icmp $connsIcmp active $connsActive failed $connsFailed, " +
         "tunTxErrors $tunTxErrors unparsed $unparsed fragments $fragments ipv6Off $ipverDisabled " +
-        "tcpWithoutConn $tcpWithoutConn protectFailed $protectFailed"
+        "tcpWithoutConn $tcpWithoutConn protectFailed $protectFailed uidUnknown $connsUidUnknown"
 
     companion object {
-        private const val SIZE = 26
+        private const val SIZE = 27
 
         fun of(v: LongArray): NativeCaptureStats? {
             if (v.size != SIZE) return null
@@ -128,7 +129,7 @@ data class NativeCaptureStats(
                 protectFailed = v[12], connsTcp = v[13], connsUdp = v[14], connsIcmp = v[15], connsActive = v[16],
                 pcapPackets = v[17], pcapBytes = v[18], pcapTruncated = v[19], pcapDropped = v[20],
                 pcapLastErrno = v[21], wallMinusElapsedNs = v[22], clockUncertaintyNs = v[23],
-                startElapsedNs = v[24], stopElapsedNs = v[25],
+                startElapsedNs = v[24], stopElapsedNs = v[25], connsUidUnknown = v[26],
             )
         }
     }

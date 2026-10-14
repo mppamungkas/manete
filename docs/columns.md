@@ -270,6 +270,29 @@ clock was changed (or synced) during the capture; interpolate or split there. No
 | `wallMinusElapsedNs` | ns | `wallTimeMs × 10^6 - elapsedRealtimeNs` |
 | `counts` | | STOP only: as in the CAPTURE_STOPPED event |
 
+## connections.csv
+
+Native capture only (milestone 11): one row per connection (flow) that crossed NetLogger's VPN, written when it
+ends; connections still open when the capture stops are written then. "Out" is app → network, "in" network → app,
+counted on the tun (the packets in `capture.pcap`). Times use the capture's own clock offset, so they match the pcap
+timestamps exactly. Not checked by ColumnsDocTest.
+
+| Column | Unit | Description |
+|---|---|---|
+| `protocol` | | `TCP`, `UDP` or `ICMP` (ICMPv6 included) |
+| `ipVersion` | | 4 or 6 |
+| `srcIp`, `srcPort` | | The app's side: NetLogger's tun address and the app's port (ICMP: the echo id) |
+| `dstIp`, `dstPort` | | The remote side (ICMP: no port) |
+| `uid` | | Owning app's Linux uid from `ConnectivityManager.getConnectionOwnerUid()`; empty when unknown (always for ICMP) |
+| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); empty if the uid has none (e.g. 1051, the system DNS resolver) |
+| `firstSeen`, `lastSeen` | ISO-8601 | First and last packet of the connection |
+| `firstSeenElapsedNs`, `lastSeenElapsedNs` | ns | The same in elapsedRealtimeNs (the radio log's axis) |
+| `durationMs` | ms | `lastSeen - firstSeen` |
+| `packetsOut`, `bytesOut` | count, B | Packets and IP bytes from the app |
+| `packetsIn`, `bytesIn` | count, B | Packets and IP bytes to the app |
+| `status` | | zdtun's final state: `CLOSED`, `RESET`, `UNREACHABLE`, `ERROR`, `SOCKET_ERROR`, `CLIENT_ERROR` |
+| `socketError` | errno | The forwarding socket's error, if any (32 = EPIPE: the remote side was still sending when the app closed, e.g. at the end of a curl download) |
+
 ## warnings.csv
 
 Only anomalies and flagged corrections; sentinel values ("not reported") never raise a warning. Codes are documented

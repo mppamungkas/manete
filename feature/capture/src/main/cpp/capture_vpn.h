@@ -16,6 +16,25 @@
 
 typedef struct capture_vpn capture_vpn_t;
 
+/* One forwarded connection (flow), as reported when it closes. "out" = app -> network, "in" = network -> app. */
+typedef struct {
+    uint8_t ipver;          /* 4 or 6 */
+    uint8_t ipproto;        /* IPPROTO_TCP / IPPROTO_UDP / IPPROTO_ICMP (ICMPv6 is reported as ICMP) */
+    uint8_t src_ip[16];     /* the app's side (the tun address); IPv4 in the first 4 bytes */
+    uint8_t dst_ip[16];
+    uint16_t src_port;      /* host byte order; ICMP: the echo id */
+    uint16_t dst_port;      /* ICMP: 0 */
+    int uid;                /* owning app (getConnectionOwnerUid), -1 when unknown (always for ICMP) */
+    int64_t first_boot_ns;  /* CLOCK_BOOTTIME (= elapsedRealtimeNs) of the first and last packet */
+    int64_t last_boot_ns;
+    uint64_t packets_out;
+    uint64_t bytes_out;
+    uint64_t packets_in;
+    uint64_t bytes_in;
+    const char *status;     /* zdtun's final status, e.g. "CLOSED", "ERROR", "UNREACHABLE" */
+    int error;              /* socket errno, 0 if none */
+} capture_conn_t;
+
 typedef struct {
     int tun_fd;                  /* packet-oriented, blocking; not closed by the loop (the VpnService owns it) */
     int pcap_fd;                 /* taken over: closed when the loop ends, also on early failure */
@@ -26,6 +45,10 @@ typedef struct {
     int ipv6_enabled;            /* IPv6 is routed into the tun; otherwise IPv6 packets are dropped */
     /* Exclude a forwarding socket from the VPN (VpnService.protect). Returns 0 on success. May be NULL in tests. */
     int (*protect_socket)(void *userdata, int socket);
+    /* Owning app of a new TCP/UDP connection, or -1 (called once per connection, on the loop thread). May be NULL. */
+    int (*resolve_uid)(void *userdata, const capture_conn_t *conn);
+    /* A connection ended (also every open one when the capture stops). May be NULL. */
+    void (*connection_closed)(void *userdata, const capture_conn_t *conn);
     void *userdata;
 } capture_vpn_config_t;
 
@@ -60,6 +83,7 @@ typedef struct {
     uint64_t conns_udp;
     uint64_t conns_icmp;
     uint64_t conns_active;
+    uint64_t conns_uid_unknown;    /* TCP/UDP connections whose app could not be resolved */
     pcap_writer_stats_t pcap;
     capture_clock_t clock;         /* the offset used for every packet timestamp */
     int64_t start_boot_ns;         /* CLOCK_BOOTTIME (= elapsedRealtimeNanos) at start, 0 before */

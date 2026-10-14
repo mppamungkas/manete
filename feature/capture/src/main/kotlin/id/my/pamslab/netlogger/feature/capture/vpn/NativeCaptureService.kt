@@ -15,9 +15,11 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import id.my.pamslab.netlogger.core.export.IsoTime
 import id.my.pamslab.netlogger.feature.capture.R
 import java.io.File
 import java.io.IOException
+import java.time.ZoneId
 
 /**
  * Native traffic capture (Phase 3b): a VpnService whose tun is read by libnetcapture, which forwards the traffic
@@ -34,7 +36,13 @@ class NativeCaptureService : VpnService() {
     private val main = Handler(Looper.getMainLooper())
     private var capture: Running? = null
 
-    private class Running(val handle: Long, val tun: ParcelFileDescriptor, val pcap: File) {
+    private class Running(
+        val handle: Long,
+        val tun: ParcelFileDescriptor,
+        val pcap: File,
+        val connections: File?,
+        val callbacks: NativeCaptureCallbacks,
+    ) {
         lateinit var thread: Thread
         @Volatile var exit: NativeCaptureExit? = null
     }
@@ -53,7 +61,11 @@ class NativeCaptureService : VpnService() {
                 // Started with startForegroundService: startForeground comes first, whatever happens next.
                 val pcapFile = intent.getStringExtra(EXTRA_PCAP_PATH)?.let(::File)
                 if (enterForeground(pcapFile?.name ?: "–") && pcapFile != null) {
-                    start(pcapFile, intent.getStringArrayExtra(EXTRA_ALLOWED_APPS)?.toList().orEmpty())
+                    start(
+                        pcapFile,
+                        intent.getStringExtra(EXTRA_CONNECTIONS_PATH)?.let(::File),
+                        intent.getStringArrayExtra(EXTRA_ALLOWED_APPS)?.toList().orEmpty(),
+                    )
                 }
             }
             ACTION_STOP -> stop("stop requested")
@@ -95,7 +107,7 @@ class NativeCaptureService : VpnService() {
         false
     }
 
-    private fun start(pcapFile: File, allowedApps: List<String>) {
+    private fun start(pcapFile: File, connectionsFile: File?, allowedApps: List<String>) {
         if (capture != null) {
             Log.w(TAG, "native capture already running")
             return
@@ -134,9 +146,10 @@ class NativeCaptureService : VpnService() {
             return
         }
         val config = NativeCapture.Config(mtu = MTU, ipv6 = plan.ipv6)
-        val running = Running(handle, tun, pcapFile)
+        val callbacks = callbacks(handle, connectionsFile)
+        val running = Running(handle, tun, pcapFile, connectionsFile, callbacks)
         running.thread = Thread({
-            val exit = NativeCapture.run(handle, this, tun.fd, pcapFd, config)
+            val exit = NativeCapture.run(handle, callbacks, tun.fd, pcapFd, config)
             running.exit = exit
             main.post { onLoopEnded(exit) }
         }, "netcapture")
@@ -164,12 +177,17 @@ class NativeCaptureService : VpnService() {
         main.removeCallbacks(statsLogger)
         val stats = NativeCapture.stats(c.handle)
         NativeCapture.destroy(c.handle)
+        c.callbacks.close()
         try {
             c.tun.close()
         } catch (e: IOException) {
             Log.w(TAG, "closing the tun failed", e)
         }
-        Log.i(TAG, "native capture ended ($exit): ${c.pcap.name}, ${c.pcap.length()} bytes, ${stats?.summary()}")
+        Log.i(
+            TAG,
+            "native capture ended ($exit): ${c.pcap.name}, ${c.pcap.length()} bytes" +
+                (c.connections?.let { ", ${it.name} ${it.length()} bytes" } ?: "") + ", ${stats?.summary()}",
+        )
         stats?.let {
             Log.i(
                 TAG,
@@ -179,6 +197,27 @@ class NativeCaptureService : VpnService() {
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    /** Callbacks for the capture thread; connections.csv opened with its header, if a path was given. */
+    private fun callbacks(handle: Long, connectionsFile: File?): NativeCaptureCallbacks {
+        val out = connectionsFile?.let { file ->
+            try {
+                file.parentFile?.mkdirs()
+                file.bufferedWriter(Charsets.UTF_8, CSV_BUFFER)
+            } catch (e: IOException) {
+                Log.w(TAG, "native capture: can't open $file", e)
+                null
+            }
+        }
+        // The capture's own clock offset (set before the first packet), so connection times match the pcap.
+        var offset: Long? = null
+        val csv = out?.let {
+            ConnectionsCsv(it, IsoTime(ZoneId.systemDefault()), {
+                offset ?: NativeCapture.stats(handle)?.wallMinusElapsedNs?.takeIf { o -> o != 0L }?.also { o -> offset = o }
+            }, AppNames(packageManager)::of).apply { header() }
+        }
+        return NativeCaptureCallbacks(this, getSystemService(ConnectivityManager::class.java), csv, out)
     }
 
     /** The network the phone used before the VPN (the VPN isn't up yet, so this is mobile data or Wi-Fi). */
@@ -244,6 +283,7 @@ class NativeCaptureService : VpnService() {
         private const val NOTIFICATION_ID = 11
         private const val STATS_LOG_MS = 5_000L
         private const val DESTROY_JOIN_MS = 2_000L
+        private const val CSV_BUFFER = 64 * 1024
 
         /** Tun MTU (decision D4): captured packets keep realistic sizes. */
         const val MTU = 1500
@@ -252,13 +292,15 @@ class NativeCaptureService : VpnService() {
         const val ACTION_STOP = "id.my.pamslab.netlogger.capture.NATIVE_STOP"
         const val EXTRA_PCAP_PATH = "pcap_path"
         const val EXTRA_ALLOWED_APPS = "allowed_apps"
+        const val EXTRA_CONNECTIONS_PATH = "connections_path"
 
         /** Needs VPN consent first: [VpnService.prepare] must return null. */
-        fun start(context: Context, pcapFile: File, allowedApps: List<String>) {
+        fun start(context: Context, pcapFile: File, connectionsFile: File?, allowedApps: List<String>) {
             context.startForegroundService(
                 Intent(context, NativeCaptureService::class.java)
                     .setAction(ACTION_START)
                     .putExtra(EXTRA_PCAP_PATH, pcapFile.absolutePath)
+                    .putExtra(EXTRA_CONNECTIONS_PATH, connectionsFile?.absolutePath)
                     .putExtra(EXTRA_ALLOWED_APPS, allowedApps.toTypedArray()),
             )
         }

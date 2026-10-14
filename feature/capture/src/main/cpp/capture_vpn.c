@@ -13,6 +13,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
 #include <signal.h>
@@ -77,8 +78,6 @@ void capture_vpn_destroy(capture_vpn_t *cv) {
     free(cv);
 }
 
-static uint64_t now_ts(const capture_vpn_t *cv) { return capture_clock_ts_ns(&cv->live.clock, capture_clock_boot_ns()); }
-
 static void publish(capture_vpn_t *cv, zdtun_t *zdt) {
     if (cv->pcap != NULL) pcap_writer_get_stats(cv->pcap, &cv->live.pcap);
     if (zdt != NULL) cv->live.conns_active = (uint64_t) zdtun_get_num_connections(zdt);
@@ -91,14 +90,20 @@ static void publish(capture_vpn_t *cv, zdtun_t *zdt) {
 
 /* zdtun -> app: write the packet to the tun, then to the pcap. */
 static int send_to_tun(zdtun_t *zdt, zdtun_pkt_t *pkt, const zdtun_conn_t *conn) {
-    (void) conn;
     capture_vpn_t *cv = zdtun_userdata(zdt);
     if (!cv->looping) return 0;
     ssize_t n = write(cv->config->tun_fd, pkt->buf, pkt->len);
     if (n == (ssize_t) pkt->len) {
+        int64_t now = capture_clock_boot_ns();
         cv->live.tun_tx_packets++;
         cv->live.tun_tx_bytes += pkt->len;
-        pcap_writer_write(cv->pcap, now_ts(cv), (const uint8_t *) pkt->buf, pkt->len);
+        pcap_writer_write(cv->pcap, capture_clock_ts_ns(&cv->live.clock, now), (const uint8_t *) pkt->buf, pkt->len);
+        capture_conn_t *c = conn != NULL ? zdtun_conn_get_userdata(conn) : NULL;
+        if (c != NULL) {
+            c->packets_in++;
+            c->bytes_in += pkt->len;
+            c->last_boot_ns = now;
+        }
         return 0;
     }
     cv->live.tun_tx_errors++;
@@ -115,21 +120,57 @@ static void on_socket_open(zdtun_t *zdt, socket_t sock) {
 
 static int on_connection_open(zdtun_t *zdt, zdtun_conn_t *conn) {
     capture_vpn_t *cv = zdtun_userdata(zdt);
-    switch (zdtun_conn_get_5tuple(conn)->ipproto) {
+    const zdtun_5tuple_t *t = zdtun_conn_get_5tuple(conn);
+    switch (t->ipproto) {
         case IPPROTO_TCP: cv->live.conns_tcp++; break;
         case IPPROTO_UDP: cv->live.conns_udp++; break;
         default: cv->live.conns_icmp++; break;
     }
+    capture_conn_t *c = calloc(1, sizeof(*c));
+    if (c != NULL) {
+        c->ipver = t->ipver;
+        c->ipproto = t->ipproto;
+        if (t->ipver == 4) {
+            memcpy(c->src_ip, &t->src_ip.ip4, 4);
+            memcpy(c->dst_ip, &t->dst_ip.ip4, 4);
+        } else {
+            memcpy(c->src_ip, &t->src_ip.ip6, 16);
+            memcpy(c->dst_ip, &t->dst_ip.ip6, 16);
+        }
+        c->src_port = ntohs(t->src_port);
+        c->dst_port = t->ipproto == IPPROTO_ICMP ? 0 : ntohs(t->dst_port);
+        c->first_boot_ns = c->last_boot_ns = capture_clock_boot_ns();
+        c->uid = -1;
+        const capture_vpn_config_t *cfg = cv->config;
+        if (t->ipproto != IPPROTO_ICMP && cfg->resolve_uid != NULL) c->uid = cfg->resolve_uid(cfg->userdata, c);
+        if (t->ipproto != IPPROTO_ICMP && c->uid < 0) cv->live.conns_uid_unknown++;
+        zdtun_conn_set_userdata(conn, c);
+    }
     return 0; /* never block */
+}
+
+/* zdtun calls this once per connection (also from zdtun_finalize); the record is freed here, so a late packet of a
+ * closed connection finds no userdata and is not counted. */
+static void on_connection_close(zdtun_t *zdt, const zdtun_conn_t *conn) {
+    capture_vpn_t *cv = zdtun_userdata(zdt);
+    capture_conn_t *c = zdtun_conn_get_userdata(conn);
+    if (c == NULL) return;
+    c->status = zdtun_conn_status2str(zdtun_conn_get_status(conn));
+    c->error = zdtun_conn_get_error(conn);
+    const capture_vpn_config_t *cfg = cv->config;
+    if (cfg->connection_closed != NULL) cfg->connection_closed(cfg->userdata, c);
+    zdtun_conn_set_userdata((zdtun_conn_t *) conn, NULL);
+    free(c);
 }
 
 /* --- loop ------------------------------------------------------------------------------------------------------ */
 
 /* app -> network: capture the packet, then forward it with zdtun. */
 static void handle_tun_packet(capture_vpn_t *cv, zdtun_t *zdt, int len) {
+    int64_t now = capture_clock_boot_ns();
     cv->live.tun_rx_packets++;
     cv->live.tun_rx_bytes += (uint64_t) len;
-    pcap_writer_write(cv->pcap, now_ts(cv), cv->buffer, (uint32_t) len);
+    pcap_writer_write(cv->pcap, capture_clock_ts_ns(&cv->live.clock, now), cv->buffer, (uint32_t) len);
 
     zdtun_pkt_t pkt;
     if (zdtun_parse_pkt(zdt, (const char *) cv->buffer, (uint16_t) len, &pkt) != 0) {
@@ -152,6 +193,12 @@ static void handle_tun_packet(capture_vpn_t *cv, zdtun_t *zdt, int len) {
         if (tcp_established) cv->live.tcp_without_conn++;
         else cv->live.conns_failed++;
         return;
+    }
+    capture_conn_t *c = zdtun_conn_get_userdata(conn);
+    if (c != NULL) {
+        c->packets_out++;
+        c->bytes_out += (uint64_t) len;
+        c->last_boot_ns = now;
     }
     if (zdtun_forward(zdt, &pkt, conn) != 0) {
         cv->live.conns_failed++;
@@ -214,6 +261,7 @@ int capture_vpn_run(capture_vpn_t *cv, const capture_vpn_config_t *config) {
         .send_client = send_to_tun,
         .on_socket_open = on_socket_open,
         .on_connection_open = on_connection_open,
+        .on_connection_close = on_connection_close,
     };
     zdtun_t *zdt = zdtun_init(&callbacks, cv);
     if (zdt == NULL) return finish(cv, NULL, CAPTURE_EXIT_INIT_ERROR);
