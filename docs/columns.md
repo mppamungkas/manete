@@ -83,7 +83,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `rat` | | `LTE`, `NR`, `WCDMA`, `GSM` |
 | `source` | | `CELL_INFO` (`getAllCellInfo`, has identity) or `SIGNAL_STRENGTH` (`SignalStrength.getCellSignalStrengths()`, serving signal only, no identity) |
 | `reportedServing` | | The phone's own label, never corrected: registered, or connection status PRIMARY/SECONDARY_SERVING. Empty for SIGNAL_STRENGTH rows |
-| `servingInferred` | | NetLogger's serving flag after flagged corrections; use this one. SIGNAL_STRENGTH rows are `true`, except a stale NR entry (`NR_SIGNAL_STRENGTH_STALE`: no 5G indicator, no serving NR cell, older than 10 s) |
+| `servingInferred` | | NetLogger's serving flag after flagged corrections; use this one. SIGNAL_STRENGTH rows are `true`, except a stale entry: NR with no 5G indicator, no serving NR cell and older than 10 s (`NR_SIGNAL_STRENGTH_STALE`), or LTE older than 10 s (`LTE_SIGNAL_STRENGTH_STALE`) |
 | `servingSource` | | NR CELL_INFO rows only: how `servingInferred` was decided. `REPORTED` (phone's label kept), `NSA_INFERRED` (phone gave no label; one NR cell under an NSA override), `SIGNAL_STRENGTH_MATCH` / `STRONGEST` (several candidates on one NR-ARFCN; the one matching SignalStrength within 1 dB, else the strongest), `AMBIGUOUS` (no basis; none serving). See `docs/decisions/001-cell-parsing.md` |
 | `isRegistered` | | `CellInfo.isRegistered()` |
 | `connectionStatus` | | `NONE`, `PRIMARY_SERVING`, `SECONDARY_SERVING` after corrections; the original is in `reportedServing` and warnings.csv |
@@ -112,7 +112,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 ## flat.csv
 
 One row per tick. Identity comes only from the CELL_INFO serving cell. Each signal value takes the CELL_INFO value,
-else the SIGNAL_STRENGTH value (never a stale NR entry); its `*Source` column says which (`CELL_INFO`, `SIGNAL_STRENGTH`, or empty when neither
+else the SIGNAL_STRENGTH value (never a stale entry: `NR_SIGNAL_STRENGTH_STALE`, `LTE_SIGNAL_STRENGTH_STALE`); its `*Source` column says which (`CELL_INFO`, `SIGNAL_STRENGTH`, or empty when neither
 had it). The two sources are sampled at different times; compare `*CellInfoAgeMs` and `*SignalStrengthAgeMs`.
 
 - **LTE:** the registered `servingInferred` LTE CELL_INFO cell (else PRIMARY_SERVING, else the first serving one).
@@ -146,7 +146,7 @@ had it). The two sources are sampled at different times; compare `*CellInfoAgeMs
 | `lteRsrpSource` | | Source of `lteRsrp` |
 | `lteRsrq` | dB | LTE RSRQ |
 | `lteRsrqSource` | | Source of `lteRsrq` |
-| `lteSinr` | dB | LTE RSSNR |
+| `lteSinr` | dB | LTE RSSNR (moto g45: only in SignalStrength, so empty while that entry is older than 10 s) |
 | `lteSinrSource` | | Source of `lteSinr` |
 | `lteRssi` | dBm | LTE RSSI |
 | `lteRssiSource` | | Source of `lteRssi` |

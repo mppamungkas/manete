@@ -147,6 +147,12 @@ enum class WarningCode {
      */
     NR_SIGNAL_STRENGTH_STALE,
 
+    /**
+     * The SignalStrength LTE entry is older than 10 s (moto g45, screen off: median 34 s, up to 212 s). The row is
+     * kept but not serving, so it is not used in place of CellInfo values. `rawValue` holds its age in ms.
+     */
+    LTE_SIGNAL_STRENGTH_STALE,
+
     /** An NSA NR secondary reports TAC 0 (NSA NR cells broadcast no TAC); null, `rawValue` = "0". */
     NR_NSA_TAC_ZERO,
 

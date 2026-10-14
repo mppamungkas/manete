@@ -94,7 +94,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         val ssCells = signalStrengthCells(input.signalStrength, ctx, input.device)
         cells = selectNrServing(cells, ssCells.filter { it.rat == Rat.NR }, warnings)
         cells = blankNsaTacZero(cells, warnings)
-        val ssCurrent = markStaleNrSignal(ssCells, cells, input.overrideNetworkType, warnings)
+        val ssCurrent = markStaleLteSignal(markStaleNrSignal(ssCells, cells, input.overrideNetworkType, warnings), warnings)
 
         var latched = input.samsungTacSwapLatched
         if (input.device.isSamsung) {
@@ -229,7 +229,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
     /**
      * After the NR leg is released, SignalStrength may keep reporting its last NR value without updates (A56, screen
      * off: up to 110 s). Such an entry is stale when the display override is known and not NSA, no NR cell is serving
-     * in CellInfo, and it is older than [STALE_NR_SIGNAL_MS]. It stays as a row (raw values kept) but is not serving
+     * in CellInfo, and it is older than [STALE_SIGNAL_MS]. It stays as a row (raw values kept) but is not serving
      * and not NR evidence. An unknown override or a missing age keeps the entry.
      */
     private fun markStaleNrSignal(
@@ -242,11 +242,25 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         if (cells.any { it.source == CellSource.CELL_INFO && it.rat == Rat.NR && it.servingInferred }) return ssCells
         return ssCells.map { ss ->
             val age = ss.cellInfoAgeMs
-            if (ss.rat != Rat.NR || age == null || age <= STALE_NR_SIGNAL_MS) return@map ss
+            if (ss.rat != Rat.NR || age == null || age <= STALE_SIGNAL_MS) return@map ss
             warnings += ParseWarning(WarningCode.NR_SIGNAL_STRENGTH_STALE, Rat.NR, field = "signalStrength", rawValue = age.toString())
             ss.copy(servingInferred = false)
         }
     }
+
+    /**
+     * SignalStrength is pushed by the modem and may not be refreshed for minutes with the screen off (moto g45: LTE
+     * entry median 34 s, up to 212 s old, while CellInfo stayed under 10 s). An LTE entry older than [STALE_SIGNAL_MS]
+     * stays as a row (raw values kept) but is not serving, so it never fills in for CellInfo (moto: RSSNR is only
+     * here). A missing age keeps the entry.
+     */
+    private fun markStaleLteSignal(ssCells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> =
+        ssCells.map { ss ->
+            val age = ss.cellInfoAgeMs
+            if (ss.rat != Rat.LTE || !ss.servingInferred || age == null || age <= STALE_SIGNAL_MS) return@map ss
+            warnings += ParseWarning(WarningCode.LTE_SIGNAL_STRENGTH_STALE, Rat.LTE, field = "signalStrength", rawValue = age.toString())
+            ss.copy(servingInferred = false)
+        }
 
     private fun matches(cell: CellSample, ss: CellSample): Boolean {
         val rsrp = cell.rsrpDbm ?: return false
@@ -478,8 +492,8 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         // CellInfo and SignalStrength are sampled at different moments; 1 dB absorbs rounding and that offset.
         const val MATCH_TOLERANCE_DB = 1
 
-        // Matches the ~10 s modem refresh with the screen off; younger NR values are a normal release transition.
-        const val STALE_NR_SIGNAL_MS = 10_000L
+        // Matches the ~10 s CellInfo refresh with the screen off; younger NR values are a normal release transition.
+        const val STALE_SIGNAL_MS = 10_000L
     }
 }
 

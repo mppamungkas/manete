@@ -326,12 +326,12 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
 - **Stale NR in SignalStrength.** After the release, SignalStrength kept its last NR value (-104/-11/9) without
   updates, aging up to 110 s (56 s average), while the override showed no 5G and CellInfoNr was gone. Our NSA rule
   counted it: 110 ticks were NR_NSA without the 5G icon (103 override 0, 6 LTE_CA, 1 unknown), and flat.csv / map
-  showed a 10–110 s old NR RSRP in 100 ticks. Fixed (decision 001, last addendum): such an entry is
+  showed a 10–110 s old NR RSRP in 100 ticks. Fixed (decision 001, stale NR addendum): such an entry is
   `NR_SIGNAL_STRENGTH_STALE` (kept, not serving, not NR evidence, not a flat.csv fallback). Replayed on this drive:
   100 of the 110 ticks become LTE; 10 stay NR_NSA (7 within 10 s of the release, 3 with an NR cell in CellInfo).
 - LTE SignalStrength also aged up to 110 s with the screen off (168 ticks > 10 s), but flat.csv used it only 25 times
-  on the A56, never older than 10 s (A56 CellInfo has LTE RSSNR). Not changed; check on the moto, which takes LTE RSSNR
-  only from SignalStrength.
+  on the A56, never older than 10 s (A56 CellInfo has LTE RSSNR). Later handled as `LTE_SIGNAL_STRENGTH_STALE` (see
+  the moto screen-off drive below).
 
 ### Both phones, screen-off drive, Tri (510-89), 2026-10-14 (10:01–10:24; moto session 3, A56 session 7)
 
@@ -344,7 +344,9 @@ Both phones unplugged, screen off for most of the drive (moto 1218 / 1411 ticks,
 - **moto: LTE SignalStrength goes stale with the screen off.** Age median 34 s, p90 108 s, max 212 s; 1010 of 1218
   screen-off ticks over 10 s (screen on: median 5 s, max 56 s). The moto's CellInfo has no LTE RSSNR, so **flat.csv
   `lteSinr` on the moto is mostly a 10–200 s old value with the screen off** (age in `lteSignalStrengthAgeMs`).
-  RSRP/RSRQ come from CellInfo and stay fresh. Not changed yet (proposal: same rule as stale NR).
+  RSRP/RSRQ come from CellInfo and stay fresh. **Fixed** (decision 001, stale LTE addendum): an LTE SignalStrength entry
+  older than 10 s is `LTE_SIGNAL_STRENGTH_STALE` (kept, not serving, no flat.csv / map fallback). Replayed: 1063 of
+  1410 ticks lose `lteSinr` on this drive, 314 of 1622 on the screen-on drive at 16:02.
 - **A56: LTE SignalStrength stayed fresh** this time (median 1 s, max 15.5 s with the screen off), unlike the mostly
   stationary drive at 09:00 (up to 110 s). LTE RSSNR is in CellInfo anyway.
 - **5G:** A56 none (LTE, override LTE_CA in 233 ticks). moto 134 NR_NSA ticks, 40 with the 5G icon. The other 94 had

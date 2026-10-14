@@ -171,4 +171,13 @@ From the A56 drive (see `docs/device-quirks.md`), approved: after the NR leg is 
 last NR value without updates (up to 110 s with the screen off). A SIGNAL_STRENGTH NR row is **stale** when the display
 override is known and not NSA, no NR CELL_INFO cell is serving, and the row is older than 10 s. It is kept (raw values),
 gets `servingInferred = false` and an `NR_SIGNAL_STRENGTH_STALE` warning with its age, does not count as NR evidence for
-NR_NSA, and is never used as the flat.csv / map fallback. LTE SignalStrength rows are not affected.
+NR_NSA, and is never used as the flat.csv / map fallback.
+
+## Addendum (2026-10-14): stale LTE in SignalStrength
+
+From the moto g45 screen-off drive (see `docs/device-quirks.md`), approved: the LTE entry in SignalStrength is not
+refreshed for up to 212 s with the screen off (median 34 s), while CellInfo stays under 10 s. The moto's CellInfo has
+no RSSNR, so its flat.csv `lteSinr` was mostly an old value. A SIGNAL_STRENGTH LTE row older than 10 s is **stale**: kept
+(raw values), `servingInferred = false`, an `LTE_SIGNAL_STRENGTH_STALE` warning with its age, never used as the
+flat.csv / map fallback. Unlike NR there is no further condition (LTE stays the anchor). A steady signal can also leave
+the entry unrefreshed while still true; that value is dropped from flat.csv too, but stays in cells.csv.

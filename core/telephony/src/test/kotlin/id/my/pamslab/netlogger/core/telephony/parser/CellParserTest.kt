@@ -686,7 +686,9 @@ class CellParserTest {
         assertFalse(result.nrSignalStrengthPresent)
         val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 0, 13)
         assertEquals(NetworkType.LTE, NetworkClassifier.classify(inputs, result.cells, 0))
-        assertTrue("the LTE SignalStrength row is untouched", result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }.servingInferred)
+        // The LTE entry has the same (old) timestamp, so it is stale too.
+        assertFalse(result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }.servingInferred)
+        assertEquals("56000", result.warnings.single { it.code == WarningCode.LTE_SIGNAL_STRENGTH_STALE }.rawValue)
     }
 
     @Test
@@ -701,6 +703,35 @@ class CellParserTest {
         kept(releasedNr(56_000, override = 3)) // the phone still shows 5G
         kept(releasedNr(56_000, override = null)) // override unknown: no basis
         kept(releasedNr(56_000, 0, RawNrCell(false, 2, NOW_MS - 10, Long.MAX_VALUE, 0, 440, 531_870, listOf(7), null, null, nrSignal())))
+    }
+
+    // moto g45 drive, 2026-10-14, screen off: CellInfo has no LTE RSSNR, and SignalStrength (the only RSSNR) was not
+    // refreshed for 34 s (median), up to 212 s.
+    private fun motoLte(ssAgeMs: Long?) = parse(
+        cellInfo(lteCell(pci = 479, earfcn = 1475)),
+        signalStrength(lte = listOf(lteSignal(-97, -12, 7, -66, UNAVAILABLE, UNAVAILABLE)), timestamp = ssAgeMs?.let { NOW_MS - it }),
+        bandwidths = listOf(10_000), override = 0, mcc = "510",
+    )
+
+    @Test
+    fun `moto drive - LTE SignalStrength 212 s old is stale, kept as a row but not serving`() {
+        val result = motoLte(212_000)
+        val lteSs = result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }
+        assertFalse(lteSs.servingInferred)
+        assertEquals("raw values are kept", 7, lteSs.sinrDb)
+        assertEquals("212000", result.warnings.single { it.code == WarningCode.LTE_SIGNAL_STRENGTH_STALE }.rawValue)
+        assertTrue("CellInfo LTE stays serving", result.cells.single { it.rat == Rat.LTE && it.source == CellSource.CELL_INFO }.servingInferred)
+        val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 0, 13)
+        assertEquals(NetworkType.LTE, NetworkClassifier.classify(inputs, result.cells, 0))
+    }
+
+    @Test
+    fun `LTE SignalStrength up to 10 s old or without an age is kept`() {
+        listOf(0L, 9_000L, 10_000L, null).forEach { age ->
+            val result = motoLte(age)
+            assertTrue("age $age", result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }.servingInferred)
+            assertTrue("age $age", result.warnings.none { it.code == WarningCode.LTE_SIGNAL_STRENGTH_STALE })
+        }
     }
 
     @Test

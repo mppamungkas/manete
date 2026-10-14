@@ -52,6 +52,15 @@ class FlatRowTest {
     }
 
     @Test
+    fun `a stale LTE SignalStrength row does not fill lteSinr`() {
+        val cells = a56Cells().filterNot { it.rat == "LTE" && it.source == "SIGNAL_STRENGTH" }.toMutableList()
+        cells += cell("LTE", source = "SIGNAL_STRENGTH", servingInferred = false, reportedServing = null, rsrp = -97, sinr = 7, age = 212_000)
+        val v = values(FlatRow.of(measurement(0), cells))
+        assertNull(v["lteSinr"]); assertNull(v["lteSinrSource"]); assertNull(v["lteSignalStrengthAgeMs"])
+        assertEquals("CellInfo values are unaffected", -92, v["lteRsrp"])
+    }
+
+    @Test
     fun `NR CA - the strongest serving NR cell, count kept`() {
         val cells = listOf(
             cell("NR", servingSource = "REPORTED", pci = 440, rsrp = -105, arfcn = 531_870),
