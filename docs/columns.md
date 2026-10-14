@@ -11,6 +11,8 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `events.csv` | Events: user markers and detected network, GPS and data-SIM events |
 | `warnings.csv` | Parse warnings and flagged corrections, one row per (code, RAT, PCI, field) per session |
 | `throughput.csv` | Speed test results, one row per phase (ping, download, upload) |
+| `capture.pcap` | Only with a PCAPdroid capture in "Into NetLogger" (UDP) mode: the captured IP packets (classic PCAP, LINKTYPE_RAW, PCAPdroid's timestamps) |
+| `capture_sync.csv` | With `capture.pcap`: time alignment, below |
 | `track.geojson` | GPS track (LineString) and events with a location (Points), RFC 7946 |
 
 ## Format rules (all CSV files)
@@ -222,6 +224,8 @@ the state. The serving cells are chosen as in flat.csv.
 | `GPS_LOST` | – → reason | After a first fix: location status not OK (status name), no fix (`NO_FIX`) or fix older than 5 s (`STALE_FIX`) |
 | `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
 | `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
+| `CAPTURE_STARTED` | mode (`UDP` / `FILE`) → file name | PCAPdroid accepted the start request (Phase 3a) |
+| `CAPTURE_STOPPED` | reason (`USER`, `SESSION_END`, `PCAPDROID`) → counts | Capture ended; counts: packets / bytes / rejected datagrams received by NetLogger (UDP), plus PCAPdroid's own stats when it sent them |
 
 ## throughput.csv
 
@@ -250,6 +254,21 @@ server). Align with measurements.csv by `startedElapsedNs`.
 | `error` | | Why the phase failed or was refused; empty when it worked. A failed phase keeps what it measured |
 
 Limits per test: 10 s per throughput phase, at most 200 MB download and 50 MB upload.
+
+## capture_sync.csv
+
+PCAPdroid stamps each packet with the phone's wall clock (`gettimeofday`); NetLogger notes when the first packet of
+every second arrived, on both of its time bases. To place packets on the radio log's `elapsedRealtimeNs` axis, take the
+offset `arrivalElapsedNs - (pcapTsSec × 10^9 + pcapTsUsec × 10^3)` from the nearest row (it also absorbs wall-clock
+changes; UDP delivery on loopback adds well under a millisecond). Not checked by ColumnsDocTest (no CSV writer).
+
+| Column | Unit | Description |
+|---|---|---|
+| `packet` | | 1-based record number in capture.pcap |
+| `arrivalElapsedNs` | ns | When NetLogger received it, elapsedRealtimeNs |
+| `arrivalWallMs` | ms | When NetLogger received it, Unix epoch |
+| `pcapTsSec` | s | The record's PCAP timestamp, seconds |
+| `pcapTsUsec` | µs | The record's PCAP timestamp, microseconds |
 
 ## warnings.csv
 
@@ -297,5 +316,6 @@ A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 | `appVersion`, `schemaVersion` | NetLogger version and database schema version |
 | `device` | `manufacturer`, `model`, `androidVersion`, `basebandVersion` |
 | `network` | `subscriptionId`, `simSlot`, `operatorName`, `mcc`, `mnc` of the logged SIM |
+| `captureFile` | Traffic capture: `<uuid>.pcap` (UDP mode, in the ZIP as capture.pcap) or `Download/PCAPdroid/<name>` (PCAPdroid file mode, stays on the phone); empty without a capture |
 | `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, `throughputTests`, and `trackPoints` (ticks with a fix) |
 | `files` | Files in the bundle |

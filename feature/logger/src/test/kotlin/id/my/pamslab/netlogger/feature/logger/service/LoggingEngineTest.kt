@@ -1,11 +1,13 @@
 package id.my.pamslab.netlogger.feature.logger.service
 
+import id.my.pamslab.netlogger.core.data.CaptureStateHolder
 import id.my.pamslab.netlogger.core.data.SessionRecorder
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
+import id.my.pamslab.netlogger.core.model.capture.CaptureState
 import id.my.pamslab.netlogger.core.model.device.BatterySample
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
 import id.my.pamslab.netlogger.core.model.device.DeviceInfo
@@ -113,6 +115,8 @@ class LoggingEngineTest {
         override suspend fun updateDetails(id: Long, label: String?, notes: String?, scenario: Scenario?) = Unit
         override suspend fun delete(id: Long) = Unit
         override suspend fun latestScenario(): Scenario? = null
+        override suspend fun addEvent(sessionId: Long, event: SessionEvent) { events += event }
+        override suspend fun setCaptureFile(sessionId: Long, captureFile: String?) = Unit
     }
 
     /** One snapshot per interval, timestamped by the virtual clock; [skip] ticks are not emitted. */
@@ -133,7 +137,7 @@ class LoggingEngineTest {
     @Test
     fun `counts ticks and missed ticks against the interval`() = runTest {
         val clock = VirtualClock(this)
-        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio(clock, skip = setOf(3, 4)), FakeLocation(), FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings(), CaptureStateHolder())
         val job = launch { engine.run(1_000, Scenario.STATIC) }
         advanceTimeBy(9_500)
         runCurrent()
@@ -155,7 +159,7 @@ class LoggingEngineTest {
     fun `tick uses the newest fix taken at or before the tick, and its age`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings(), CaptureStateHolder())
         val job = launch { engine.run(1_000, Scenario.STATIC) }
         runCurrent()
         assertNull("no fix yet", (engine.state.value as LoggingState.Running).latest?.location)
@@ -183,7 +187,7 @@ class LoggingEngineTest {
     fun `markers carry the last position and are ignored when idle`() = runTest {
         val clock = VirtualClock(this)
         val location = FakeLocation()
-        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio(clock), location, FakeDevice, clock, FakeRepository(), FakeRunner(), FakeSettings(), CaptureStateHolder())
         assertNull(engine.addMarker())
 
         val job = launch { engine.run(1_000, Scenario.STATIC) }
@@ -199,7 +203,7 @@ class LoggingEngineTest {
     fun `session is started, every tick stored, markers persisted and closed with USER_STOP`() = runTest {
         val clock = VirtualClock(this)
         val repo = FakeRepository()
-        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
         assertEquals("recovery runs while idle", 1, engine.recoverAbandonedSessions())
         val job = launch { engine.run(1_000, Scenario.WALK) }
         advanceTimeBy(2_500)
@@ -220,7 +224,7 @@ class LoggingEngineTest {
     fun `failed writes are counted and logging continues`() = runTest {
         val clock = VirtualClock(this)
         val repo = FakeRepository().apply { failWritesFrom = 2 }
-        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
         val job = launch { engine.run(1_000, null) }
         advanceTimeBy(4_500)
         val s = engine.state.value as LoggingState.Running
@@ -242,7 +246,7 @@ class LoggingEngineTest {
                 }
             }
         }
-        val engine = LoggingEngine(radio, FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings())
+        val engine = LoggingEngine(radio, FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
         val job = launch { engine.run(1_000, null) }
         advanceTimeBy(6_500)
         job.cancel()
@@ -258,7 +262,7 @@ class LoggingEngineTest {
         val clock = VirtualClock(this)
         val repo = FakeRepository()
         val runner = FakeRunner()
-        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings())
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings(), CaptureStateHolder())
         assertFalse("not logging", engine.runSpeedTest())
 
         val job = launch { engine.run(1_000, null) }
@@ -270,13 +274,26 @@ class LoggingEngineTest {
         job.cancel()
         runCurrent()
 
-        val noServer = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, FakeRepository(), runner, FakeSettings(SpeedTestConfig("", "", "")))
+        val noServer = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, FakeRepository(), runner, FakeSettings(SpeedTestConfig("", "", "")), CaptureStateHolder())
         val job2 = launch { noServer.run(1_000, null) }
         advanceTimeBy(1_500)
         assertFalse(noServer.runSpeedTest())
         assertEquals(SpeedTestState.Refused(LoggingEngine.NO_SERVER), (noServer.state.value as LoggingState.Running).speedTest)
         assertEquals("the runner was not called again", 1, runner.runs)
         job2.cancel()
+    }
+
+    @Test
+    fun `speed test during a traffic capture is flagged captureActive`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val capture = CaptureStateHolder().apply { state.value = CaptureState(running = true, sessionId = 42) }
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), capture)
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(1_500)
+        assertTrue(engine.runSpeedTest())
+        assertTrue(repo.throughput.all { it.captureActive })
+        job.cancel()
     }
 
     @Test

@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.core.export
 
+import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -11,6 +12,8 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.file.Files
 import java.time.ZoneId
 import java.util.zip.ZipInputStream
 
@@ -18,9 +21,9 @@ class SessionExporterTest {
 
     private val zone = ZoneId.of("Asia/Jakarta")
 
-    private suspend fun exportZip(dao: FakeExportDao): Pair<ExportResult, Map<String, String>> {
+    private suspend fun exportZip(dao: FakeExportDao, captures: CaptureFileStore? = null): Pair<ExportResult, Map<String, String>> {
         val out = ByteArrayOutputStream()
-        val result = SessionExporter(dao).export(1, out, zone, nowMs = START_MS + 3_600_000)
+        val result = SessionExporter(dao, captures).export(1, out, zone, nowMs = START_MS + 3_600_000)
         val entries = linkedMapOf<String, String>()
         ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entries[it.name] = zip.readBytes().toString(Charsets.UTF_8) }
@@ -68,6 +71,28 @@ class SessionExporterTest {
         assertEquals("", row5[header.indexOf("lat")])
         assertEquals("WAITING", row5[header.indexOf("locationStatus")])
         assertTrue("JSON list with a comma is quoted", lines(files.getValue("measurements.csv"))[6].contains(",\"[20000,60000]\","))
+    }
+
+    @Test
+    fun `a UDP-mode traffic capture is copied into the bundle and listed`() = runTest {
+        val dir = Files.createTempDirectory("captures").toFile()
+        val store = object : CaptureFileStore {
+            override fun pcap(sessionUuid: String) = File(dir, "$sessionUuid.pcap")
+            override fun sync(sessionUuid: String) = File(dir, "${sessionUuid}_sync.csv")
+        }
+        val uuid = session().uuid
+        store.pcap(uuid).writeText("pcap-bytes")
+        store.sync(uuid).writeText("packet,arrivalElapsedNs\n")
+        val (_, files) = exportZip(FakeExportDao(session = session().copy(captureFile = "$uuid.pcap")), store)
+        assertEquals("pcap-bytes", files.getValue("capture.pcap"))
+        assertEquals("packet,arrivalElapsedNs\n", files.getValue("capture_sync.csv"))
+        val json = Json.parseToJsonElement(files.getValue("session.json")).jsonObject
+        assertEquals("$uuid.pcap", json["captureFile"]?.jsonPrimitive?.content)
+        assertTrue(json.getValue("files").toString().contains("capture.pcap"))
+        dir.deleteRecursively()
+
+        val (_, without) = exportZip(FakeExportDao(), store)
+        assertEquals("no capture: no entry", SessionExporter.FILES.toSet(), without.keys)
     }
 
     @Test

@@ -82,6 +82,12 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
     override suspend fun updateDetails(id: Long, label: String?, notes: String?, scenario: Scenario?) =
         sessions.updateDetails(id, label?.takeIf { it.isNotBlank() }, notes?.takeIf { it.isNotBlank() }, scenario?.name)
 
+    override suspend fun addEvent(sessionId: Long, event: SessionEvent) {
+        measurements.insertEvent(event.toEntity(sessionId))
+    }
+
+    override suspend fun setCaptureFile(sessionId: Long, captureFile: String?) = sessions.setCaptureFile(sessionId, captureFile)
+
     override suspend fun delete(id: Long) {
         require(id != activeSessionId) { "cannot delete the session that is recording" }
         sessions.delete(id)
@@ -130,18 +136,7 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
         }
 
         override suspend fun addEvent(event: SessionEvent) {
-            measurements.insertEvent(
-                EventEntity(
-                    sessionId = sessionId,
-                    wallTimeMs = event.wallTimeMs,
-                    elapsedRealtimeNs = event.elapsedRealtimeNs,
-                    type = event.type.name,
-                    fromValue = event.fromValue,
-                    toValue = event.toValue,
-                    lat = event.latitude,
-                    lon = event.longitude,
-                ),
-            )
+            measurements.insertEvent(event.toEntity(sessionId))
         }
 
         override suspend fun addThroughput(result: ThroughputResult) {
@@ -197,3 +192,14 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
         const val TAG = "NetLogger"
     }
 }
+
+private fun SessionEvent.toEntity(sessionId: Long) = EventEntity(
+    sessionId = sessionId,
+    wallTimeMs = wallTimeMs,
+    elapsedRealtimeNs = elapsedRealtimeNs,
+    type = type.name,
+    fromValue = fromValue,
+    toValue = toValue,
+    lat = latitude,
+    lon = longitude,
+)

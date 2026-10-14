@@ -28,6 +28,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import id.my.pamslab.netlogger.feature.capture.CaptureCard
 import id.my.pamslab.netlogger.feature.logger.navigation.LiveRoute
 import id.my.pamslab.netlogger.feature.logger.navigation.liveScreen
 import id.my.pamslab.netlogger.feature.map.navigation.MapRoute
@@ -39,8 +40,8 @@ import id.my.pamslab.netlogger.feature.settings.navigation.SettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.settingsScreen
 import id.my.pamslab.netlogger.permissions.PermissionScreen
 import id.my.pamslab.netlogger.permissions.PermissionViewModel
-import kotlin.reflect.KClass
 import kotlinx.serialization.Serializable
+import kotlin.reflect.KClass
 
 @Serializable
 data object PermissionsRoute
@@ -105,6 +106,7 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
             liveScreen(
                 loggingPermissionsMissing = { !permissionState.canLog },
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
+                captureCard = { CaptureCard() },
             )
             mapScreen()
             sessionsScreen(

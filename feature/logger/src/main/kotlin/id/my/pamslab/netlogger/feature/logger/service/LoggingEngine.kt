@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.feature.logger.service
 
+import id.my.pamslab.netlogger.core.data.CaptureStateHolder
 import id.my.pamslab.netlogger.core.data.SessionRecorder
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
@@ -86,6 +87,7 @@ class LoggingEngine @Inject constructor(
     private val repository: SessionRepository,
     private val speedTestRunner: SpeedTestRunner,
     private val speedTestSettings: SpeedTestSettings,
+    private val capture: CaptureStateHolder,
 ) {
     private val _state = MutableStateFlow<LoggingState>(LoggingState.Idle())
     val state: StateFlow<LoggingState> = _state.asStateFlow()
@@ -213,7 +215,10 @@ class LoggingEngine @Inject constructor(
             }
             setSpeedTest(SpeedTestState.Running(null))
             log("speed test started against ${config.downloadUrl}")
+            val captureBefore = capture.state.value.running
             val results = speedTestRunner.run(config) { setSpeedTest(SpeedTestState.Running(it)) }
+                // Capture overhead (VPN) affects the result: flagged when a capture ran at its start or end.
+                .map { it.copy(captureActive = captureBefore || capture.state.value.running) }
             results.forEach { session.addThroughput(it) }
             log("speed test: " + results.joinToString { "${it.type} ${it.mbps ?: it.rttAvgMs ?: "–"} ${it.error ?: ""}".trim() })
             setSpeedTest(SpeedTestState.Done(results))

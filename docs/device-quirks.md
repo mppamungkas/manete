@@ -391,6 +391,13 @@ unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogge
   NetLogger's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
 - Battery: moto 96 → 93 %, A56 51 → 47 % over 27 min with both apps and the screen on.
 
+### moto g45, schema v1 → v2 migration and capture card, 2026-10-14 (milestones 8, 10)
+
+Backup first (`docs/samples/db-backup-2026-10-14-pre-v2/`), then the milestone 10 build: `user_version` 2, integrity
+ok, all rows kept (5 sessions, 3246 measurements, 21087 cells, 6 events, 95 warnings). PCAPdroid 2.0.2 is installed on
+both phones. The capture card shows while logging (test session #6, 2026-10-14 20:37, moto in landscape); a real
+capture still needs the user to answer PCAPdroid's consent and VPN dialogs.
+
 ### Samsung A56, schema v1 → v2 migration on the phone, 2026-10-14 (milestone 8)
 
 Installed the v2 build over the field database (backup first: `docs/samples/db-backup-2026-10-14-pre-v2/`). Room logged

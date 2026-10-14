@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.8** · last updated 2026-10-14
+**CLAUDE.md version 1.5.9** · last updated 2026-10-14
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented; needs a server and a field check. Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Still open for the MVP definition of done: the 1-hour screen-off drive.
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented; needs a server and a field check. Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented; to check with PCAPdroid on a phone. Still open for the MVP definition of done: the 1-hour screen-off drive.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); UDP mode writes `files/captures/<uuid>.pcap` + `_sync.csv` (first packet per second: arrival elapsedRealtimeNs vs. PCAP timestamp), exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
 - **1.5.8:** Schema v2 (`throughput_test`, migration 1→2 tested; the A56's field data migrated on the phone). `throughput_test` also stores `startedElapsedNs` (timing rule), `streams` and `error`. Speed test (milestone 8): HTTP RTT ping, OkHttp download/upload over mobile data only, manual trigger, server URLs in Settings (LibreSpeed or any web server).
 - **1.5.7:** Events (milestone 7) are detected per tick without debouncing, except a serving NR cell change (confirmed over 2 ticks) (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
 - **1.5.6:** Maps: MapLibre Native (13.6.1) replaces osmdroid (archived). SINR map colors: >= 20 / 13–20 / 0–13 / < 0 dB.

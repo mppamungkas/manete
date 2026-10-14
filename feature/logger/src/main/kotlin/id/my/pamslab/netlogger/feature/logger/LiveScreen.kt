@@ -49,6 +49,7 @@ internal fun LiveScreen(
     loggingPermissionsMissing: Boolean,
     onRequestPermissions: () -> Unit,
     modifier: Modifier = Modifier,
+    captureCard: @Composable () -> Unit = {},
 ) {
     if (loggingPermissionsMissing) {
         Column(modifier.fillMaxSize()) {
@@ -69,19 +70,19 @@ internal fun LiveScreen(
         }
     } else {
         // Only created (and sampling) when permissions are present.
-        LiveContent(hiltViewModel(), modifier)
+        LiveContent(hiltViewModel(), captureCard, modifier)
     }
 }
 
 @Composable
-private fun LiveContent(viewModel: LiveViewModel, modifier: Modifier = Modifier) {
+private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
         is LiveUiState.Failed -> PlaceholderScreen("Live", "Sampling stopped: ${s.message}", modifier)
         is LiveUiState.Ready -> {
             val scenario by viewModel.scenario.collectAsStateWithLifecycle()
-            SnapshotView(s, scenario, viewModel::selectScenario, modifier)
+            SnapshotView(s, scenario, viewModel::selectScenario, captureCard, modifier)
         }
     }
 }
@@ -91,6 +92,7 @@ private fun SnapshotView(
     ui: LiveUiState.Ready,
     scenario: Scenario,
     onScenario: (Scenario) -> Unit,
+    captureCard: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot = ui.snapshot
@@ -105,6 +107,7 @@ private fun SnapshotView(
     ) {
         item { LoggingCard(ui.logging, scenario, onScenario) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest) } }
+        item { captureCard() } // shows itself only while a session records or PCAPdroid may still run
         item { NetworkCard(snapshot) }
         item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
         ui.tick?.device?.let { item { DeviceCard(it) } }

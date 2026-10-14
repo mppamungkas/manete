@@ -41,6 +41,12 @@ enum class EventType {
 
     /** The default data SIM changed during the session; from/to are subscription IDs. The session keeps its SIM. */
     DATA_SIM_CHANGED,
+
+    /** PCAPdroid capture started (Phase 3a): from = mode (UDP/FILE), to = file name. */
+    CAPTURE_STARTED,
+
+    /** Capture ended: from = why (USER, SESSION_END, PCAPDROID), to = packet / byte counts. */
+    CAPTURE_STOPPED,
 }
 
 /** What is known when a session starts; network fields are filled from the first tick. */

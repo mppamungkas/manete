@@ -8,6 +8,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import id.my.pamslab.netlogger.core.data.AppCaptureFileStore
+import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.RoomSessionRepository
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.SharedPreferencesSpeedTestSettings
@@ -22,6 +24,9 @@ import javax.inject.Singleton
 abstract class DataModule {
     @Binds
     abstract fun bindSessionRepository(impl: RoomSessionRepository): SessionRepository
+
+    @Binds
+    abstract fun bindCaptureFileStore(impl: AppCaptureFileStore): CaptureFileStore
 
     @Binds
     abstract fun bindSpeedTestSettings(impl: SharedPreferencesSpeedTestSettings): SpeedTestSettings

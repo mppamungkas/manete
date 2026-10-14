@@ -50,6 +50,9 @@ interface SessionDao {
     @Query("UPDATE session SET label = :label, notes = :notes, scenario = :scenario WHERE id = :id")
     suspend fun updateDetails(id: Long, label: String?, notes: String?, scenario: String?)
 
+    @Query("UPDATE session SET captureFile = :captureFile WHERE id = :id")
+    suspend fun setCaptureFile(id: Long, captureFile: String?)
+
     @Query("DELETE FROM session WHERE id = :id")
     suspend fun delete(id: Long)
 

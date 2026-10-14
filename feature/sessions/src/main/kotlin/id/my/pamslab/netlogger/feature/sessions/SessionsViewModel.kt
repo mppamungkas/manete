@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.export.ExportResult
 import id.my.pamslab.netlogger.core.export.SessionExporter
@@ -54,6 +55,7 @@ class SessionDetailViewModel @Inject constructor(
     private val repository: SessionRepository,
     private val exporter: SessionExporter,
     private val chartLoader: ChartLoader,
+    private val captureFiles: CaptureFileStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -97,7 +99,10 @@ class SessionDetailViewModel @Inject constructor(
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
             try {
+                val uuid = session.value?.uuid
                 repository.delete(id)
+                // The session's traffic capture (UDP mode) goes with it.
+                uuid?.let { withContext(Dispatchers.IO) { captureFiles.delete(it) } }
                 onDeleted()
             } catch (e: IllegalArgumentException) {
                 _message.value = e.message

@@ -25,6 +25,12 @@ interface SessionRepository {
     suspend fun updateDetails(id: Long, label: String?, notes: String?, scenario: Scenario?)
     suspend fun delete(id: Long)
     suspend fun latestScenario(): Scenario?
+
+    /** An event from outside the tick loop (traffic capture), stored in [sessionId]. */
+    suspend fun addEvent(sessionId: Long, event: SessionEvent)
+
+    /** Links a traffic capture file to the session (session.captureFile). */
+    suspend fun setCaptureFile(sessionId: Long, captureFile: String?)
 }
 
 /** Writes one session. [record] is called from the tick loop only; [addMarker] may come from anywhere. */

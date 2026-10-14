@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.core.export
 
+import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.db.ExportDao
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
@@ -23,7 +24,11 @@ data class ExportResult(val fileName: String, val counts: SessionJson.Counts)
  * formatted in [zone] (the device zone at export; sessions do not store one) next to the raw epoch ms and
  * elapsedRealtime ns columns.
  */
-class SessionExporter @Inject constructor(private val dao: ExportDao) {
+class SessionExporter @Inject constructor(
+    private val dao: ExportDao,
+    /** UDP-mode traffic captures (Phase 3a); none in tests. */
+    private val captures: CaptureFileStore? = null,
+) {
 
     suspend fun fileName(sessionId: Long, zone: ZoneId = ZoneId.systemDefault()): String {
         val s = requireNotNull(dao.session(sessionId)) { "session $sessionId not found" }
@@ -91,8 +96,22 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
             }
             geo.finish(events)
         }
+        // Traffic capture written by NetLogger (UDP mode): copied byte for byte. A FILE-mode capture stays in
+        // PCAPdroid's Download folder (session.captureFile names it); NetLogger cannot read it.
+        val captureFiles = captures?.let { store ->
+            listOfNotNull(
+                store.pcap(session.uuid).takeIf { it.isFile }?.let { CAPTURE to it },
+                store.sync(session.uuid).takeIf { it.isFile }?.let { CAPTURE_SYNC to it },
+            )
+        }.orEmpty()
+        captureFiles.forEach { (name, file) ->
+            zip.putNextEntry(ZipEntry(name))
+            file.inputStream().use { it.copyTo(zip, BUFFER_BYTES) }
+            zip.closeEntry()
+        }
         val counts = SessionJson.Counts(measurements, cells, events.size.toLong(), warnings.size.toLong(), trackPoints, throughput.size.toLong())
-        entry(zip, SESSION) { w -> w.write(JSON.encodeToString(SessionJson.serializer(), sessionJson(session, time, nowMs, counts))) }
+        val files = FILES + captureFiles.map { it.first }
+        entry(zip, SESSION) { w -> w.write(JSON.encodeToString(SessionJson.serializer(), sessionJson(session, time, nowMs, counts, files))) }
         zip.finish()
         return ExportResult(fileName(session, zone), counts)
     }
@@ -116,7 +135,7 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
         zip.closeEntry()
     }
 
-    private fun sessionJson(s: SessionEntity, time: IsoTime, nowMs: Long, counts: SessionJson.Counts) = SessionJson(
+    private fun sessionJson(s: SessionEntity, time: IsoTime, nowMs: Long, counts: SessionJson.Counts, files: List<String>) = SessionJson(
         uuid = s.uuid,
         label = s.label,
         scenario = s.scenario,
@@ -138,7 +157,8 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
         device = SessionJson.Device(s.deviceManufacturer, s.deviceModel, s.androidVersion, s.basebandVersion),
         network = SessionJson.Network(s.subscriptionId, s.simSlot, s.operatorName, s.mcc, s.mnc),
         counts = counts,
-        files = FILES,
+        captureFile = s.captureFile,
+        files = files,
     )
 
     companion object {
@@ -148,6 +168,8 @@ class SessionExporter @Inject constructor(private val dao: ExportDao) {
         const val EVENTS = "events.csv"
         const val WARNINGS = "warnings.csv"
         const val THROUGHPUT = "throughput.csv"
+        const val CAPTURE = "capture.pcap"
+        const val CAPTURE_SYNC = "capture_sync.csv"
         const val FLAT = "flat.csv"
         const val TRACK = "track.geojson"
         val FILES = listOf(SESSION, MEASUREMENTS, CELLS, EVENTS, WARNINGS, THROUGHPUT, FLAT, TRACK)
