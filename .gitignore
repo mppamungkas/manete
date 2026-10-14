@@ -5,6 +5,7 @@ local.properties
 .gradle/
 .kotlin/
 build/
+.cxx/
 captures/
 *.pcap
 *.pcapng
