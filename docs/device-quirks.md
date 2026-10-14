@@ -295,7 +295,14 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   session starts. If the user switches the data SIM during a session, NetLogger keeps logging the first SIM and
   nothing marks the switch. Handled since 2026-10-14 (approved): the session stays on its SIM, every tick after a
   switch has a `DATA_SIM_CHANGED` warning, a `DATA_SIM_CHANGED` event marks each switch, and Live shows a notice.
-- Not tested yet: data on the Telkomsel SIM, and a data-SIM switch during a session.
+- **Data-SIM switch confirmed (2026-10-14, 08:35–08:38, 176 ticks, 100 %):** session on Tri (subId 5); data switched
+  to Telkomsel at 08:38:01 and back at 08:38:22. Two `DATA_SIM_CHANGED` events (5 → 1, 1 → 5) with location at the
+  exact ticks; one `DATA_SIM_CHANGED` warning row with 21 occurrences (the 21 ticks on Telkomsel data). All 176
+  ticks stayed on Tri (operator 51089, no cell from Telkomsel's EARFCN 1850). While Telkomsel carried data, Tri's
+  `dataState` was 0 and NR dropped to LTE within the 21 ticks; back on Tri, data and NR_NSA returned. `parseErrors` 0.
+  A switch takes effect only after confirming it in Settings → SIM manager → Mobile data; the first attempt in
+  this test did not change the default data SIM (confirmed in `dumpsys isub`).
+- Not tested yet: a whole session with data on the Telkomsel SIM.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
