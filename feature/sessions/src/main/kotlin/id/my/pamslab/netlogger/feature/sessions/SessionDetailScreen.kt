@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun SessionDetailScreen(
     onBack: () -> Unit,
+    onShowOnMap: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SessionDetailViewModel = hiltViewModel(),
 ) {
@@ -66,6 +67,7 @@ internal fun SessionDetailScreen(
         s, message, exporting, viewModel::save, onDelete = { viewModel.delete(onBack) },
         onSaveZip = { scope.launch { viewModel.exportFileName()?.let(saveLauncher::launch) } },
         onShareZip = viewModel::share,
+        onShowOnMap = { onShowOnMap(s.id) },
         onBack = onBack, modifier = modifier,
     )
 }
@@ -79,6 +81,7 @@ private fun DetailContent(
     onDelete: () -> Unit,
     onSaveZip: () -> Unit,
     onShareZip: () -> Unit,
+    onShowOnMap: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -125,6 +128,7 @@ private fun DetailContent(
             Button(onClick = onSaveZip, enabled = canExport) { Text("Save ZIP…") }
             OutlinedButton(onClick = onShareZip, enabled = canExport) { Text("Share ZIP") }
         }
+        OutlinedButton(onClick = onShowOnMap) { Text("Show on map") }
         if (s.endedAtMs == null) Text("Export is available after the session is stopped.", style = MaterialTheme.typography.bodySmall)
         message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }

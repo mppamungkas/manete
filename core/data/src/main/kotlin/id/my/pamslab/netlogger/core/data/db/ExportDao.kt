@@ -3,6 +3,7 @@ package id.my.pamslab.netlogger.core.data.db
 import androidx.room.Dao
 import androidx.room.Embedded
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 /** A cell row with the tick it belongs to, so cells.csv can carry the tick's sequence number and timestamps. */
 data class CellWithTick(
@@ -18,7 +19,10 @@ data class WarningWithSeq(
     @Embedded val warning: ParseWarningEntity,
 )
 
-/** Read-only, paged queries for export. Pages are by tick sequence number, so memory stays flat for long sessions. */
+/**
+ * Read-only, paged queries for export and the map. Pages are by tick sequence number, so memory stays flat for long
+ * sessions.
+ */
 @Dao
 interface ExportDao {
 
@@ -45,4 +49,8 @@ interface ExportDao {
 
     @Query("SELECT COUNT(*) FROM measurement WHERE sessionId = :sessionId")
     suspend fun measurementCount(sessionId: Long): Long
+
+    /** Emits again whenever the measurement table changes (every tick while logging); null without ticks. */
+    @Query("SELECT MAX(seq) FROM measurement WHERE sessionId = :sessionId")
+    fun observeLastSeq(sessionId: Long): Flow<Long?>
 }

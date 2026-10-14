@@ -67,3 +67,17 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] track.geojson opens in a GeoJSON viewer (e.g. geojson.io) at the right place; coordinates are [lon, lat]
 - [ ] Open flat.csv in a spreadsheet with a comma-decimal locale (e.g. German): numbers still parse with "." when
       imported as CSV with "." decimal separator
+
+## Milestone 6: map
+
+- [ ] Map tab with no sessions: hint, no crash. With sessions: the newest session is selected and framed
+- [ ] Each metric chip recolors the dots: LTE RSRP, NR SS-RSRP, LTE SINR, NR SS-SINR, Network; legend matches;
+      ticks without a value are gray; ticks without a GPS fix are not drawn (count shown top right)
+- [ ] Tap a dot: card with tick, time, LTE/NR identity, RSRP/SINR with "(SS)" when from SignalStrength, ages, GPS
+- [ ] Markers appear as black dots with a white ring
+- [ ] Start logging, open Map: the session is marked "recording" and grows every tick; Follow keeps the newest
+      point in view; turning Follow off lets you pan freely
+- [ ] Session detail → "Show on map" opens that session on the Map tab
+- [ ] "© OpenStreetMap contributors" is visible; tiles load on mobile data; no crash in airplane mode (gray map,
+      track still drawn)
+- [ ] Map open for 10+ minutes while logging: no slowdown or memory growth visible in Live's tick counter

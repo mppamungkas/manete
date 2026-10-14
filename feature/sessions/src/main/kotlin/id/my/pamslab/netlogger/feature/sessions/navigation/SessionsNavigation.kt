@@ -18,7 +18,7 @@ fun NavController.navigateToSessions(navOptions: NavOptions? = null) = navigate(
 
 fun NavController.navigateToSessionDetail(id: Long) = navigate(SessionDetailRoute(id))
 
-fun NavGraphBuilder.sessionsScreen(onOpenSession: (Long) -> Unit, onBack: () -> Unit) {
+fun NavGraphBuilder.sessionsScreen(onOpenSession: (Long) -> Unit, onShowOnMap: (Long) -> Unit, onBack: () -> Unit) {
     composable<SessionsRoute> { SessionsScreen(onOpen = onOpenSession) }
-    composable<SessionDetailRoute> { SessionDetailScreen(onBack = onBack) }
+    composable<SessionDetailRoute> { SessionDetailScreen(onBack = onBack, onShowOnMap = onShowOnMap) }
 }

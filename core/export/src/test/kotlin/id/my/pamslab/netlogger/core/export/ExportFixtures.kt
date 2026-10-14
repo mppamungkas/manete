@@ -79,6 +79,8 @@ class FakeExportDao(
     override suspend fun warnings(sessionId: Long) = warnings
 
     override suspend fun measurementCount(sessionId: Long) = measurements.size.toLong()
+
+    override fun observeLastSeq(sessionId: Long) = kotlinx.coroutines.flow.flowOf(measurements.lastOrNull()?.seq)
 }
 
 fun warning(code: String, raw: String?) = WarningWithSeq(

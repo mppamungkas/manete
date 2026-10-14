@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.5.5** · last updated 2026-10-14
+**CLAUDE.md version 1.5.6** · last updated 2026-10-14
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Next: milestone 6 (map).
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on the moto; A56 check pending. Then: the 1-hour drive test for the MVP definition of done.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.5.6:** Maps: MapLibre Native (13.6.1) replaces osmdroid (archived). SINR map colors: >= 20 / 13–20 / 0–13 / < 0 dB.
 - **1.5.5:** Schema v1 frozen from the first real field session on. Data model: `cell.reportedServing`, `servingInferred` (was `isServing`), `servingSource`; `measurement.warningCount`; `bandSource` `MAPPED_MCC_FALLBACK`.
 - **1.5.4:** Definition of done: instrumented database smoke test must pass on both phones before a release.
 - **1.5.3:** Package / application ID renamed to `id.my.pamslab.netlogger` everywhere (root safety rules updated).
@@ -38,7 +39,7 @@ The data is used for research (LTE anchor quality vs. 5G NSA availability, ML on
 - Room (SQLite) with exported schemas + migrations, Kotlin Coroutines + Flow
 - Hilt for DI
 - Google Play Services Location (`FusedLocationProviderClient`)
-- osmdroid for maps (no API key)
+- MapLibre Native Android for maps (BSD-2, no API key) with OpenStreetMap standard raster tiles; follow the OSM tile usage policy (visible attribution, app User-Agent, no bulk prefetch). osmdroid was the original choice but its repository is archived (last release Aug 2024).
 - OkHttp for the throughput/ping module
 - kotlinx.serialization for JSON fields and session metadata
 - Candidate dependency: **NetMonster Core** (Apache 2.0) for cell parsing and OEM quirks. Evaluate in Milestone 2 before writing our own parser (see Reference code).
@@ -263,7 +264,8 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
 ## UI
 - **Live:** network type, operator, serving LTE + NR values, neighbor table, GPS status, sample age warnings (gray out values older than 5 s).
 - **Map:** session track colored by selectable metric (LTE RSRP, NR SS-RSRP, SINR, network type); event markers; tap point → values.
-  RSRP colors: > -80 green, -80 to -95 yellow, -95 to -110 orange, < -110 red, null gray.
+  RSRP colors: > -80 green, -80 to -95 yellow, -95 to -110 orange, < -110 red, null gray (integer dBm: -80 … -95 yellow, -96 … -110 orange).
+  SINR colors (LTE RSSNR and NR SS-SINR): >= 20 green, 13 to < 20 yellow, 0 to < 13 orange, < 0 red, null gray.
 - **Sessions:** list, rename/label, notes, export, delete (with confirmation).
 - **Settings:** interval, SIM selection, speed test server URL, export options.
 

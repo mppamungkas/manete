@@ -8,6 +8,10 @@ plugins {
 android {
     namespace = "id.my.pamslab.netlogger"
 
+    // Timber arrives with MapLibre and ships a lint rule against android.util.Log; NetLogger logs with Log and the
+    // "NetLogger" tag on purpose (adb logcat -s NetLogger:*).
+    lint.disable += "LogNotTimber"
+
     defaultConfig {
         applicationId = "id.my.pamslab.netlogger"
         versionCode = 1

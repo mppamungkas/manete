@@ -7,10 +7,11 @@ import androidx.navigation.compose.composable
 import id.my.pamslab.netlogger.feature.map.MapScreen
 import kotlinx.serialization.Serializable
 
+/** [sessionId] null: the newest session, which follows a newly started recording. */
 @Serializable
-data object MapRoute
+data class MapRoute(val sessionId: Long? = null)
 
-fun NavController.navigateToMap(navOptions: NavOptions? = null) = navigate(MapRoute, navOptions)
+fun NavController.navigateToMap(sessionId: Long? = null, navOptions: NavOptions? = null) = navigate(MapRoute(sessionId), navOptions)
 
 fun NavGraphBuilder.mapScreen() {
     composable<MapRoute> { MapScreen() }

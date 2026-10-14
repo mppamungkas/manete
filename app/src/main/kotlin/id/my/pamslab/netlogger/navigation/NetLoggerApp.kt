@@ -47,7 +47,7 @@ data object PermissionsRoute
 
 private enum class TopLevelDestination(val route: Any, val routeClass: KClass<*>, val label: String, val icon: ImageVector) {
     LIVE(LiveRoute, LiveRoute::class, "Live", Icons.Filled.PlayArrow),
-    MAP(MapRoute, MapRoute::class, "Map", Icons.Filled.Place),
+    MAP(MapRoute(), MapRoute::class, "Map", Icons.Filled.Place),
     SESSIONS(SessionsRoute, SessionsRoute::class, "Sessions", Icons.AutoMirrored.Filled.List),
     SETTINGS(SettingsRoute, SettingsRoute::class, "Settings", Icons.Filled.Settings),
 }
@@ -107,7 +107,17 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
             )
             mapScreen()
-            sessionsScreen(onOpenSession = navController::navigateToSessionDetail, onBack = { navController.popBackStack() })
+            sessionsScreen(
+                onOpenSession = navController::navigateToSessionDetail,
+                onShowOnMap = { id ->
+                    // A new Map entry with this session; the bottom bar shows Map as selected.
+                    navController.navigate(MapRoute(id)) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                    }
+                },
+                onBack = { navController.popBackStack() },
+            )
             settingsScreen()
         }
     }
