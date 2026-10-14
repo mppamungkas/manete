@@ -140,6 +140,13 @@ enum class WarningCode {
     /** As NR_SERVING_SIGNAL_STRENGTH_MATCH, but there is no basis to choose, so no candidate is taken as serving. */
     NR_SERVING_AMBIGUOUS,
 
+    /**
+     * The SignalStrength NR entry is stale: the display override says no NR, no NR cell is serving in CellInfo, and
+     * the entry is older than 10 s (A56: the last NR value kept for up to 110 s after the NR leg was released, screen
+     * off). The row is kept but not serving, and is not NR evidence. `rawValue` holds its age in ms.
+     */
+    NR_SIGNAL_STRENGTH_STALE,
+
     /** An NSA NR secondary reports TAC 0 (NSA NR cells broadcast no TAC); null, `rawValue` = "0". */
     NR_NSA_TAC_ZERO,
 

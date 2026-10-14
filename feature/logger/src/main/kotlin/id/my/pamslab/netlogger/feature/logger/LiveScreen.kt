@@ -93,7 +93,8 @@ private fun SnapshotView(
 ) {
     val snapshot = ui.snapshot
     val serving = snapshot.cells.filter { it.servingInferred }
-    val neighbors = snapshot.cells.filterNot { it.servingInferred }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
+    // Stale SignalStrength rows have no identity and are not neighbors; they show up as a warning.
+    val neighbors = snapshot.cells.filter { !it.servingInferred && it.source == CellSource.CELL_INFO }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),

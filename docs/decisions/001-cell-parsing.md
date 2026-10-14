@@ -164,3 +164,11 @@ From the A56 field walk (see `docs/device-quirks.md`), decided with the user:
 3. Without a network MCC (first tick, before ServiceState), the registered cell's MCC is used for the country band
    preference; a band chosen that way has `bandSource = MAPPED_MCC_FALLBACK`.
 4. `measurement.parseErrors` counts getter failures only; `measurement.warningCount` counts all warnings of the tick.
+
+## Addendum (2026-10-14): stale NR in SignalStrength
+
+From the A56 drive (see `docs/device-quirks.md`), approved: after the NR leg is released, SignalStrength may keep its
+last NR value without updates (up to 110 s with the screen off). A SIGNAL_STRENGTH NR row is **stale** when the display
+override is known and not NSA, no NR CELL_INFO cell is serving, and the row is older than 10 s. It is kept (raw values),
+gets `servingInferred = false` and an `NR_SIGNAL_STRENGTH_STALE` warning with its age, does not count as NR evidence for
+NR_NSA, and is never used as the flat.csv / map fallback. LTE SignalStrength rows are not affected.

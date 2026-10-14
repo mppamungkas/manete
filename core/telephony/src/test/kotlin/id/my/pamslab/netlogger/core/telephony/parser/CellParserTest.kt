@@ -663,6 +663,46 @@ class CellParserTest {
         assertEquals(BandSource.API, noMcc.bandSource)
     }
 
+    // A56 drive, 2026-10-14, screen off: the NR leg was released (override 0, no CellInfoNr), but SignalStrength kept
+    // its last NR value (-104 / -11 / 9) for up to 110 s.
+    private fun releasedNr(ssAgeMs: Long, override: Int? = 0, vararg nr: RawNrCell) = parse(
+        cellInfo(lteCell(pci = 479, earfcn = 1625), *nr),
+        signalStrength(
+            lte = listOf(lteSignal(-99, -11, 12, -70, 9, UNAVAILABLE)),
+            nr = listOf(RawNrSignal(-104, -11, 9, UNAVAILABLE, UNAVAILABLE, UNAVAILABLE)),
+            timestamp = NOW_MS - ssAgeMs,
+        ),
+        device = SAMSUNG, bandwidths = listOf(20_000), override = override, mcc = "510", parser = nsaParser,
+    )
+
+    @Test
+    fun `A56 drive - NR SignalStrength kept 56 s after the NR leg was released is stale, the tick is LTE`() {
+        val result = releasedNr(56_000)
+        val nrSs = result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }
+        assertFalse(nrSs.servingInferred)
+        assertEquals("raw values are kept", -104, nrSs.rsrpDbm)
+        assertEquals(56_000L, nrSs.cellInfoAgeMs)
+        assertEquals("56000", result.warnings.single { it.code == WarningCode.NR_SIGNAL_STRENGTH_STALE }.rawValue)
+        assertFalse(result.nrSignalStrengthPresent)
+        val inputs = NetworkClassifier.nsaInputs(result.cells, result.nrSignalStrengthPresent, 0, 13)
+        assertEquals(NetworkType.LTE, NetworkClassifier.classify(inputs, result.cells, 0))
+        assertTrue("the LTE SignalStrength row is untouched", result.cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }.servingInferred)
+    }
+
+    @Test
+    fun `NR SignalStrength is kept while it can still be current`() {
+        fun kept(result: ParseResult) {
+            assertTrue(result.cells.single { it.rat == Rat.NR && it.source == CellSource.SIGNAL_STRENGTH }.servingInferred)
+            assertTrue(result.nrSignalStrengthPresent)
+            assertTrue(result.warnings.none { it.code == WarningCode.NR_SIGNAL_STRENGTH_STALE })
+        }
+        kept(releasedNr(9_000)) // within 10 s of the release: transition, not stale
+        kept(releasedNr(10_000))
+        kept(releasedNr(56_000, override = 3)) // the phone still shows 5G
+        kept(releasedNr(56_000, override = null)) // override unknown: no basis
+        kept(releasedNr(56_000, 0, RawNrCell(false, 2, NOW_MS - 10, Long.MAX_VALUE, 0, 440, 531_870, listOf(7), null, null, nrSignal())))
+    }
+
     @Test
     fun `byte swap helpers`() {
         assertEquals(0x6414, SamsungQuirks.swapBytes(0x1464))

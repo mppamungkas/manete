@@ -313,6 +313,26 @@ Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkom
   (126/126 ticks). OSM tiles load over mobile data on both.
 - Not seen yet: a moving track framed over a longer route, and the map in airplane mode (no tiles).
 
+### Samsung A56, Tri, first field drive, 2026-10-14 (session 6, 09:00–09:15)
+
+893/893 ticks (100 %), longest gap 1.02 s, max write 55 ms, 0 parse errors, screen off 790 ticks, battery 85 → 84 %,
+35 °C. GPS: fix in every tick, 8.9 m average accuracy; the first 6 ticks (status WAITING) carried a cold-start fix up to
+317 m. Route 1.78 km, but ~9.5 min standing still and ~3.5 min driving at 25–29 km/h: not yet the 1-hour drive.
+
+- LTE: 14 cells, 15 handovers, bands 1, 3, 8. NR serving selection: at most one serving NR per NR-ARFCN in every
+  tick; 223 `SIGNAL_STRENGTH_MATCH`, 112 `STRONGEST` picks, none ambiguous.
+- NR only in minutes 0–2 and at the end (standing still); released ~1 min after screen off with little traffic, no NR
+  while driving (same pattern as the screen-off runs).
+- **Stale NR in SignalStrength.** After the release, SignalStrength kept its last NR value (-104/-11/9) without
+  updates, aging up to 110 s (56 s average), while the override showed no 5G and CellInfoNr was gone. Our NSA rule
+  counted it: 110 ticks were NR_NSA without the 5G icon (103 override 0, 6 LTE_CA, 1 unknown), and flat.csv / map
+  showed a 10–110 s old NR RSRP in 100 ticks. Fixed (decision 001, last addendum): such an entry is
+  `NR_SIGNAL_STRENGTH_STALE` (kept, not serving, not NR evidence, not a flat.csv fallback). Replayed on this drive:
+  100 of the 110 ticks become LTE; 10 stay NR_NSA (7 within 10 s of the release, 3 with an NR cell in CellInfo).
+- LTE SignalStrength also aged up to 110 s with the screen off (168 ticks > 10 s), but flat.csv used it only 25 times
+  on the A56, never older than 10 s (A56 CellInfo has LTE RSSNR). Not changed; check on the moto, which takes LTE RSSNR
+  only from SignalStrength.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

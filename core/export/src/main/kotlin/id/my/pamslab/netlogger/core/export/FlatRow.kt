@@ -10,7 +10,8 @@ data class Sourced(val value: Int?, val source: String?)
  * One flat.csv row: the tick, its serving LTE cell and its serving NR cell (decision 001 addenda).
  *
  * - Identity (cell ID, TAC, PCI, ARFCN, band) comes only from the CELL_INFO serving cell.
- * - Each signal field takes the CELL_INFO value, else the SIGNAL_STRENGTH value, with a `*Source` column.
+ * - Each signal field takes the CELL_INFO value, else the SIGNAL_STRENGTH value (unless stale), with a `*Source`
+ *   column.
  * - LTE: the registered (else PRIMARY_SERVING, else first) `servingInferred` LTE CELL_INFO cell.
  * - NR: the `servingInferred` NR CELL_INFO cell; with several (NR CA) the strongest SS-RSRP. `nrServingCount` says how many.
  */
@@ -34,7 +35,8 @@ class FlatRow(
 
         fun of(m: MeasurementEntity, cells: List<CellEntity>): FlatRow {
             fun serving(rat: String) = cells.filter { it.rat == rat && it.source == CELL_INFO && it.servingInferred }
-            fun signal(rat: String) = cells.firstOrNull { it.rat == rat && it.source == SIGNAL_STRENGTH }
+            // A stale SignalStrength entry (servingInferred false) is never used as a fallback.
+            fun signal(rat: String) = cells.firstOrNull { it.rat == rat && it.source == SIGNAL_STRENGTH && it.servingInferred }
             val lteServing = serving("LTE")
             val lte = lteServing.firstOrNull { it.isRegistered == true }
                 ?: lteServing.firstOrNull { it.connectionStatus == "PRIMARY_SERVING" }
