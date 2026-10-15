@@ -19,6 +19,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Response
 import okio.BufferedSink
 import java.io.IOException
 import java.util.Collections
@@ -38,6 +39,8 @@ import kotlin.random.Random
  * - Download: bytes read from the response bodies until the phase ends.
  * - Upload: bytes handed to the socket until the phase ends (the last socket buffer may not have arrived yet).
  * - Mbps = bytes × 8 / phase time / 10^6, over the whole phase (TCP ramp-up included, no grace period).
+ * - Redirects are never followed: a 3xx (e.g. an operator's captive portal when the data quota is used up) is an
+ *   error naming the redirect host, not a measurement of the portal.
  */
 class OkHttpSpeedTestRunner @Inject constructor(
     private val clock: Clock,
@@ -49,6 +52,8 @@ class OkHttpSpeedTestRunner @Inject constructor(
         .readTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .writeTimeout(READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .retryOnConnectionFailure(false)
+        .followRedirects(false)
+        .followSslRedirects(false)
         .cache(null)
         .build()
 
@@ -97,7 +102,7 @@ class OkHttpSpeedTestRunner @Inject constructor(
             try {
                 call.execute().use { response ->
                     response.body?.bytes()
-                    if (!response.isSuccessful) throw HttpStatusException(response.code)
+                    if (!response.isSuccessful) throw HttpStatusException(response)
                 }
                 val rtt = (System.nanoTime() - sent) / 1e6
                 if (i > 0) {
@@ -125,7 +130,7 @@ class OkHttpSpeedTestRunner @Inject constructor(
             val call = client.newCall(Request.Builder().url(url).header("Cache-Control", "no-cache").build())
             call to {
                 call.execute().use { response ->
-                    if (!response.isSuccessful) throw HttpStatusException(response.code)
+                    if (!response.isSuccessful) throw HttpStatusException(response)
                     val source = response.body?.source() ?: throw IOException("no body")
                     val buffer = ByteArray(CHUNK_BYTES)
                     while (true) {
@@ -154,7 +159,7 @@ class OkHttpSpeedTestRunner @Inject constructor(
                 }
             }
             val call = client.newCall(Request.Builder().url(url).post(body).build())
-            call to { call.execute().use { response -> if (!response.isSuccessful) throw HttpStatusException(response.code) } }
+            call to { call.execute().use { response -> if (!response.isSuccessful) throw HttpStatusException(response) } }
         }
 
     /**
@@ -224,8 +229,10 @@ class OkHttpSpeedTestRunner @Inject constructor(
         )
     }
 
-    /** A non-2xx answer: the server refused the request. */
-    private class HttpStatusException(code: Int) : IOException("HTTP $code")
+    /** A non-2xx answer: the server refused the request, or something on the way redirected it. */
+    private class HttpStatusException(response: Response) : IOException(
+        "HTTP ${response.code}" + (response.header("Location")?.toHttpUrlOrNull()?.host?.let { " (redirect to $it)" } ?: ""),
+    )
 
     private fun mbps(bytes: Long, elapsedNs: Long) = bytes * 8 / (elapsedNs / 1e9) / 1e6
 
