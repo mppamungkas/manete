@@ -157,6 +157,7 @@ Kept for the record; these checks no longer apply.
 - [x] Logging interval 2000 ms: Live shows "2000 ms · change in Settings"; the next session logs every 2.000 s and stores `intervalMs` 2000 (A56, session 24)
 - [x] Default scenario Walk: preselected on Live, also when changed while the app is open; stored with the session (A56, session 24)
 - [x] SIM card names the data SIM (A56: 3SinyalKuatHemat 510-89, slot 1)
+- [x] Speed test page: explainer with the limits from SpeedTestConfig (10 pings, 10 s, 4 connections, 200/50 MB), help per URL, saved server and Cloudflare switch kept (A56)
 - [ ] Same on the moto g45
 - [ ] 500 ms interval over a few minutes: share of repeated (cached) cell rows
 

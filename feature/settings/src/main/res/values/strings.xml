@@ -41,4 +41,37 @@
     <string name="logging_sim_current">Data SIM now: %1$s (%2$s) in SIM slot %3$s</string>
     <string name="logging_sim_none">No data SIM found, or the phone permission is missing.</string>
     <string name="unknown">unknown</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+
+    <!-- Speed test -->
+    <string name="speed_how_title">How the speed test works</string>
+    <string name="speed_how_info">Start it on the Live screen while a session is logging. It uses mobile data only: turn Wi-Fi off, or the test is refused.</string>
+    <plurals name="speed_how_ping">
+        <item quantity="one">Ping: %1$d small request; average, jitter and loss.</item>
+        <item quantity="other">Ping: %1$d small requests; average, jitter and loss.</item>
+    </plurals>
+    <string name="speed_how_transfer">Download, then upload: %1$d s each over %2$s, stopped early at %3$d MB down / %4$d MB up.</string>
+    <plurals name="speed_connections">
+        <item quantity="one">%1$d connection</item>
+        <item quantity="other">%1$d connections</item>
+    </plurals>
+    <string name="speed_how_data">One test can use up to about %1$d MB of your data plan.</string>
+    <string name="speed_how_stored">Results are stored in the session with the server URL and the radio values of the same seconds. A test during a traffic capture is flagged, because the capture slows it down.</string>
+    <string name="speed_server_title">Your server</string>
+    <string name="speed_server_info">The main target. Use a server you control, so results stay comparable between tests and days. For a LibreSpeed server, enter its address and tap Fill; any other web server works with three URLs.</string>
+    <string name="speed_base_url">LibreSpeed address, e.g. http://203.0.113.7:8080</string>
+    <string name="speed_fill">Fill LibreSpeed URLs</string>
+    <string name="speed_ping_url">Ping URL</string>
+    <string name="speed_ping_url_info">Answers small requests quickly, e.g. an empty page.</string>
+    <string name="speed_download_url">Download URL</string>
+    <string name="speed_download_url_info">Serves a large file (tens of MB or more); requested again until the time is up.</string>
+    <string name="speed_upload_url">Upload URL</string>
+    <string name="speed_upload_url_info">Accepts POST requests and throws the data away.</string>
+    <string name="speed_cleartext_blocked">Plain HTTP to %1$s is not allowed in this build, so the test would fail. Use https://, or ask whoever builds the app to allow this host (netlogger.cleartextHosts).</string>
+    <string name="speed_save">Save</string>
+    <string name="speed_saved">Saved. The Live screen shows \"Run speed test (my server)\" while logging.</string>
+    <string name="speed_not_saved">No server saved yet: the speed test is off.</string>
+    <string name="speed_public_title">Public target: Cloudflare</string>
+    <string name="speed_public_info">Optional, for comparison only. Adds a second button on the Live screen that tests against %1$s. Not your server and never the default: the result depends on Cloudflare\'s nearest site and its route, and many large tests in a row are blocked for a while (HTTP 429). Each result stores the URL it used.</string>
 </resources>
