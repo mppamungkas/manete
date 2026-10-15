@@ -143,7 +143,8 @@ Kept for the record; these checks no longer apply.
 - [x] Throughput, curl downloads/uploads, capture off / native MTU 1500 / 10 000 (moto g45; A56 has no curl and no usable timer)
 - [ ] In-app speed test during a native capture (needs a server): flagged `captureActive`
 - [x] Browser and a QUIC app (YouTube): connections.csv names the apps (A56, after the launcher-apps `<queries>` fix), pcap valid
-- [ ] Screen off 30 min while capturing and logging: ≥ 95 % ticks, pcap packets = expected
+- [x] Screen off 30 min while capturing and logging: 100 % ticks, pcap packets = expected (moto g45, USB powered)
+- [ ] Same, unplugged (deep Doze)
 - [ ] App filter with one package: only that app's connections
 - [ ] Export: ZIP has capture.pcap, capture_sync.csv, connections.csv; session.json lists them
 - [ ] Both phones (the A56 is the unrooted reference)

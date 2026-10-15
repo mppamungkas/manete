@@ -549,6 +549,19 @@ YouTube for ~3 min; the session was then stopped (CAPTURE_STOPPED SESSION_END).
   PCAPdroid): stop it first" (any network with `TRANSPORT_VPN`; Android doesn't say whose); checked on the A56: no
   dialog, no files.
 
+### moto g45, native capture with the screen off, Tri (510-89), 2026-10-15 (milestone 11, step 6)
+
+Drive session 16 (static on the desk, USB connected), native capture MTU 1500, all apps; the user turned the screen
+off; a 5 MB HTTP range download every 2 min (17 in total) from the Surabaya mirror.
+
+- Logging: 2,146 of 2,146 expected ticks (100.0 %) over 2,145 s, longest gap 1.00 s; 1,840 ticks with the screen off
+  (30.7 min). `dumpsys power` showed `Awake` for ~5 min in the middle (23:46–23:51 UTC); NetLogger's screen state says
+  the display stayed off for most of that.
+- Capture: all 17 downloads complete (HTTP 206, 5,000,000 B, 3.9–6.6 MB/s with the screen off), VPN up the whole
+  time; pcap 109,780 = expected, dropped 0; 178 connections, every uid resolved.
+- USB power keeps the phone out of deep Doze, so this is not the unplugged case (milestone 3 covered that for logging
+  alone).
+
 ### PCAPdroid bridge removed, 2026-10-15 (CLAUDE.md 1.7.0)
 
 At the user's request NetLogger now captures only with its own VPN. The PCAPdroid findings above (milestone 10) stay
