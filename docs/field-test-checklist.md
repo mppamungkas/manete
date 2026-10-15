@@ -92,13 +92,13 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 
 ## Milestone 8: speed test
 
-- [ ] Server reachable from mobile data (LibreSpeed backend or own web server); URLs saved in Settings
+- [x] Server reachable from mobile data (LibreSpeed backend or own web server); URLs saved in Settings (A56, 2026-10-15)
 - [ ] **Wi-Fi off.** With Wi-Fi on, the test is refused ("default network is not mobile data")
 - [ ] While logging: "Run speed test" on Live (and once from the notification with the screen off): ping, then
       download and upload for 10 s each; Live shows progress and results
 - [ ] throughput.csv: 3 rows per test, plausible Mbps vs. G-NetTrack / another speed test app at the same spot;
       `startedElapsedNs` falls inside the session's ticks
-- [ ] Data used per test stays under 250 MB (200 MB down, 50 MB up caps)
+- [x] Data used per test stays under 250 MB (200 MB down, 50 MB up caps) (A56: download stopped at 209.7 MB, 2026-10-15)
 - [ ] Server down / wrong URL: the phases have `error` set, no crash, logging continues
 
 ## Milestone 9: session charts
@@ -141,8 +141,9 @@ Kept for the record; these checks no longer apply.
 - [x] Start another VPN (e.g. PCAPdroid) while capturing: CAPTURE_STOPPED VPN_REVOKED (A56)
 - [x] Another VPN running (PCAPdroid): the native start is refused ("Another VPN is active"), no dialog (A56)
 - [x] Throughput, curl downloads/uploads, capture off / native MTU 1500 / 10 000 (moto g45; A56 has no curl and no usable timer)
-- [ ] In-app speed test during a native capture against the LibreSpeed server: flagged `captureActive` (tried on the moto 2026-10-15, but Tri had cut its data off: redo with data)
-- [ ] Speed test against the LibreSpeed server and the Cloudflare secondary target with working data; results plausible vs. curl
+- [x] In-app speed test during a native capture against the LibreSpeed server: flagged `captureActive` (A56, 2026-10-15, session 23; pcap 0 dropped)
+- [x] Speed test against the LibreSpeed server and the Cloudflare secondary target with working data (A56, 2026-10-15; radio changed NR NSA → LTE between runs, see device-quirks)
+- [ ] Same on the moto once its data works again; results plausible vs. curl
 - [x] Browser and a QUIC app (YouTube): connections.csv names the apps (A56, after the launcher-apps `<queries>` fix), pcap valid
 - [x] Screen off 30 min while capturing and logging: 100 % ticks, pcap packets = expected (moto g45, USB powered)
 - [ ] Same, unplugged (deep Doze)
@@ -154,4 +155,4 @@ Kept for the record; these checks no longer apply.
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
       2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
-- [ ] The same on the A56 (`RRGYB06DN2T`)
+- [x] The same on the A56 (`RRGYB06DN2T`): DatabaseSmokeTest 2/2 (2026-10-15, build f973dc1)

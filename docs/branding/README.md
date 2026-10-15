@@ -61,6 +61,7 @@ adb pull /sdcard/Android/data/id.my.pamslab.netlogger/files/icon-previews/. docs
 | `circle_mask_48px.png`, `circle_mask_24px.png` | Small sizes (48 px is a typical launcher icon at mdpi) |
 | `monochrome_432.png`, `monochrome_48px.png` | Themed icon: the monochrome layer tinted, here dark on light |
 | `launcher_moto_g45.png` | The moto g45's app drawer (crop of a screenshot) |
+| `launcher_samsung_a56.png` | The Samsung A56's home screen, One UI rounded-square mask (crop of a screenshot) |
 
 Not an instrumented test of `:app` on purpose: `connectedDebugAndroidTest` of the app module uninstalls the app
 afterwards and deletes its data.
