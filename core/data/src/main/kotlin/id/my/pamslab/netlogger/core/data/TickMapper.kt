@@ -8,6 +8,13 @@ import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.ParseWarning
 
+/**
+ * The rows a tick would be stored as, without storing it (sessionId 0, ids 0): the Map's live preview runs them
+ * through the same flat.csv rules as a recorded track, so live and recorded points agree.
+ */
+fun unsavedRows(tick: Tick): Pair<MeasurementEntity, List<CellEntity>> =
+    TickMapper.measurement(0, tick) to tick.radio.cells.map(TickMapper::cell)
+
 /** Pure mapping from domain ticks to rows. */
 internal object TickMapper {
 
