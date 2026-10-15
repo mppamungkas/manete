@@ -164,10 +164,12 @@ Kept for the record; these checks no longer apply.
 - [x] Phone capabilities (A56, Tri 510-89, Wi-Fi on, LTE B3 only): device, data SIM, right now (mobile data "Not connected" with Wi-Fi on, not the IMS network; battery optimised), LTE fields available, NR fields "needs 5G coverage", recorded shares over 25 sessions / 6328 rows (NR in the cell list 95 %, CSI-RSRP 0 %, neighbours 59 %)
 - [x] Copy report: pasted back on the phone, a Markdown table with LTE/NR prefixes
 - [x] How to use (6 sections) and About: icon, version + build commit, GPL text, privacy, OSM attribution, credits with licence texts (A56)
-- [ ] Phone capabilities with 5G NSA and mobile data on (NR fields from the live check; IPv4/IPv6)
-- [ ] A capture with Specific apps: only the chosen app in connections.csv; earlier `appFilter` typed on the old card read as Specific apps after the update
-- [ ] Same on the moto g45
-- [ ] 500 ms interval over a few minutes: share of repeated (cached) cell rows
+- [x] Phone capabilities with 5G NSA and mobile data on: moto (Tri, NR_NSA) NR values from CellInfo and SignalStrength, NR PCI missing, NR band mapped, mobile data "IPv4" (IMS network ignored); A56 (Telkomsel, LTE CA) "IPv4 + IPv6" (2026-10-16, docs/device-quirks.md)
+- [x] A capture with Specific apps (A56, Telkomsel, session 26): only NetLogger selected, all 15 connections in connections.csv are NetLogger's, 0 dropped
+- [x] Earlier `appFilter` typed on the old card reads as Specific apps: unit test (`CaptureSettingsTest`); not seen on a phone (neither phone had a list saved)
+- [x] Same on the moto g45 (Tri + Tri, data on slot 1): Settings list, Logging (data SIM slot 1), Speed test, Traffic capture, Phone capabilities + Copy report, How to use, About; layout fine at 720 px
+- [x] 500 ms interval (moto, screen on, session 17): ticks exactly 500 ms, but 57.5 % of rows carry cell info older than 500 ms (modem refreshes every 1–2 s)
+- [ ] IPv6 traffic through the capture: the A56 on Telkomsel has IPv6, but the test traffic (map tiles) went over IPv4
 
 ## Before a release
 

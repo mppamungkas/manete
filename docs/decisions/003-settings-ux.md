@@ -1,6 +1,8 @@
 # 003: Settings, help and phone capabilities (UI/UX touch-up): plan
 
-- **Status:** Accepted (D1–D5 as recommended), 2026-10-15.
+- **Status:** Accepted (D1–D5 as recommended), 2026-10-15. Implemented (steps 1–6), checked on both phones 2026-10-16.
+  Differences from the plan: the Data › Export page is part of How to use (no export options exist yet); Phone
+  capabilities shows location on/off and the permission instead of a GPS fix (Live shows the fix).
 - **Date:** 2026-10-15
 - **Users:** teachers and students (not only the developer), so every option explains itself.
 - **Language:** English only. All texts go to `strings.xml` (a translation stays possible later).
