@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- The launcher icon lives in mipmap-anydpi-v26 on purpose (the usual location); with minSdk 31 the qualifier is
+         redundant but harmless. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>

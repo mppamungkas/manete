@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Launcher icon foreground: cell tower with signal arcs, phone with signal bars.
+    Generated from docs/branding/netlogger-logo.png (see docs/branding/README.md); 108 dp adaptive icon
+    canvas, symbol within the 66 dp safe zone.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:name="arc"
+        android:pathData="M41.51,33.55 A10.8,10.8 0 0 0 41.51,47.43"
+        android:strokeColor="#FF46CCFE"
+        android:strokeWidth="2.86"
+        android:strokeLineCap="round" />
+    <path
+        android:name="arc"
+        android:pathData="M37.5,29.62 A16.41,16.41 0 0 0 37.5,51.36"
+        android:strokeColor="#FF46CCFE"
+        android:strokeWidth="2.86"
+        android:strokeLineCap="round" />
+    <path
+        android:name="arc"
+        android:pathData="M58.06,33.55 A10.8,10.8 0 0 1 58.06,47.43"
+        android:strokeColor="#FF46CCFE"
+        android:strokeWidth="2.86"
+        android:strokeLineCap="round" />
+    <path
+        android:name="arc"
+        android:pathData="M62.07,29.62 A16.41,16.41 0 0 1 63.23,49.9"
+        android:strokeColor="#FF46CCFE"
+        android:strokeWidth="2.86"
+        android:strokeLineCap="round" />
+    <path
+        android:name="tower_top"
+        android:pathData="M44.86,40.49 A4.89,4.89 0 1 0 54.64,40.49 A4.89,4.89 0 1 0 44.86,40.49 Z"
+        android:fillColor="#FFFDFDFE" />
+    <path
+        android:name="tower"
+        android:pathData="M46.1,43.73 L46.04,43.8 L46.57,44.33 L47.68,45.06 L47.69,45.16 L37.12,75.41 L36.54,77.22 L36.61,77.52 L36.84,77.66 L39.02,77.69 L39.47,77.54 L39.88,76.99 L40.73,75.04 L41.58,74.12 L54.78,66.16 L54.79,54.56 L51.72,45.08 L52.87,44.33 L53.42,43.8 L53.4,43.73 Z M49.63,48.15 L46.97,55.69 L46.77,56.48 L51.26,53.13 Z M51.74,55.24 L45.93,59.53 L54.53,63.7 L51.91,55.24 Z M45.12,61.38 L41.63,71.57 L41.59,71.72 L41.66,71.76 L52.73,65.1 L51.44,64.4 Z"
+        android:fillColor="#FFFDFDFE"
+        android:fillType="evenOdd" />
+    <path
+        android:name="phone_frame"
+        android:pathData="M59.95,51.48 H72.44 A3.76,3.76 0 0 1 76.2,55.24 V75.71 A3.76,3.76 0 0 1 72.44,79.48 H59.95 A3.76,3.76 0 0 1 56.18,75.71 V55.24 A3.76,3.76 0 0 1 59.95,51.48 Z M58.74,55.69 H73.64 A0.75,0.75 0 0 1 74.4,56.45 V77.14 A0.75,0.75 0 0 1 73.64,77.9 H58.74 A0.75,0.75 0 0 1 57.99,77.14 V56.45 A0.75,0.75 0 0 1 58.74,55.69 Z M64.57,53.28 H67.89 A0.53,0.53 0 0 1 68.41,53.81 V53.81 A0.53,0.53 0 0 1 67.89,54.34 H64.57 A0.53,0.53 0 0 1 64.05,53.81 V53.81 A0.53,0.53 0 0 1 64.57,53.28 Z"
+        android:fillColor="#FFFDFDFE"
+        android:fillType="evenOdd" />
+    <path
+        android:name="phone_screen"
+        android:pathData="M58.74,55.69 H73.64 A0.75,0.75 0 0 1 74.4,56.45 V77.14 A0.75,0.75 0 0 1 73.64,77.9 H58.74 A0.75,0.75 0 0 1 57.99,77.14 V56.45 A0.75,0.75 0 0 1 58.74,55.69 Z"
+        android:fillColor="#FF0F3D7F" />
+    <path
+        android:name="signal_bars"
+        android:pathData="M60.55,68.56 H61.98 A0.38,0.38 0 0 1 62.35,68.94 V71.72 A0.38,0.38 0 0 1 61.98,72.1 H60.55 A0.38,0.38 0 0 1 60.17,71.72 V68.94 A0.38,0.38 0 0 1 60.55,68.56 Z M63.86,66.38 H65.29 A0.38,0.38 0 0 1 65.67,66.76 V71.72 A0.38,0.38 0 0 1 65.29,72.1 H63.86 A0.38,0.38 0 0 1 63.48,71.72 V66.76 A0.38,0.38 0 0 1 63.86,66.38 Z M67.17,63.97 H68.6 A0.38,0.38 0 0 1 68.98,64.35 V71.72 A0.38,0.38 0 0 1 68.6,72.1 H67.17 A0.38,0.38 0 0 1 66.79,71.72 V64.35 A0.38,0.38 0 0 1 67.17,63.97 Z M70.48,61.64 H71.91 A0.38,0.38 0 0 1 72.29,62.02 V71.72 A0.38,0.38 0 0 1 71.91,72.1 H70.48 A0.38,0.38 0 0 1 70.11,71.72 V62.02 A0.38,0.38 0 0 1 70.48,61.64 Z"
+        android:fillColor="#FF44E494" />
+</vector>

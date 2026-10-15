@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,7 +51,7 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
     if (session == null && !state.running) return
 
     val scope = rememberCoroutineScope()
-    var mtu by remember { mutableStateOf(controller.settings.nativeMtu) }
+    var mtu by remember { mutableIntStateOf(controller.settings.nativeMtu) }
     var apps by rememberSaveable { mutableStateOf(controller.settings.appFilter.joinToString(", ")) }
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         controller.onStartResult(it.resultCode == Activity.RESULT_OK)
