@@ -83,6 +83,12 @@ internal fun <T> Choices(options: List<T>, selected: T, label: @Composable (T) -
     }
 }
 
+/** One point of an explanation. */
+@Composable
+internal fun Bullet(text: String) {
+    Text("• $text", style = MaterialTheme.typography.bodyMedium)
+}
+
 @StringRes
 internal fun Scenario.labelRes(): Int = when (this) {
     Scenario.DRIVE -> R.string.scenario_drive

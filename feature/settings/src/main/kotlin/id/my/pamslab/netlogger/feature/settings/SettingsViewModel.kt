@@ -3,6 +3,7 @@ package id.my.pamslab.netlogger.feature.settings
 import android.security.NetworkSecurityPolicy
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.model.session.Scenario
@@ -15,7 +16,11 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settings: SpeedTestSettings,
     logging: LoggingSettings,
+    capture: CaptureSettings,
 ) : ViewModel() {
+    val captureAllApps: StateFlow<Boolean> = capture.allApps
+    val captureSelectedApps: StateFlow<List<String>> = capture.selectedApps
+    val captureMtu: StateFlow<Int> = capture.nativeMtu
     val intervalMs: StateFlow<Long> = logging.intervalMs
     val defaultScenario: StateFlow<Scenario?> = logging.defaultScenario
     val speedTest: StateFlow<SpeedTestConfig> = settings.config

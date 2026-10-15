@@ -115,9 +115,4 @@ private fun PublicTargetCard(enabled: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
-@Composable
-private fun Bullet(text: String) {
-    Text("• $text", style = MaterialTheme.typography.bodyMedium)
-}
-
 private const val MB = 1024L * 1024

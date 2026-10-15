@@ -13,6 +13,7 @@ import android.os.SystemClock
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.CaptureStateHolder
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.model.Clock
@@ -179,7 +180,7 @@ class CaptureController @Inject constructor(
         nativeRequestedStop = null
         nativeLastStats = null
         nativeLastStatusMs = SystemClock.elapsedRealtime()
-        nativeMtu = settings.nativeMtu
+        nativeMtu = settings.nativeMtu.value
         try {
             NativeCaptureService.start(context, pcap, files.connections(uuid), settings.appFilter, mtu = nativeMtu)
         } catch (e: Exception) {

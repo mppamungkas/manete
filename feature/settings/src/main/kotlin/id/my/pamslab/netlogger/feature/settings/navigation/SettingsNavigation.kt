@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import id.my.pamslab.netlogger.feature.settings.CaptureSettingsScreen
 import id.my.pamslab.netlogger.feature.settings.LoggingSettingsScreen
 import id.my.pamslab.netlogger.feature.settings.SettingsScreen
 import id.my.pamslab.netlogger.feature.settings.SpeedTestSettingsScreen
@@ -23,6 +24,9 @@ data object LoggingSettingsRoute
 @Serializable
 data object SpeedTestSettingsRoute
 
+@Serializable
+data object CaptureSettingsRoute
+
 fun NavController.navigateToSettings(navOptions: NavOptions? = null) = navigate(SettingsGraph, navOptions)
 
 fun NavGraphBuilder.settingsGraph(navController: NavController) {
@@ -30,5 +34,6 @@ fun NavGraphBuilder.settingsGraph(navController: NavController) {
         composable<SettingsRoute> { SettingsScreen(onOpen = { navController.navigate(it) }) }
         composable<LoggingSettingsRoute> { LoggingSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<SpeedTestSettingsRoute> { SpeedTestSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable<CaptureSettingsRoute> { CaptureSettingsScreen(onBack = { navController.popBackStack() }) }
     }
 }

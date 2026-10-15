@@ -158,6 +158,10 @@ Kept for the record; these checks no longer apply.
 - [x] Default scenario Walk: preselected on Live, also when changed while the app is open; stored with the session (A56, session 24)
 - [x] SIM card names the data SIM (A56: 3SinyalKuatHemat 510-89, slot 1)
 - [x] Speed test page: explainer with the limits from SpeedTestConfig (10 pings, 10 s, 4 connections, 200/50 MB), help per URL, saved server and Cloudflare switch kept (A56)
+- [x] Traffic capture page: explainer, All / Specific apps, MTU 1500 / 10 000; the picker lists launcher apps with icon, name and package (A56, ~100 apps); a tick saves `appFilter` + `allApps` and does not move the row; apps selected earlier are listed first (A56)
+- [x] Live capture card while logging: Start capture + "1 selected app · MTU 1500 · change in Settings"; the Settings list shows the same summary (A56, short test session)
+- [x] Tapping the open tab again returns from a Settings page to the list (A56)
+- [ ] A capture with Specific apps: only the chosen app in connections.csv; earlier `appFilter` typed on the old card read as Specific apps after the update
 - [ ] Same on the moto g45
 - [ ] 500 ms interval over a few minutes: share of repeated (cached) cell rows
 

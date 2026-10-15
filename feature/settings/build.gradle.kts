@@ -5,4 +5,6 @@ plugins {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:telephony"))
+    // Drawable.toBitmap for app icons in the capture app picker (already used by :app and feature:sessions).
+    implementation(libs.androidx.core.ktx)
 }

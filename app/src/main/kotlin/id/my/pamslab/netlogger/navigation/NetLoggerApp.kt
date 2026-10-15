@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,10 +76,18 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
             if (showBottomBar) {
                 NavigationBar {
                     TopLevelDestination.entries.forEach { destination ->
+                        val selected = currentDestination?.hierarchy?.any { it.hasRoute(destination.routeClass) } == true
                         NavigationBarItem(
-                            selected = currentDestination?.hierarchy?.any { it.hasRoute(destination.routeClass) } == true,
+                            selected = selected,
                             onClick = {
-                                navController.navigate(destination.route) {
+                                // Tapping the open tab again leaves a sub-page (e.g. Settings › Logging) for the tab's
+                                // first screen; restoreState alone would bring the sub-page back.
+                                val graph = if (!selected) null else runCatching {
+                                    navController.getBackStackEntry(destination.route).destination as? NavGraph
+                                }.getOrNull()
+                                if (graph != null) {
+                                    navController.popBackStack(graph.startDestinationId, inclusive = false)
+                                } else navController.navigate(destination.route) {
                                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true

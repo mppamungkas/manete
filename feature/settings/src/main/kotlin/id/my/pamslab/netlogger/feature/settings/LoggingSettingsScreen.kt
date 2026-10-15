@@ -57,7 +57,7 @@ internal fun LoggingSettingsScreen(onBack: () -> Unit, viewModel: LoggingSetting
                 selected = interval,
                 label = {
                     val text = stringResource(R.string.logging_interval_option, it.toInt())
-                    if (it == LoggingSettings.DEFAULT_INTERVAL_MS) stringResource(R.string.logging_interval_recommended, text) else text
+                    if (it == LoggingSettings.DEFAULT_INTERVAL_MS) stringResource(R.string.option_recommended, text) else text
                 },
                 description = { stringResource(intervalInfoRes(it)) },
                 onSelect = viewModel::setInterval,

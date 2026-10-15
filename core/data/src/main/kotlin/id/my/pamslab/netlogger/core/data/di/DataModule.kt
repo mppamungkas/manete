@@ -10,9 +10,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import id.my.pamslab.netlogger.core.data.AppCaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.RoomSessionRepository
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.SharedPreferencesCaptureSettings
 import id.my.pamslab.netlogger.core.data.SharedPreferencesLoggingSettings
 import id.my.pamslab.netlogger.core.data.SharedPreferencesSpeedTestSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
@@ -35,6 +37,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindLoggingSettings(impl: SharedPreferencesLoggingSettings): LoggingSettings
+
+    @Binds
+    abstract fun bindCaptureSettings(impl: SharedPreferencesCaptureSettings): CaptureSettings
 
     companion object {
         // No fallbackToDestructiveMigration: losing field data silently is worse than a crash that names the

@@ -12,10 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.data.CaptureSettings
+import id.my.pamslab.netlogger.feature.settings.navigation.CaptureSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.LoggingSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.SpeedTestSettingsRoute
 import java.net.URI
@@ -27,6 +30,9 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
     val publicTarget by viewModel.publicTarget.collectAsStateWithLifecycle()
     val interval by viewModel.intervalMs.collectAsStateWithLifecycle()
     val scenario by viewModel.defaultScenario.collectAsStateWithLifecycle()
+    val captureAll by viewModel.captureAllApps.collectAsStateWithLifecycle()
+    val captureApps by viewModel.captureSelectedApps.collectAsStateWithLifecycle()
+    val captureMtu by viewModel.captureMtu.collectAsStateWithLifecycle()
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -48,5 +54,14 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
             stringResource(R.string.settings_speed_test),
             if (publicTarget) stringResource(R.string.settings_speed_test_summary_public, server) else server,
         ) { onOpen(SpeedTestSettingsRoute) }
+        val mtu = if (captureMtu == CaptureSettings.MTU_FAST) "10 000" else captureMtu.toString()
+        SettingsEntry(
+            stringResource(R.string.settings_capture),
+            when {
+                captureAll -> stringResource(R.string.settings_capture_summary_all, mtu)
+                captureApps.isEmpty() -> stringResource(R.string.settings_capture_summary_none, mtu)
+                else -> pluralStringResource(R.plurals.settings_capture_summary_specific, captureApps.size, captureApps.size, mtu)
+            },
+        ) { onOpen(CaptureSettingsRoute) }
     }
 }

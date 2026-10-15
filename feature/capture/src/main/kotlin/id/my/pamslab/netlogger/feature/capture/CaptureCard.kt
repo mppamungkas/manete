@@ -7,23 +7,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,8 +43,9 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
     if (session == null && !state.running) return
 
     val scope = rememberCoroutineScope()
-    var mtu by remember { mutableIntStateOf(controller.settings.nativeMtu) }
-    var apps by rememberSaveable { mutableStateOf(controller.settings.appFilter.joinToString(", ")) }
+    val allApps by controller.settings.allApps.collectAsStateWithLifecycle()
+    val selectedApps by controller.settings.selectedApps.collectAsStateWithLifecycle()
+    val mtu by controller.settings.nativeMtu.collectAsStateWithLifecycle()
     val consentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         controller.onStartResult(it.resultCode == Activity.RESULT_OK)
     }
@@ -76,32 +69,15 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
                     style = MaterialTheme.typography.bodySmall,
                 )
                 else -> {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(
-                            CaptureSettings.MTU_REALISTIC to "Realistic packets (MTU 1500)",
-                            CaptureSettings.MTU_FAST to "Fast (MTU 10 000)",
-                        ).forEach { (value, text) ->
-                            FilterChip(
-                                selected = mtu == value,
-                                onClick = { mtu = value; controller.settings.nativeMtu = value },
-                                label = { Text(text) },
-                            )
-                        }
-                    }
-                    OutlinedTextField(
-                        apps, { apps = it }, Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text("Apps (package names, comma separated; empty = all)") },
-                    )
+                    Text(captureSummary(allApps, selectedApps.size, mtu), style = MaterialTheme.typography.bodyMedium)
                     Text(
                         "NetLogger's own VPN. Captures the IP traffic of apps between each app and the VPN, plus which " +
                             "app owns each connection; no radio signaling, and packet sizes and timing are rebuilt by " +
-                            "the forwarder, not the ones on the air. No other VPN at the same time. Adds overhead, more " +
-                            "with MTU 1500 (fast links lose up to a quarter of their download speed); speed tests " +
-                            "during a capture are flagged.",
+                            "the forwarder, not the ones on the air. No other VPN at the same time. Adds overhead; " +
+                            "speed tests during a capture are flagged.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     Button(onClick = {
-                        controller.settings.appFilter = apps.split(',')
                         scope.launch {
                             // null also when the VPN consent was given before and the capture is starting.
                             val intent = controller.prepareStart() ?: return@launch
@@ -128,4 +104,17 @@ fun CaptureCard(modifier: Modifier = Modifier, viewModel: CaptureViewModel = hil
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }
+}
+
+/** One line on the Live card: what a capture started now would record (decision 003). */
+internal fun captureSummary(allApps: Boolean, selectedApps: Int, mtu: Int): String {
+    val apps = when {
+        allApps -> "All apps"
+        selectedApps == 0 -> "All apps (no app selected)"
+        selectedApps == 1 -> "1 selected app"
+        else -> "$selectedApps selected apps"
+    }
+    // "10 000" as in decision 002; 1500 stays without a space.
+    val mtuText = if (mtu >= 10_000) "${mtu / 1000} %03d".format(Locale.ROOT, mtu % 1000) else mtu.toString()
+    return "$apps · MTU $mtuText · change in Settings"
 }

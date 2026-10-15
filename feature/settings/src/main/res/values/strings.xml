@@ -10,6 +10,13 @@
     <string name="settings_speed_test_summary_server">Your server: %1$s</string>
     <string name="settings_speed_test_summary_none">No server set: speed test off</string>
     <string name="settings_speed_test_summary_public">%1$s · Cloudflare on</string>
+    <string name="settings_capture">Traffic capture</string>
+    <string name="settings_capture_summary_all">All apps · MTU %1$s</string>
+    <plurals name="settings_capture_summary_specific">
+        <item quantity="one">%1$d selected app · MTU %2$s</item>
+        <item quantity="other">%1$d selected apps · MTU %2$s</item>
+    </plurals>
+    <string name="settings_capture_summary_none">Specific apps, none selected: all apps · MTU %1$s</string>
 
     <!-- Logging: interval -->
     <string name="logging_interval_title">Interval</string>
@@ -19,7 +26,7 @@
     <string name="logging_interval_1000">Fine enough for drive tests at city speeds, with moderate battery use.</string>
     <string name="logging_interval_2000">Walks and long static tests; half the rows of 1 s.</string>
     <string name="logging_interval_5000">Very long sessions with the lowest battery use; too coarse to follow handovers while driving.</string>
-    <string name="logging_interval_recommended">%1$s (recommended)</string>
+    <string name="option_recommended">%1$s (recommended)</string>
 
     <!-- Logging: default scenario -->
     <string name="logging_scenario_title">Default scenario</string>
@@ -74,4 +81,33 @@
     <string name="speed_not_saved">No server saved yet: the speed test is off.</string>
     <string name="speed_public_title">Public target: Cloudflare</string>
     <string name="speed_public_info">Optional, for comparison only. Adds a second button on the Live screen that tests against %1$s. Not your server and never the default: the result depends on Cloudflare\'s nearest site and its route, and many large tests in a row are blocked for a while (HTTP 429). Each result stores the URL it used.</string>
+
+    <!-- Traffic capture -->
+    <string name="capture_what_title">How the traffic capture works</string>
+    <string name="capture_what_info">Start and stop it on the Live screen while a session is logging. One capture per session; it stops when the session stops.</string>
+    <string name="capture_what_vpn">NetLogger runs its own VPN on the phone. Android asks you once to allow it. Only one VPN can run at a time, so turn off any other VPN first.</string>
+    <string name="capture_what_limits">It records the IP traffic between each app and the VPN, and which app owns each connection. It does not see radio signalling, and packet sizes and timing are rebuilt by the VPN, not the ones on the air.</string>
+    <string name="capture_what_files">The session export adds capture.pcap (open it in Wireshark), capture_sync.csv (clock alignment with the radio log) and connections.csv (the app of each connection).</string>
+    <string name="capture_what_size">Files grow with the traffic: a speed test during a capture adds about 100 MB to the pcap. Speed tests during a capture are flagged, because the capture slows them down.</string>
+    <string name="capture_apps_title">Which apps</string>
+    <string name="capture_apps_info">Applies to the next capture. Traffic of apps not chosen bypasses the VPN and is not recorded.</string>
+    <string name="capture_apps_all">All apps</string>
+    <string name="capture_apps_all_info">Everything the phone sends and receives, including background apps and system services.</string>
+    <string name="capture_apps_specific">Specific apps</string>
+    <string name="capture_apps_specific_info">Only the apps you tick below, e.g. one video app for a QoE test. Smaller files that are easier to analyse.</string>
+    <string name="capture_apps_none_selected">No app selected yet: until you tick one, all apps are captured.</string>
+    <plurals name="capture_apps_selected">
+        <item quantity="one">%1$d app selected.</item>
+        <item quantity="other">%1$d apps selected.</item>
+    </plurals>
+    <string name="capture_apps_loading">Loading installed apps…</string>
+    <string name="capture_apps_search">Search apps</string>
+    <string name="capture_apps_not_found">Not found on this phone</string>
+    <string name="capture_apps_hidden">Only apps with an icon in the app drawer are listed. Include NetLogger itself to capture its speed tests.</string>
+    <string name="capture_mtu_title">Packet size (MTU)</string>
+    <string name="capture_mtu_info">The largest packet the VPN passes on. Applies to the next capture; the value is stored with it.</string>
+    <string name="capture_mtu_realistic">1500: realistic packets</string>
+    <string name="capture_mtu_realistic_info">The same packet sizes as on a mobile network, so the pcap looks like real traffic. Fast links lose up to a quarter of their download speed during the capture.</string>
+    <string name="capture_mtu_fast">10 000: fast</string>
+    <string name="capture_mtu_fast_info">Hardly slows the phone down (about 3 percent), but packets are bigger than on the air. Use it when throughput matters more than packet sizes.</string>
 </resources>
