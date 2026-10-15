@@ -562,6 +562,36 @@ off; a 5 MB HTTP range download every 2 min (17 in total) from the Surabaya mirr
 - USB power keeps the phone out of deep Doze, so this is not the unplugged case (milestone 3 covered that for logging
   alone).
 
+### Speed test server (LibreSpeed) and Tri's data cutoff, moto g45, 2026-10-15 (milestone 8)
+
+**Server probe** (from the VM, `curl`): the user's LibreSpeed (Docker, standalone mode, Apache 2.4 / PHP) serves
+everything under `/backend/`; the root paths answer 404.
+
+| Endpoint | Result |
+|---|---|
+| `GET /backend/garbage.php?ckSize=N` | 200, `application/octet-stream`, N MiB (ckSize=1 → 1,048,576 B; 100 → 104,857,600 B); `Cache-Control: no-store` |
+| `POST /backend/empty.php` (upload) | 200, empty body; 10 MB accepted |
+| `GET /backend/empty.php` (ping) | 200, empty; keep-alive (later requests reuse the connection) |
+| `GET /backend/getIP.php` | 200 JSON `{processedString, rawIspInfo}`; `?isp=true` adds ISP details (ASN, country). Not used by NetLogger |
+
+So `SpeedTestConfig.libreSpeed(base)` (ping/upload `empty.php`, download `garbage.php?ckSize=100`) fits unchanged. The
+server is plain HTTP: allowed only for its host via the generated network security config
+(`netlogger.cleartextHosts` in local.properties; nothing VPS-specific in the repo). From the VM the server delivered
+only ~1.2–2.2 MB/s down and ~0.9 MB/s up, and the phone's first test (09:40) 4.3 Mbit/s down, 12.6 Mbit/s up
+(ping 118 ms) — far below the ~140 Mbit/s the same phone gets from the Surabaya mirror, so the server's bandwidth or
+route limits the result. That first phone result is doubtful anyway, see below.
+
+**Tri cut the moto's data off** during these tests (most likely the quota, after ~1 GB of capture and throughput
+tests this day): every plain-HTTP request — the LibreSpeed server, the mirror — got `302 Location:
+https://bimatri.ioh.co.id/` (IOH's bima+ portal) within 0.1 s, and every TLS handshake (speed.cloudflare.com,
+cloudflare.com, google.com) was reset right after the TCP connect. The same with and without the native capture; from
+the VM all of these answered normally. NetLogger then recorded ping/download "timeout" or "Connection reset" and an
+upload of 35 Mbit/s into the portal.
+
+**Fixed:** the speed test followed redirects (OkHttp's default), so a captive portal could be measured as the server.
+Redirects are now never followed; a 3xx is the phase's error, `HTTP 302 (redirect to bimatri.ioh.co.id)`. Results of
+this phone from before the fix on 2026-10-15 09:40–09:42 (session of that time) should be treated as invalid.
+
 ### PCAPdroid bridge removed, 2026-10-15 (CLAUDE.md 1.7.0)
 
 At the user's request NetLogger now captures only with its own VPN. The PCAPdroid findings above (milestone 10) stay

@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.7.0** · last updated 2026-10-15
+**CLAUDE.md version 1.7.1** · last updated 2026-10-15
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.1:** Speed test: the user's LibreSpeed server is set in Settings (plain HTTP allowed per host by a generated network security config from `netlogger.cleartextHosts` in local.properties; no server or host in the repo); optional, clearly labeled public secondary target (Cloudflare), never the default; redirects are never followed (an operator's captive portal is an error, not a measurement).
 - **1.7.0:** Phase 3 capture is NetLogger's own VpnService only (milestone 11): the PCAPdroid bridge (Phase 3a, milestone 10) was removed at the user's request. Native capture: `libnetcapture` (C, NDK r27d, CMake) with zdtun (LGPL v3+, copied unchanged) in a separate `:vpn` process; nanosecond pcap whose timestamps are elapsedRealtimeNs + one fixed offset; `connections.csv` with each connection's app; MTU setting (1500 realistic / 10 000 fast). Old PCAPdroid sessions stay readable and exportable.
 - **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. NetLogger's packet count on the capture card and in CAPTURE_STOPPED.
 - **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); the stream mode writes `files/captures/<uuid>.pcap` + `_sync.csv`, exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
@@ -78,6 +79,7 @@ adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for revie
 - No emulator: it has no real radio data. All radio testing happens on a **real phone**. Primary: pilot phone via **Proxmox USB port passthrough** (udev rule for vendor `22b8` + `plugdev`). Fallback: ADB over Wi-Fi (`adb pair` / `adb connect`), same network only.
 - Editing by the user: VS Code Remote-SSH or Android Studio on a laptop via git. Do not assume a GUI exists on the server.
 - Never store signing keys, keystore passwords or API tokens in the repo. Use `local.properties` or environment variables (both gitignored).
+- Machine-specific build settings in `local.properties`: `netlogger.cleartextHosts=<host>[,<host>]` allows plain HTTP to those hosts only (e.g. a LibreSpeed server without TLS); unset means HTTPS only. Also as Gradle property or `NETLOGGER_CLEARTEXT_HOSTS`.
 
 ## Pilot device
 - **Motorola moto g45 5G** (Snapdragon 6s Gen 3, SM6375), Android 15, ADB serial `ZP22222MQL`.

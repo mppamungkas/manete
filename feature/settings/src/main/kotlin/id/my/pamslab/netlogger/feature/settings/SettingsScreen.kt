@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -31,12 +33,14 @@ import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 @Composable
 internal fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
     val saved by viewModel.speedTest.collectAsStateWithLifecycle()
+    val publicTarget by viewModel.publicTarget.collectAsStateWithLifecycle()
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall)
-        SpeedTestServerCard(saved, viewModel::save)
+        SpeedTestServerCard(saved, viewModel::save, viewModel::cleartextBlocked)
+        PublicTargetCard(publicTarget, viewModel::setPublicTarget)
         Text(
             "Interval, SIM selection and export options will follow.",
             style = MaterialTheme.typography.bodySmall,
@@ -45,7 +49,11 @@ internal fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsVi
 }
 
 @Composable
-private fun SpeedTestServerCard(saved: SpeedTestConfig, onSave: (String, String, String) -> Unit) {
+private fun SpeedTestServerCard(
+    saved: SpeedTestConfig,
+    onSave: (String, String, String) -> Unit,
+    cleartextBlocked: (List<String>) -> List<String>,
+) {
     var base by rememberSaveable { mutableStateOf("") }
     var ping by rememberSaveable(saved) { mutableStateOf(saved.pingUrl) }
     var download by rememberSaveable(saved) { mutableStateOf(saved.downloadUrl) }
@@ -75,11 +83,38 @@ private fun SpeedTestServerCard(saved: SpeedTestConfig, onSave: (String, String,
             OutlinedTextField(ping, { ping = it }, Modifier.fillMaxWidth(), label = { Text("Ping URL") }, singleLine = true, keyboardOptions = url)
             OutlinedTextField(download, { download = it }, Modifier.fillMaxWidth(), label = { Text("Download URL") }, singleLine = true, keyboardOptions = url)
             OutlinedTextField(upload, { upload = it }, Modifier.fillMaxWidth(), label = { Text("Upload URL (POST)") }, singleLine = true, keyboardOptions = url)
+            val blocked = remember(ping, download, upload) { cleartextBlocked(listOf(ping, download, upload)) }
+            if (blocked.isNotEmpty()) {
+                Text(
+                    "Plain HTTP to ${blocked.joinToString()} is not allowed in this build, so the test would fail. Use " +
+                        "https://, or add the host to netlogger.cleartextHosts in local.properties and rebuild.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Button(onClick = { onSave(ping, download, upload) }, enabled = changed) { Text("Save") }
             Text(
                 if (saved.isComplete) "Saved. Each test: ping, then download and upload for 10 s each, 4 connections, " +
                     "at most 200 MB down / 50 MB up."
                 else "No server saved: the speed test is off.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PublicTargetCard(enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Secondary target: Cloudflare (public)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(checked = enabled, onCheckedChange = onChange)
+            }
+            Text(
+                "Adds a second button to the speed test card that runs against ${SpeedTestConfig.CLOUDFLARE}. Not your " +
+                    "server and not the default: the result depends on Cloudflare's nearest edge, and many large tests in " +
+                    "a row are rate-limited (HTTP 429). Each result stores the URL it used.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }

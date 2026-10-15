@@ -3,6 +3,12 @@ package id.my.pamslab.netlogger.core.model.speedtest
 enum class ThroughputType { PING, DOWNLOAD, UPLOAD }
 
 /**
+ * Which server a test runs against. [PRIMARY]: the user's own server from Settings (the default, also for the
+ * notification action). [PUBLIC]: [SpeedTestConfig.cloudflare], a secondary target the user opts in to.
+ */
+enum class SpeedTestTarget { PRIMARY, PUBLIC }
+
+/**
  * Server endpoints. Works with a LibreSpeed backend ([libreSpeed]) or any web server: [pingUrl] answers small GETs,
  * [downloadUrl] serves a large body, [uploadUrl] accepts a POST and discards it.
  */
@@ -33,6 +39,20 @@ data class SpeedTestConfig(
                 uploadUrl = "$base/backend/empty.php",
             )
         }
+
+        /**
+         * Cloudflare's public speed test endpoints, the secondary target ([SpeedTestTarget.PUBLIC]). Not our server:
+         * a far-away or busy edge lowers the result, requests above ~100 MB answer HTTP 403 (hence 25 MB per
+         * request, repeated by each stream), and many large downloads in a row answer HTTP 429 (rate limit).
+         */
+        fun cloudflare(): SpeedTestConfig = SpeedTestConfig(
+            pingUrl = "$CLOUDFLARE/__down?bytes=0",
+            downloadUrl = "$CLOUDFLARE/__down?bytes=25000000",
+            uploadUrl = "$CLOUDFLARE/__up",
+        )
+
+        const val CLOUDFLARE = "https://speed.cloudflare.com"
+
     }
 }
 

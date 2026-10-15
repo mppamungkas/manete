@@ -9,7 +9,8 @@ import kotlin.concurrent.thread
 
 /**
  * Minimal HTTP/1.1 server for tests (the JDK's HttpServer is not on the Android unit-test classpath). One request per
- * connection, answered with `Connection: close`.
+ * connection, answered with `Connection: close`. A 3xx status redirects to /portal on the same server (like an
+ * operator's captive portal), so a client that follows redirects would get a 200 from there.
  */
 class TinyHttpServer(private val handler: (path: String, body: InputStream, contentLength: Long) -> Pair<Int, Long>) {
 
@@ -40,7 +41,8 @@ class TinyHttpServer(private val handler: (path: String, body: InputStream, cont
             val path = requestLine.split(' ')[1].substringBefore('?')
             val (status, responseBytes) = handler(path, LimitedStream(input, length), length)
             val out = s.getOutputStream()
-            out.write("HTTP/1.1 $status X\r\nContent-Length: $responseBytes\r\nConnection: close\r\n\r\n".toByteArray())
+            val location = if (status in 300..399) "Location: http://127.0.0.1:$port/portal\r\n" else ""
+            out.write("HTTP/1.1 $status X\r\n${location}Content-Length: $responseBytes\r\nConnection: close\r\n\r\n".toByteArray())
             val block = ByteArray(64 * 1024) { it.toByte() }
             var left = responseBytes
             while (left > 0) {

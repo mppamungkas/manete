@@ -22,6 +22,7 @@ class OkHttpSpeedTestRunnerTest {
     private val requests = AtomicInteger()
     private val pings = AtomicInteger()
     private val uploaded = AtomicLong()
+    private val portal = AtomicInteger()
     private val base get() = "http://127.0.0.1:${server.port}"
 
     private val clock = object : Clock {
@@ -45,6 +46,8 @@ class OkHttpSpeedTestRunnerTest {
                     }
                     200 to 0L
                 }
+                "/redirect" -> { body.copyTo(java.io.OutputStream.nullOutputStream()); 302 to 0L }
+                "/portal" -> { requests.incrementAndGet(); portal.incrementAndGet(); 200 to 100_000L }
                 else -> { body.copyTo(java.io.OutputStream.nullOutputStream()); 404 to 0L }
             }
         }
@@ -109,6 +112,17 @@ class OkHttpSpeedTestRunnerTest {
         assertEquals("invalid URL", results[1].error)
         assertEquals("HTTP 404", results[2].error)
         assertNull(results[2].mbps)
+    }
+
+    @Test
+    fun `a redirect (operator captive portal) is an error, never followed or measured`() = runBlocking {
+        val r = "$base/redirect"
+        val results = OkHttpSpeedTestRunner(clock) { null }.run(config(ping = r, down = r, up = r)) {}
+        assertEquals("connect: HTTP 302 (redirect to 127.0.0.1)", results[0].error)
+        assertEquals("HTTP 302 (redirect to 127.0.0.1)", results[1].error)
+        assertEquals("HTTP 302 (redirect to 127.0.0.1)", results[2].error)
+        results.forEach { assertNull(it.type.name, it.mbps) }
+        assertEquals("the portal was never requested", 0, portal.get())
     }
 
     @Test

@@ -141,7 +141,8 @@ Kept for the record; these checks no longer apply.
 - [x] Start another VPN (e.g. PCAPdroid) while capturing: CAPTURE_STOPPED VPN_REVOKED (A56)
 - [x] Another VPN running (PCAPdroid): the native start is refused ("Another VPN is active"), no dialog (A56)
 - [x] Throughput, curl downloads/uploads, capture off / native MTU 1500 / 10 000 (moto g45; A56 has no curl and no usable timer)
-- [ ] In-app speed test during a native capture (needs a server): flagged `captureActive`
+- [ ] In-app speed test during a native capture against the LibreSpeed server: flagged `captureActive` (tried on the moto 2026-10-15, but Tri had cut its data off: redo with data)
+- [ ] Speed test against the LibreSpeed server and the Cloudflare secondary target with working data; results plausible vs. curl
 - [x] Browser and a QUIC app (YouTube): connections.csv names the apps (A56, after the launcher-apps `<queries>` fix), pcap valid
 - [x] Screen off 30 min while capturing and logging: 100 % ticks, pcap packets = expected (moto g45, USB powered)
 - [ ] Same, unplugged (deep Doze)
