@@ -151,6 +151,26 @@ Kept for the record; these checks no longer apply.
 - [ ] Export: ZIP has capture.pcap, capture_sync.csv, connections.csv; session.json lists them
 - [ ] Both phones (the A56 is the unrooted reference)
 
+## Settings, help and phone capabilities (decision 003)
+
+- [x] Settings list shows Logging and Speed test with their current values; pages open and "← Settings" returns (A56, 2026-10-15)
+- [x] Logging interval 2000 ms: Live shows "2000 ms · change in Settings"; the next session logs every 2.000 s and stores `intervalMs` 2000 (A56, session 24)
+- [x] Default scenario Walk: preselected on Live, also when changed while the app is open; stored with the session (A56, session 24)
+- [x] SIM card names the data SIM (A56: 3SinyalKuatHemat 510-89, slot 1)
+- [x] Speed test page: explainer with the limits from SpeedTestConfig (10 pings, 10 s, 4 connections, 200/50 MB), help per URL, saved server and Cloudflare switch kept (A56)
+- [x] Traffic capture page: explainer, All / Specific apps, MTU 1500 / 10 000; the picker lists launcher apps with icon, name and package (A56, ~100 apps); a tick saves `appFilter` + `allApps` and does not move the row; apps selected earlier are listed first (A56)
+- [x] Live capture card while logging: Start capture + "1 selected app · MTU 1500 · change in Settings"; the Settings list shows the same summary (A56, short test session)
+- [x] Tapping the open tab again returns from a Settings page to the list (A56)
+- [x] Phone capabilities (A56, Tri 510-89, Wi-Fi on, LTE B3 only): device, data SIM, right now (mobile data "Not connected" with Wi-Fi on, not the IMS network; battery optimised), LTE fields available, NR fields "needs 5G coverage", recorded shares over 25 sessions / 6328 rows (NR in the cell list 95 %, CSI-RSRP 0 %, neighbours 59 %)
+- [x] Copy report: pasted back on the phone, a Markdown table with LTE/NR prefixes
+- [x] How to use (6 sections) and About: icon, version + build commit, GPL text, privacy, OSM attribution, credits with licence texts (A56)
+- [x] Phone capabilities with 5G NSA and mobile data on: moto (Tri, NR_NSA) NR values from CellInfo and SignalStrength, NR PCI missing, NR band mapped, mobile data "IPv4" (IMS network ignored); A56 (Telkomsel, LTE CA) "IPv4 + IPv6" (2026-10-16, docs/device-quirks.md)
+- [x] A capture with Specific apps (A56, Telkomsel, session 26): only NetLogger selected, all 15 connections in connections.csv are NetLogger's, 0 dropped
+- [x] Earlier `appFilter` typed on the old card reads as Specific apps: unit test (`CaptureSettingsTest`); not seen on a phone (neither phone had a list saved)
+- [x] Same on the moto g45 (Tri + Tri, data on slot 1): Settings list, Logging (data SIM slot 1), Speed test, Traffic capture, Phone capabilities + Copy report, How to use, About; layout fine at 720 px
+- [x] 500 ms interval (moto, screen on, session 17): ticks exactly 500 ms, but 57.5 % of rows carry cell info older than 500 ms (modem refreshes every 1–2 s)
+- [ ] IPv6 traffic through the capture: the A56 on Telkomsel has IPv6, but the test traffic (map tiles) went over IPv4
+
 ## Before a release
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,

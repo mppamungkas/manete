@@ -628,6 +628,31 @@ LibreSpeed URLs `…/backend/empty.php` and `garbage.php?ckSize=25`. Three runs 
   not the phone (the moto's first test also saw 118 ms).
 - The earlier VPN consent was still granted: the capture started without a dialog.
 
+### Both phones, Settings pages and Phone capabilities, 2026-10-16 05:25–05:33 (decision 003, step 6)
+
+New SIMs: the A56 has Telkomsel (510-10, LTE only here, subId 1); the moto has two Tri SIMs (3 + 3), data on
+slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
+
+- **Mobile data vs. IMS:** the moto has two cellular networks up: IMS (`rmnet_data1`, IPv6 only, capability IMS) and
+  internet (`rmnet_data2`, IPv4 only, `10.129.x.x/30`, MTU 1430). Phone capabilities reads only the network with
+  NET_CAPABILITY_INTERNET and shows "IPv4" (an earlier version took the IMS one and showed IPv6). The A56 on
+  Telkomsel has IPv4 + IPv6 on one interface (`rmnet0`, MTU 1500).
+- **Phone capabilities, moto (NR_NSA, LTE B3 + NR 531870 n41):** NR from both CellInfo and SignalStrength; NR PCI
+  Missing (0 % of 4309 recorded NR rows: the copied LTE PCI is dropped, `NR_PCI_FROM_LTE`); NR band mapped; LTE CQI
+  never reported (0 % of 6739); LTE RSSNR in 66 %, TA in 78 %, NR SS-SINR in 54 % of recorded rows.
+- **Phone capabilities, A56 (Telkomsel, LTE B1 with CA 20 + 10 MHz, icon LTE_CA):** all LTE fields available,
+  including CQI (100 %); neighbour cells in 59 % of recorded rows.
+- Battery optimisation is on for NetLogger on both phones (Android's default). The earlier screen-off runs reached
+  their tick targets anyway; the How to use page still advises Unrestricted.
+- **500 ms interval, moto, screen on, static, NR_NSA (session 17):** 400 ticks in 199.5 s, tick spacing median
+  500.0 ms (max 506). The serving LTE cell's `cellInfoAgeMs`: median 986 ms, max 1996 ms; 57.5 % of rows older than
+  500 ms and 34.8 % older than 1000 ms. The moto's modem refreshes cell info only about every 1–2 s, so at 500 ms
+  more than half the rows repeat cell values (identifiable by their age); 1000 ms is the useful minimum here.
+- **Capture with Specific apps, A56 (Telkomsel, session 26):** only NetLogger selected, Map tiles loaded during the
+  capture: all 15 connections in `connections.csv` have NetLogger's uid; 357 packets, 0 dropped. Tiles went over
+  IPv4 even with IPv6 available; the 9 IPv6 packets in the pcap are the ones counted as unparsed (not app
+  connections), so the IPv6 capture path is still untested. The VPN consent from the earlier tests still held.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

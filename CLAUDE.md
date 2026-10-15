@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.7.1** · last updated 2026-10-15
+**CLAUDE.md version 1.7.2** · last updated 2026-10-16
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented; needs a server and a field check. Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: in-app speed test during a capture, IPv6 path). Still open for the MVP definition of done: the 1-hour screen-off drive.
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Still open for the MVP definition of done: the 1-hour screen-off drive.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.2:** Settings redesigned for teachers and students (decision 003): a list of pages (Logging, Speed test, Traffic capture; Phone capabilities, How to use, About), every option with a description. Logging interval (500/1000/2000/5000 ms) and default scenario are settings (`LoggingSettings`, core:data). Capture options (all or specific apps from an app picker, MTU) moved from the Live card to Settings (`CaptureSettings` now in core:data, same prefs); start/stop stays on Live. Phone capabilities: live check of the reported fields plus their share in recorded sessions (read-only queries, no schema change), Copy report. About: version and build commit, GPL text, privacy note, OSM attribution, third-party credits with full licence texts (`Licences.kt`; update with dependencies). English only, all texts in strings.xml.
 - **1.7.1:** Speed test: the user's LibreSpeed server is set in Settings (plain HTTP allowed per host by a generated network security config from `netlogger.cleartextHosts` in local.properties; no server or host in the repo); optional, clearly labeled public secondary target (Cloudflare), never the default; redirects are never followed (an operator's captive portal is an error, not a measurement).
 - **1.7.0:** Phase 3 capture is NetLogger's own VpnService only (milestone 11): the PCAPdroid bridge (Phase 3a, milestone 10) was removed at the user's request. Native capture: `libnetcapture` (C, NDK r27d, CMake) with zdtun (LGPL v3+, copied unchanged) in a separate `:vpn` process; nanosecond pcap whose timestamps are elapsedRealtimeNs + one fixed offset; `connections.csv` with each connection's app; MTU setting (1500 realistic / 10 000 fast). Old PCAPdroid sessions stay readable and exportable.
 - **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. NetLogger's packet count on the capture card and in CAPTURE_STOPPED.
@@ -133,7 +134,7 @@ netlogger/
 │   ├── map/                     # Map screen
 │   ├── sessions/                # Sessions list, detail, export, delete
 │   ├── speedtest/               # ping + HTTP download/upload against own server (Phase 2)
-│   ├── settings/
+│   ├── settings/                # Settings pages, phone capabilities, how to use, about + licences
 │   └── capture/                 # Phase 3: native VpnService capture (libnetcapture + zdtun, :vpn process)
 └── docs/
     ├── device-quirks.md         # update after every real-device test
@@ -274,7 +275,7 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
   RSRP colors: > -80 green, -80 to -95 yellow, -95 to -110 orange, < -110 red, null gray (integer dBm: -80 … -95 yellow, -96 … -110 orange).
   SINR colors (LTE RSSNR and NR SS-SINR): >= 20 green, 13 to < 20 yellow, 0 to < 13 orange, < 0 red, null gray.
 - **Sessions:** list, rename/label, notes, export, delete (with confirmation).
-- **Settings:** interval, SIM selection, speed test server URL, export options.
+- **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Speed test (server URLs, public secondary target), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
 
 ## Phase 3: Traffic capture
 NetLogger's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):

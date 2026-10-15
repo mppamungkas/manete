@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings list -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_measurement">Measurement</string>
+    <string name="settings_back">← Settings</string>
+    <string name="settings_back_about">← About</string>
+    <string name="settings_logging">Logging</string>
+    <string name="settings_logging_summary">Every %1$d ms · %2$s</string>
+    <string name="settings_speed_test">Speed test</string>
+    <string name="settings_speed_test_summary_server">Your server: %1$s</string>
+    <string name="settings_speed_test_summary_none">No server set: speed test off</string>
+    <string name="settings_speed_test_summary_public">%1$s · Cloudflare on</string>
+    <string name="settings_capture">Traffic capture</string>
+    <string name="settings_capture_summary_all">All apps · MTU %1$s</string>
+    <plurals name="settings_capture_summary_specific">
+        <item quantity="one">%1$d selected app · MTU %2$s</item>
+        <item quantity="other">%1$d selected apps · MTU %2$s</item>
+    </plurals>
+    <string name="settings_capture_summary_none">Specific apps, none selected: all apps · MTU %1$s</string>
+    <string name="settings_section_info">Info</string>
+    <string name="settings_capabilities">Phone capabilities</string>
+    <string name="settings_capabilities_summary">What this phone reports: a live check, plus your recorded sessions</string>
+    <string name="settings_help">How to use</string>
+    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, glossary</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_summary">Version %1$s · licence, privacy, credits</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+
+    <!-- Logging: interval -->
+    <string name="logging_interval_title">Interval</string>
+    <string name="logging_interval_info">How often NetLogger records one row of radio, GPS and battery values. Applies to the next session; a running session keeps its interval.</string>
+    <string name="logging_interval_option">%1$d ms</string>
+    <string name="logging_interval_500">Finest detail and more battery use. Android may answer with cached cell data, so some rows repeat the previous values.</string>
+    <string name="logging_interval_1000">Fine enough for drive tests at city speeds, with moderate battery use.</string>
+    <string name="logging_interval_2000">Walks and long static tests; half the rows of 1 s.</string>
+    <string name="logging_interval_5000">Very long sessions with the lowest battery use; too coarse to follow handovers while driving.</string>
+    <string name="option_recommended">%1$s (recommended)</string>
+
+    <!-- Logging: default scenario -->
+    <string name="logging_scenario_title">Default scenario</string>
+    <string name="logging_scenario_info">Preselected on the Live screen; you can still change it there before you press Start. Stored with each session to tell tests apart.</string>
+    <string name="logging_scenario_last">Same as the last session</string>
+    <string name="logging_scenario_last_info">Whatever you used the last time.</string>
+    <string name="scenario_drive">Drive</string>
+    <string name="scenario_drive_info">In a car or on a motorbike; speed and handovers matter.</string>
+    <string name="scenario_walk">Walk</string>
+    <string name="scenario_walk_info">On foot, e.g. around a campus or between indoors and outdoors.</string>
+    <string name="scenario_static">Static</string>
+    <string name="scenario_static_info">The phone stays at one spot, e.g. a speed test or a long measurement at a fixed place.</string>
+    <string name="scenario_indoor">Indoor</string>
+    <string name="scenario_indoor_info">Inside a building; GPS may be weak or missing.</string>
+
+    <!-- Logging: SIM -->
+    <string name="logging_sim_title">SIM</string>
+    <string name="logging_sim_info">NetLogger logs the SIM that carries mobile data when you press Start and stays on it for the whole session. To log another SIM, make it the data SIM in Android\'s SIM settings before you start.</string>
+    <string name="logging_sim_current">Data SIM now: %1$s (%2$s) in SIM slot %3$s</string>
+    <string name="logging_sim_none">No data SIM found, or the phone permission is missing.</string>
+    <string name="unknown">unknown</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+
+    <!-- Speed test -->
+    <string name="speed_how_title">How the speed test works</string>
+    <string name="speed_how_info">Start it on the Live screen while a session is logging. It uses mobile data only: turn Wi-Fi off, or the test is refused.</string>
+    <plurals name="speed_how_ping">
+        <item quantity="one">Ping: %1$d small request; average, jitter and loss.</item>
+        <item quantity="other">Ping: %1$d small requests; average, jitter and loss.</item>
+    </plurals>
+    <string name="speed_how_transfer">Download, then upload: %1$d s each over %2$s, stopped early at %3$d MB down / %4$d MB up.</string>
+    <plurals name="speed_connections">
+        <item quantity="one">%1$d connection</item>
+        <item quantity="other">%1$d connections</item>
+    </plurals>
+    <string name="speed_how_data">One test can use up to about %1$d MB of your data plan.</string>
+    <string name="speed_how_stored">Results are stored in the session with the server URL and the radio values of the same seconds. A test during a traffic capture is flagged, because the capture slows it down.</string>
+    <string name="speed_server_title">Your server</string>
+    <string name="speed_server_info">The main target. Use a server you control, so results stay comparable between tests and days. For a LibreSpeed server, enter its address and tap Fill; any other web server works with three URLs.</string>
+    <string name="speed_base_url">LibreSpeed address, e.g. http://203.0.113.7:8080</string>
+    <string name="speed_fill">Fill LibreSpeed URLs</string>
+    <string name="speed_ping_url">Ping URL</string>
+    <string name="speed_ping_url_info">Answers small requests quickly, e.g. an empty page.</string>
+    <string name="speed_download_url">Download URL</string>
+    <string name="speed_download_url_info">Serves a large file (tens of MB or more); requested again until the time is up.</string>
+    <string name="speed_upload_url">Upload URL</string>
+    <string name="speed_upload_url_info">Accepts POST requests and throws the data away.</string>
+    <string name="speed_cleartext_blocked">Plain HTTP to %1$s is not allowed in this build, so the test would fail. Use https://, or ask whoever builds the app to allow this host (netlogger.cleartextHosts).</string>
+    <string name="speed_save">Save</string>
+    <string name="speed_saved">Saved. The Live screen shows \"Run speed test (my server)\" while logging.</string>
+    <string name="speed_not_saved">No server saved yet: the speed test is off.</string>
+    <string name="speed_public_title">Public target: Cloudflare</string>
+    <string name="speed_public_info">Optional, for comparison only. Adds a second button on the Live screen that tests against %1$s. Not your server and never the default: the result depends on Cloudflare\'s nearest site and its route, and many large tests in a row are blocked for a while (HTTP 429). Each result stores the URL it used.</string>
+
+    <!-- Traffic capture -->
+    <string name="capture_what_title">How the traffic capture works</string>
+    <string name="capture_what_info">Start and stop it on the Live screen while a session is logging. One capture per session; it stops when the session stops.</string>
+    <string name="capture_what_vpn">NetLogger runs its own VPN on the phone. Android asks you once to allow it. Only one VPN can run at a time, so turn off any other VPN first.</string>
+    <string name="capture_what_limits">It records the IP traffic between each app and the VPN, and which app owns each connection. It does not see radio signalling, and packet sizes and timing are rebuilt by the VPN, not the ones on the air.</string>
+    <string name="capture_what_files">The session export adds capture.pcap (open it in Wireshark), capture_sync.csv (clock alignment with the radio log) and connections.csv (the app of each connection).</string>
+    <string name="capture_what_size">Files grow with the traffic: a speed test during a capture adds about 100 MB to the pcap. Speed tests during a capture are flagged, because the capture slows them down.</string>
+    <string name="capture_apps_title">Which apps</string>
+    <string name="capture_apps_info">Applies to the next capture. Traffic of apps not chosen bypasses the VPN and is not recorded.</string>
+    <string name="capture_apps_all">All apps</string>
+    <string name="capture_apps_all_info">Everything the phone sends and receives, including background apps and system services.</string>
+    <string name="capture_apps_specific">Specific apps</string>
+    <string name="capture_apps_specific_info">Only the apps you tick below, e.g. one video app for a QoE test. Smaller files that are easier to analyse.</string>
+    <string name="capture_apps_none_selected">No app selected yet: until you tick one, all apps are captured.</string>
+    <plurals name="capture_apps_selected">
+        <item quantity="one">%1$d app selected.</item>
+        <item quantity="other">%1$d apps selected.</item>
+    </plurals>
+    <string name="capture_apps_loading">Loading installed apps…</string>
+    <string name="capture_apps_search">Search apps</string>
+    <string name="capture_apps_not_found">Not found on this phone</string>
+    <string name="capture_apps_hidden">Only apps with an icon in the app drawer are listed. Include NetLogger itself to capture its speed tests.</string>
+    <string name="capture_mtu_title">Packet size (MTU)</string>
+    <string name="capture_mtu_info">The largest packet the VPN passes on. Applies to the next capture; the value is stored with it.</string>
+    <string name="capture_mtu_realistic">1500: realistic packets</string>
+    <string name="capture_mtu_realistic_info">The same packet sizes as on a mobile network, so the pcap looks like real traffic. Fast links lose up to a quarter of their download speed during the capture.</string>
+    <string name="capture_mtu_fast">10 000: fast</string>
+    <string name="capture_mtu_fast_info">Hardly slows the phone down (about 3 percent), but packets are bigger than on the air. Use it when throughput matters more than packet sizes.</string>
+
+    <!-- Phone capabilities -->
+    <string name="cap_about_title">Live check</string>
+    <string name="cap_about_info">Phones differ in which radio values Android gives to apps: some hide them, some report them only now and then. This page reads 3 cell updates (about 2 seconds) and shows what came back. Values that need 5G coverage are marked as such, not as missing. Below each field: how often it had a value in the sessions recorded on this phone, which is more reliable than one check.</string>
+    <string name="cap_refresh">Check again</string>
+    <string name="cap_copy">Copy report</string>
+    <string name="cap_checking">Checking…</string>
+    <string name="cap_checked_at">Checked at %1$s. Copy report puts this page on the clipboard as text.</string>
+    <string name="cap_device_title">Device</string>
+    <string name="cap_device_info">Stored with every session, so results can be compared between phones.</string>
+    <string name="cap_device_phone">Phone</string>
+    <string name="cap_device_android">Android</string>
+    <string name="cap_device_baseband">Modem firmware</string>
+    <string name="cap_device_app">NetLogger</string>
+    <string name="cap_device_sim">Data SIM</string>
+    <string name="cap_device_sim_value">%1$s (%2$s), SIM slot %3$s</string>
+    <string name="cap_now_title">Right now</string>
+    <string name="cap_now_info">Red means it stops or weakens a test.</string>
+    <string name="cap_now_network">Network</string>
+    <string name="cap_now_operator">Operator</string>
+    <string name="cap_now_mobile_ip">Mobile data</string>
+    <string name="cap_now_no_mobile_data">Not connected</string>
+    <string name="cap_now_no_address">Connected, no IP address</string>
+    <string name="cap_now_wifi">Wi-Fi connected</string>
+    <string name="cap_now_wifi_on">Yes: speed tests are refused, and the phone may not use 5G</string>
+    <string name="cap_now_vpn">VPN active</string>
+    <string name="cap_now_vpn_on">Yes: a traffic capture cannot start unless it is NetLogger\'s own</string>
+    <string name="cap_now_location">Location on</string>
+    <string name="cap_now_perm_location">Location permission</string>
+    <string name="cap_now_perm_phone">Phone permission</string>
+    <string name="cap_now_perm_notifications">Notifications allowed</string>
+    <string name="cap_now_battery">Battery</string>
+    <string name="cap_now_battery_exempt">Not optimised (best for long tests)</string>
+    <string name="cap_now_battery_optimised">Optimised: Android may slow logging with the screen off</string>
+    <string name="cap_reports_title">What this phone reports</string>
+    <string name="cap_reports_info">Available: the phone gives the value. Limited: only partly, or worked out by NetLogger. Missing: the phone does not give it now.</string>
+    <string name="cap_recorded_basis">Sessions recorded on this phone: %1$d (rows: %2$d).</string>
+    <string name="cap_recorded_counting">Counting recorded sessions…</string>
+    <string name="cap_recorded_failed">The recorded sessions could not be counted.</string>
+    <string name="cap_recorded_share">Recorded sessions: %1$s (rows checked: %2$d)</string>
+    <string name="cap_recorded_none">Recorded sessions: no rows with this kind of cell yet</string>
+    <string name="cap_report_share">%1$s of %2$d</string>
+    <string name="cap_recorded_not_stored">Recorded sessions: not stored per row, so only the live check shows it</string>
+    <string name="cap_col_field">Field</string>
+    <string name="cap_col_now">Now</string>
+    <string name="cap_col_recorded">Recorded sessions</string>
+    <string name="cap_group_lte">LTE (4G) serving cell</string>
+    <string name="cap_group_nr">5G NR (NSA)</string>
+    <string name="cap_group_other">Other</string>
+    <string name="cap_status_available">Available</string>
+    <string name="cap_status_limited">Limited</string>
+    <string name="cap_status_missing">Missing</string>
+    <string name="cap_status_needs_lte">Not seen now (needs LTE coverage)</string>
+    <string name="cap_status_needs_nr">Not seen now (needs 5G coverage)</string>
+    <string name="cap_lte_rsrp">RSRP</string>
+    <string name="cap_lte_rsrp_info">Received power of the cell\'s reference signal; the main coverage measure.</string>
+    <string name="cap_lte_rsrq">RSRQ</string>
+    <string name="cap_lte_rsrq_info">Signal quality, including interference and load.</string>
+    <string name="cap_lte_sinr">SINR (RSSNR)</string>
+    <string name="cap_lte_sinr_info">Signal to noise; the scale differs between phone makers.</string>
+    <string name="cap_lte_rssi">RSSI</string>
+    <string name="cap_lte_rssi_info">Total received power on the channel.</string>
+    <string name="cap_lte_cqi">CQI</string>
+    <string name="cap_lte_cqi_info">Channel quality the phone reports to the network; many phones give it only while data flows.</string>
+    <string name="cap_lte_ta">Timing advance</string>
+    <string name="cap_lte_ta_info">A rough distance to the cell; often only while data flows.</string>
+    <string name="cap_lte_pci">PCI</string>
+    <string name="cap_lte_pci_info">Physical cell ID; changes show handovers.</string>
+    <string name="cap_lte_earfcn">EARFCN</string>
+    <string name="cap_lte_earfcn_info">The channel number; gives the frequency.</string>
+    <string name="cap_lte_band">Band</string>
+    <string name="cap_band_info">From the phone (API) or worked out by NetLogger from the channel number (mapped).</string>
+    <string name="cap_lte_cell_id">Cell identity</string>
+    <string name="cap_lte_cell_id_info">Cell ID and tracking area code; identify the site.</string>
+    <string name="cap_nr_cell_info">Cell list entry</string>
+    <string name="cap_nr_cell_info_info">Many phones list no 5G cell in NSA mode; then PCI, channel and band are missing.</string>
+    <string name="cap_nr_signal_strength">Signal strength entry</string>
+    <string name="cap_nr_signal_strength_info">The second source of 5G values, used when the cell list has none.</string>
+    <string name="cap_nr_rsrp">SS-RSRP</string>
+    <string name="cap_nr_rsrp_info">Received power of the 5G synchronisation signal; the main 5G coverage measure.</string>
+    <string name="cap_nr_rsrq">SS-RSRQ</string>
+    <string name="cap_nr_rsrq_info">5G signal quality.</string>
+    <string name="cap_nr_sinr">SS-SINR</string>
+    <string name="cap_nr_sinr_info">5G signal to noise.</string>
+    <string name="cap_nr_csi">CSI-RSRP</string>
+    <string name="cap_nr_csi_info">Power of the 5G channel state reference signal; few phones report it.</string>
+    <string name="cap_nr_pci">PCI</string>
+    <string name="cap_nr_pci_info">5G physical cell ID; only from the cell list.</string>
+    <string name="cap_nr_arfcn">ARFCN</string>
+    <string name="cap_nr_arfcn_info">5G channel number; only from the cell list.</string>
+    <string name="cap_nr_band">Band</string>
+    <string name="cap_bandwidths">Cell bandwidths</string>
+    <string name="cap_bandwidths_info">Bandwidth of each carrier in use; more than one means carrier aggregation.</string>
+    <string name="cap_neighbours">Neighbour cells</string>
+    <string name="cap_neighbours_info">Other cells the phone hears; needed to study handovers. The number is the most seen in this check.</string>
+    <string name="cap_fresh">Fresh cell updates</string>
+    <string name="cap_fresh_info">Whether Android answered the request for new cell data in time; otherwise NetLogger falls back to older data.</string>
+
+    <!-- How to use -->
+    <string name="help_intro">NetLogger records what the phone\'s modem reports about the mobile network, together with GPS, battery and data use, once per interval. These pages explain how to get clean, comparable data.</string>
+    <string name="help_start_title">1. Before you start</string>
+    <string-array name="help_start">
+        <item>Allow precise location, phone and notifications when NetLogger asks. Without them it cannot log, but recorded sessions can still be viewed and exported.</item>
+        <item>Turn Wi-Fi off for mobile measurements. With Wi-Fi on, mobile data idles, the phone often stays off 5G, and speed tests are refused.</item>
+        <item>Set NetLogger\'s battery use to Unrestricted in Android\'s app settings, so logging keeps its pace with the screen off. Settings › Phone capabilities shows the current state.</item>
+        <item>Fix the phone in a holder with a view of the sky for GPS, and use the same position for every run you want to compare. The screen may be off while logging.</item>
+        <item>For long tests, start with a full battery or use a charger. Charging changes the battery values that are logged.</item>
+    </string-array>
+    <string name="help_test_title">2. A drive or walk test</string>
+    <string-array name="help_test">
+        <item>On Live, choose the scenario (Drive, Walk, Static or Indoor), then tap Start logging. A notification stays while NetLogger records, also with the screen off.</item>
+        <item>Add marker, on Live or in the notification, stores the time and place of something worth noting, e.g. a tunnel, a call drop or the start of a route section.</item>
+        <item>Gray values on Live are older than 5 seconds: the phone did not report anything newer. They are stored as reported, with their age, so they can be filtered later.</item>
+        <item>Stop ends the session. If Android closes the app during a session, the session is closed at the next start and keeps every row recorded until then.</item>
+        <item>Sessions lists your recordings: open one to rename it, add notes, see charts, export or delete it.</item>
+    </string-array>
+    <string name="help_speed_title">3. Speed test</string>
+    <string-array name="help_speed">
+        <item>Needs a server, set in Settings › Speed test (a LibreSpeed server works). Start it on Live while a session is logging, with Wi-Fi off.</item>
+        <item>It measures ping, then download and upload for 10 seconds each. One test can use up to about 250 MB of your data plan.</item>
+        <item>The result depends on the radio (signal, 4G or 5G, how busy the cell is) and on the route to the server. Compare tests against the same server; the public Cloudflare target is only for comparison.</item>
+    </string-array>
+    <string name="help_capture_title">4. Traffic capture</string>
+    <string-array name="help_capture">
+        <item>Start capture on Live while a session is logging. Android asks once to allow NetLogger\'s VPN. The capture stops with Stop capture or at the end of the session.</item>
+        <item>Choose all apps or specific apps, and the packet size (MTU), in Settings › Traffic capture.</item>
+        <item>Files grow with the traffic: a speed test during a capture adds about 100 MB.</item>
+        <item>It records the apps\' IP traffic, not radio signalling, and packet sizes and timing are rebuilt by the VPN. Speed tests during a capture are flagged because the capture slows them down.</item>
+    </string-array>
+    <string name="help_results_title">5. Map, charts and export</string>
+    <string-array name="help_results">
+        <item>Map colours a session\'s track by LTE RSRP, NR SS-RSRP, LTE or NR SINR, or network type. Tap a point to see its values.</item>
+        <item>Open a session in Sessions for charts of the signal over time and the network type.</item>
+        <item>Save ZIP or Share ZIP exports one session: session.json (phone, SIM, settings), measurements.csv (one row per interval), cells.csv (serving and neighbour cells), events.csv, throughput.csv, warnings.csv, flat.csv (one row per interval with the main values; easiest for Excel) and track.geojson. With a capture also capture.pcap, capture_sync.csv and connections.csv.</item>
+        <item>CSV files use commas and a dot for decimals. If Excel shows everything in one column, open the file with Data › From Text/CSV and choose comma as the delimiter.</item>
+        <item>Open capture.pcap in Wireshark. Packet times use the same clock as the radio log; capture_sync.csv shows how they line up.</item>
+    </string-array>
+    <string name="help_glossary_title">6. Glossary</string>
+    <string-array name="help_glossary">
+        <item>RSRP: received power of a cell\'s reference signal, in dBm. About −80 is strong, below −110 weak.</item>
+        <item>RSRQ: signal quality in dB, lower with interference and load. About −10 is good, below −15 poor.</item>
+        <item>SINR: signal to interference and noise, in dB. Above 20 is excellent, below 0 poor. LTE phones report it as RSSNR, scaled differently by each maker.</item>
+        <item>PCI: physical cell ID (0 to 503 in LTE, 0 to 1007 in 5G NR). Not unique; together with the channel it tells cells apart.</item>
+        <item>EARFCN / NR-ARFCN: channel number of an LTE or 5G carrier; gives its frequency.</item>
+        <item>Band: frequency range of the carrier, e.g. LTE B3 (1800 MHz) or 5G n40 (2300 MHz).</item>
+        <item>NSA and SA: 5G non-standalone uses an LTE cell as anchor and adds 5G for data; standalone uses 5G alone.</item>
+        <item>CA: carrier aggregation, several carriers used at once for more speed.</item>
+        <item>TA: timing advance, a rough distance from the cell.</item>
+        <item>CQI: channel quality indicator that the phone sends to the network (0 to 15).</item>
+        <item>Handover: the phone moves from one cell to another, seen as a PCI change.</item>
+    </string-array>
+
+    <!-- About -->
+    <string name="about_tagline">LTE and 5G NSA drive-test logger with its own traffic capture, for research and teaching.</string>
+    <string name="about_version">Version %1$s · build %2$s</string>
+    <string name="about_licence_title">Licence</string>
+    <string name="about_licence_info">NetLogger is free software under the GNU General Public License version 3: you may use, study, share and change it under that licence. It comes without any warranty.</string>
+    <string name="about_source">Source code: %1$s</string>
+    <string name="about_show_licence">Show licence text</string>
+    <string name="about_privacy_title">Privacy</string>
+    <string-array name="about_privacy">
+        <item>Sessions and exports contain your precise location and track, the cells you used (which also give your location) and your phone model and SIM operator. Share them only with people who need them.</item>
+        <item>A traffic capture contains the network traffic of the captured apps: which servers they contact, and the content of anything not encrypted. Handle capture files like private data.</item>
+        <item>Everything stays on the phone until you export it. NetLogger has no account, no analytics and no upload. It contacts only the map tile server (OpenStreetMap, for the area you view), the speed test server you set (and Cloudflare if you turn it on), and Google Play services, which provides the location.</item>
+    </string-array>
+    <string name="about_map_title">Map data</string>
+    <string name="about_map_info">Map data © OpenStreetMap contributors, available under the Open Database License (openstreetmap.org/copyright). Map tiles from the OpenStreetMap Foundation\'s tile servers, used under their tile usage policy.</string>
+    <string name="about_credits_title">Third-party software</string>
+    <string name="about_credits_info">NetLogger is built on these projects. Tap one to read its licence.</string>
+    <string name="about_licence_page">Licence: %1$s</string>
+    <string name="about_licence_not_found">The licence text could not be loaded.</string>
+</resources>

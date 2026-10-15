@@ -84,7 +84,8 @@ private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () ->
         is LiveUiState.Ready -> {
             val scenario by viewModel.scenario.collectAsStateWithLifecycle()
             val publicSpeedTest by viewModel.publicSpeedTest.collectAsStateWithLifecycle()
-            SnapshotView(s, scenario, viewModel::selectScenario, publicSpeedTest, captureCard, modifier)
+            val intervalMs by viewModel.intervalMs.collectAsStateWithLifecycle()
+            SnapshotView(s, scenario, viewModel::selectScenario, intervalMs, publicSpeedTest, captureCard, modifier)
         }
     }
 }
@@ -94,6 +95,7 @@ private fun SnapshotView(
     ui: LiveUiState.Ready,
     scenario: Scenario,
     onScenario: (Scenario) -> Unit,
+    intervalMs: Long,
     publicSpeedTest: Boolean,
     captureCard: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -108,7 +110,7 @@ private fun SnapshotView(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { LoggingCard(ui.logging, scenario, onScenario) }
+        item { LoggingCard(ui.logging, scenario, onScenario, intervalMs) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
         item { captureCard() } // shows itself only while a session records or a capture is ending
         item { NetworkCard(snapshot) }
@@ -122,7 +124,7 @@ private fun SnapshotView(
 }
 
 @Composable
-private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (Scenario) -> Unit) {
+private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (Scenario) -> Unit, intervalMs: Long) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -156,7 +158,8 @@ private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (
                             )
                         }
                     }
-                    Button(onClick = { LoggingService.start(context, scenario) }) { Text("Start logging") }
+                    Field("Interval", "$intervalMs ms · change in Settings")
+                    Button(onClick = { LoggingService.start(context, scenario, intervalMs) }) { Text("Start logging") }
                 }
             }
         }

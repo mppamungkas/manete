@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
@@ -55,18 +56,27 @@ class LiveViewModel @Inject constructor(
     clock: Clock,
     repository: SessionRepository,
     speedTestSettings: SpeedTestSettings,
+    loggingSettings: LoggingSettings,
 ) : ViewModel() {
 
     /** The public secondary speed test target is offered (Settings). */
     val publicSpeedTest: StateFlow<Boolean> = speedTestSettings.publicTargetEnabled
 
-    private val _scenario = MutableStateFlow(Scenario.DRIVE)
+    /** Tick interval of the next session (Settings). */
+    val intervalMs: StateFlow<Long> = loggingSettings.intervalMs
 
-    /** Scenario for the next session; defaults to the last session's. */
+    private val _scenario = MutableStateFlow(loggingSettings.defaultScenario.value ?: Scenario.DRIVE)
+
+    /** Scenario for the next session: the default from Settings, else the last session's. */
     val scenario: StateFlow<Scenario> = _scenario.asStateFlow()
 
     init {
-        viewModelScope.launch { repository.latestScenario()?.let { _scenario.value = it } }
+        // Follows the setting also when it is changed while Live is alive; a chip tapped on Live wins until then.
+        viewModelScope.launch {
+            loggingSettings.defaultScenario.collect { default ->
+                (default ?: repository.latestScenario())?.let { _scenario.value = it }
+            }
+        }
     }
 
     fun selectScenario(scenario: Scenario) {

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Phone capabilities: mobile data IPv4/IPv6, Wi-Fi, VPN. Normal permission, already declared by feature:capture. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <queries>
+        <!--
+            Traffic capture settings: the app picker lists apps with a launcher icon. The same entry as in
+            feature:capture (connections.csv), so the merged app sees no more packages than before; declared here too
+            so this module does not rely on another feature's manifest. No QUERY_ALL_PACKAGES.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+</manifest>
