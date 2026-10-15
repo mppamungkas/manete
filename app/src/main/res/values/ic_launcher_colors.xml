@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher icon background: the logo's blue (sampled from docs/branding/netlogger-logo.png). -->
+    <color name="ic_launcher_background">#FF0D4DA7</color>
+</resources>
