@@ -607,6 +607,27 @@ CAPTURE_STOPPED event; session 17 (09:40, speed test, invalid anyway); all captu
 exist only of session 12's pcap and two debug captures, `docs/samples/m11/`); the speed test and capture settings.
 App-module device tests are no longer used for this (the previews come from a debug-only activity).
 
+### Samsung A56, speed test with working data, Tri (510-89), static, 2026-10-15 17:02 (milestone 8, session 23)
+
+First complete in-app speed test. Wi-Fi off, data on Tri (subId 5, IPv4 `rmnet0`, MTU 1500); build `f973dc1`,
+LibreSpeed URLs `…/backend/empty.php` and `garbage.php?ckSize=25`. Three runs in one session, 4 streams each:
+
+| Row | Target | Capture | Radio during the phase | Ping avg / jitter | Download | Upload |
+|---|---|---|---|---|---|---|
+| 7–9 | LibreSpeed (own server) | off | NR_NSA | 159 / 120 ms | 196.6 Mbit/s (209.7 MB in 8.5 s) | 20.4 Mbit/s |
+| 10–12 | Cloudflare (public, secondary) | off | LTE | 80 / 9 ms | 28.8 Mbit/s | 21.8 Mbit/s |
+| 13–15 | LibreSpeed (own server) | native, MTU 1500 | LTE | 165 / 147 ms | 49.5 Mbit/s | 26.7 Mbit/s |
+
+- The download of the first run stopped at the 200 MiB cap after 8.5 s, as intended. The three runs used ~390 MB.
+- `captureActive` is 0 for rows 7–12 and 1 for rows 13–15; `serverUrl` is stored per row. The capture's pcap has
+  93,374 packets / 101.3 MB = expected, 0 dropped; its 95.8 MB on the card match the test's 61.9 + 33.4 MB.
+- The phone fell from NR NSA to LTE between the first and the second run (no NR leg in CellInfo or SignalStrength), so
+  the drop to 28.8 / 49.5 Mbit/s is the radio, not Cloudflare or the capture. Compare speed tests only together with
+  the network type logged during each phase (`measurement` rows between `startedElapsedNs` and + `durationMs`).
+- Ping to the own server has a high jitter (120–147 ms) on both radios; Cloudflare's 9 ms. The server or its route,
+  not the phone (the moto's first test also saw 118 ms).
+- The earlier VPN consent was still granted: the capture started without a dialog.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
