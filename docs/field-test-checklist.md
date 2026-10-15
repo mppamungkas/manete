@@ -148,3 +148,9 @@ Kept for the record; these checks no longer apply.
 - [ ] App filter with one package: only that app's connections
 - [ ] Export: ZIP has capture.pcap, capture_sync.csv, connections.csv; session.json lists them
 - [ ] Both phones (the A56 is the unrooted reference)
+
+## Before a release
+
+- [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
+      2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
+- [ ] The same on the A56 (`RRGYB06DN2T`)

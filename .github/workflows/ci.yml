@@ -34,6 +34,11 @@ jobs:
       - name: Build
         run: ./gradlew assembleDebug
 
+      # The native host tests use AddressSanitizer, which fails on kernels with 32 bits of mmap randomization
+      # (seen on Ubuntu 24.04 runners). 28 is the usual default; harmless where it already is.
+      - name: ASan-compatible mmap randomization
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
       - name: Unit tests
         run: ./gradlew testDebugUnitTest
 
