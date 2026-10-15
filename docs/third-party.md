@@ -2,6 +2,10 @@
 
 Code copied or adapted from other projects. Gradle dependencies are listed in `gradle/libs.versions.toml`.
 
+The app credits both (and the libraries in the APK) in Settings › About, with the full licence texts
+(`feature/settings/.../Licences.kt`, `feature/settings/src/main/res/raw/`; GPL and LGPL are copied from `LICENSE`
+and zdtun's `COPYING` at build time). Update that list when a dependency or copied code changes.
+
 ## NetMonster Core
 
 - **Source:** https://github.com/mroczis/netmonster-core (studied at commit `33063e0`)

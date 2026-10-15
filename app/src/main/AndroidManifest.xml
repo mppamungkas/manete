@@ -34,6 +34,11 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 
+        <!-- Commit this APK was built from (app/build.gradle.kts), shown in Settings › About. -->
+        <meta-data
+            android:name="id.my.pamslab.netlogger.BUILD_COMMIT"
+            android:value="${buildCommit}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

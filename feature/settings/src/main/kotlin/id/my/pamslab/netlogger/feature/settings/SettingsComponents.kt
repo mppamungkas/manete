@@ -28,12 +28,17 @@ import id.my.pamslab.netlogger.core.model.session.Scenario
 
 /** A Settings page: back link, title, scrolling content. */
 @Composable
-internal fun SettingsPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun SettingsPage(
+    title: String,
+    onBack: () -> Unit,
+    backLabel: String = stringResource(R.string.settings_back),
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TextButton(onClick = onBack) { Text(stringResource(R.string.settings_back)) }
+        TextButton(onClick = onBack) { Text(backLabel) }
         Text(title, style = MaterialTheme.typography.headlineSmall)
         content()
     }
@@ -50,13 +55,13 @@ internal fun SettingsEntry(title: String, summary: String, onClick: () -> Unit) 
     }
 }
 
-/** A titled card with an explanation, e.g. one setting with its choices. */
+/** A titled card with an explanation (none when [info] is empty), e.g. one setting with its choices. */
 @Composable
 internal fun SettingCard(title: String, info: String, content: @Composable ColumnScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(info, style = MaterialTheme.typography.bodySmall)
+            if (info.isNotEmpty()) Text(info, style = MaterialTheme.typography.bodySmall)
             content()
         }
     }

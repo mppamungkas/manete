@@ -12,14 +12,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.data.CaptureSettings
+import id.my.pamslab.netlogger.feature.settings.navigation.AboutRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CapabilitiesRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CaptureSettingsRoute
+import id.my.pamslab.netlogger.feature.settings.navigation.HelpRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.LoggingSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.SpeedTestSettingsRoute
 import java.net.URI
@@ -68,5 +71,9 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
         SettingsEntry(stringResource(R.string.settings_capabilities), stringResource(R.string.settings_capabilities_summary)) {
             onOpen(CapabilitiesRoute)
         }
+        SettingsEntry(stringResource(R.string.settings_help), stringResource(R.string.settings_help_summary)) { onOpen(HelpRoute) }
+        val context = LocalContext.current
+        val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?" }
+        SettingsEntry(stringResource(R.string.settings_about), stringResource(R.string.settings_about_summary, version)) { onOpen(AboutRoute) }
     }
 }

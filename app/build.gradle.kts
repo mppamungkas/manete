@@ -7,6 +7,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+/** Short commit hash, "-dirty" with uncommitted changes; "unknown" without git (e.g. a source archive). */
+val buildCommit: String = runCatching {
+    providers.exec {
+        commandLine("git", "describe", "--always", "--dirty", "--abbrev=7")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim()
+}.getOrNull()?.takeIf { it.isNotEmpty() } ?: "unknown"
+
 android {
     namespace = "id.my.pamslab.netlogger"
 
@@ -18,6 +26,8 @@ android {
         applicationId = "id.my.pamslab.netlogger"
         versionCode = 1
         versionName = "0.1.0"
+        // Settings › About shows the commit the APK was built from (manifest meta-data, readable by every module).
+        manifestPlaceholders["buildCommit"] = buildCommit
     }
 
     buildTypes {

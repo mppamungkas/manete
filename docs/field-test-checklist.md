@@ -163,6 +163,7 @@ Kept for the record; these checks no longer apply.
 - [x] Tapping the open tab again returns from a Settings page to the list (A56)
 - [x] Phone capabilities (A56, Tri 510-89, Wi-Fi on, LTE B3 only): device, data SIM, right now (mobile data "Not connected" with Wi-Fi on, not the IMS network; battery optimised), LTE fields available, NR fields "needs 5G coverage", recorded shares over 25 sessions / 6328 rows (NR in the cell list 95 %, CSI-RSRP 0 %, neighbours 59 %)
 - [x] Copy report: pasted back on the phone, a Markdown table with LTE/NR prefixes
+- [x] How to use (6 sections) and About: icon, version + build commit, GPL text, privacy, OSM attribution, credits with licence texts (A56)
 - [ ] Phone capabilities with 5G NSA and mobile data on (NR fields from the live check; IPv4/IPv6)
 - [ ] A capture with Specific apps: only the chosen app in connections.csv; earlier `appFilter` typed on the old card read as Specific apps after the update
 - [ ] Same on the moto g45
