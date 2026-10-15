@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.location.LocationState
@@ -53,7 +54,11 @@ class LiveViewModel @Inject constructor(
     engine: LoggingEngine,
     clock: Clock,
     repository: SessionRepository,
+    speedTestSettings: SpeedTestSettings,
 ) : ViewModel() {
+
+    /** The public secondary speed test target is offered (Settings). */
+    val publicSpeedTest: StateFlow<Boolean> = speedTestSettings.publicTargetEnabled
 
     private val _scenario = MutableStateFlow(Scenario.DRIVE)
 

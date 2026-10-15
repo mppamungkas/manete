@@ -30,6 +30,7 @@ import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -70,8 +71,10 @@ class LoggingEngineTest {
 
     private class FakeRunner : SpeedTestRunner {
         var runs = 0
+        var lastConfig: SpeedTestConfig? = null
         override suspend fun run(config: SpeedTestConfig, onProgress: (SpeedTestProgress) -> Unit): List<ThroughputResult> {
             runs++
+            lastConfig = config
             onProgress(SpeedTestProgress(ThroughputType.DOWNLOAD, mbps = 12.0))
             return ThroughputType.entries.map {
                 ThroughputResult(it, 0, 0, config.pingUrl, 10_000, 1_000, 12.0, 4, null, null, null, null, null)
@@ -81,7 +84,9 @@ class LoggingEngineTest {
 
     private class FakeSettings(config: SpeedTestConfig = SpeedTestConfig.libreSpeed("https://speed.example.org")) : SpeedTestSettings {
         override val config = MutableStateFlow(config)
+        override val publicTargetEnabled = MutableStateFlow(false)
         override fun save(pingUrl: String, downloadUrl: String, uploadUrl: String) = Unit
+        override fun setPublicTargetEnabled(enabled: Boolean) = Unit
     }
 
     private class FakeRepository : SessionRepository {
@@ -281,6 +286,21 @@ class LoggingEngineTest {
         assertEquals(SpeedTestState.Refused(LoggingEngine.NO_SERVER), (noServer.state.value as LoggingState.Running).speedTest)
         assertEquals("the runner was not called again", 1, runner.runs)
         job2.cancel()
+    }
+
+    @Test
+    fun `public target - Cloudflare even without a server of the user's, the default stays the user's server`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val runner = FakeRunner()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings(SpeedTestConfig("", "", "")), CaptureStateHolder())
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(1_500)
+        assertFalse("no server of the user's: the default target refuses", engine.runSpeedTest())
+        assertTrue(engine.runSpeedTest(SpeedTestTarget.PUBLIC))
+        assertEquals(SpeedTestConfig.cloudflare(), runner.lastConfig)
+        assertTrue(repo.throughput.all { it.serverUrl.startsWith(SpeedTestConfig.CLOUDFLARE) })
+        job.cancel()
     }
 
     @Test

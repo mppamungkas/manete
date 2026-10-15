@@ -34,6 +34,7 @@ import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
@@ -82,7 +83,8 @@ private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () ->
         is LiveUiState.Failed -> PlaceholderScreen("Live", "Sampling stopped: ${s.message}", modifier)
         is LiveUiState.Ready -> {
             val scenario by viewModel.scenario.collectAsStateWithLifecycle()
-            SnapshotView(s, scenario, viewModel::selectScenario, captureCard, modifier)
+            val publicSpeedTest by viewModel.publicSpeedTest.collectAsStateWithLifecycle()
+            SnapshotView(s, scenario, viewModel::selectScenario, publicSpeedTest, captureCard, modifier)
         }
     }
 }
@@ -92,6 +94,7 @@ private fun SnapshotView(
     ui: LiveUiState.Ready,
     scenario: Scenario,
     onScenario: (Scenario) -> Unit,
+    publicSpeedTest: Boolean,
     captureCard: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -106,7 +109,7 @@ private fun SnapshotView(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item { LoggingCard(ui.logging, scenario, onScenario) }
-        (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest) } }
+        (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
         item { captureCard() } // shows itself only while a session records or a capture is ending
         item { NetworkCard(snapshot) }
         item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
@@ -161,7 +164,7 @@ private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (
 }
 
 @Composable
-private fun SpeedTestCard(test: SpeedTestState?) {
+private fun SpeedTestCard(test: SpeedTestState?, publicTarget: Boolean) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -187,7 +190,14 @@ private fun SpeedTestCard(test: SpeedTestState?) {
                 }
             }
             OutlinedButton(onClick = { LoggingService.speedTest(context) }, enabled = test !is SpeedTestState.Running) {
-                Text("Run speed test")
+                Text("Run speed test (my server)")
+            }
+            if (publicTarget) {
+                // Secondary, opt-in (Settings): a public server, not the reference measurement.
+                TextButton(
+                    onClick = { LoggingService.speedTest(context, SpeedTestTarget.PUBLIC) },
+                    enabled = test !is SpeedTestState.Running,
+                ) { Text("Run on Cloudflare (public, secondary)") }
             }
         }
     }

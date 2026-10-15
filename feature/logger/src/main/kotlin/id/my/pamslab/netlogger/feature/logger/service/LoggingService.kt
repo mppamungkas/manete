@@ -15,6 +15,7 @@ import android.os.PowerManager
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.feature.logger.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,7 +58,11 @@ class LoggingService : Service() {
                 engine.addMarker()?.let { Log.i(TAG, "marker stored at ${it.elapsedRealtimeNs}") }
             }
             // In the service scope, so the test finishes when the Live screen is left.
-            ACTION_SPEED_TEST -> if (sessionJob?.isActive == true) scope.launch { engine.runSpeedTest() }
+            ACTION_SPEED_TEST -> if (sessionJob?.isActive == true) {
+                // The notification action carries no target: the user's own server.
+                val target = SpeedTestTarget.entries.firstOrNull { it.name == intent.getStringExtra(EXTRA_TARGET) } ?: SpeedTestTarget.PRIMARY
+                scope.launch { engine.runSpeedTest(target) }
+            }
             // A restart without our intent (e.g. after the process was killed): don't resume silently.
             else -> stop()
         }
@@ -187,6 +192,7 @@ class LoggingService : Service() {
         private const val ACTION_STOP = "id.my.pamslab.netlogger.logging.STOP"
         private const val ACTION_MARKER = "id.my.pamslab.netlogger.logging.MARKER"
         private const val ACTION_SPEED_TEST = "id.my.pamslab.netlogger.logging.SPEED_TEST"
+        private const val EXTRA_TARGET = "target"
         private const val EXTRA_INTERVAL_MS = "intervalMs"
         private const val EXTRA_SCENARIO = "scenario"
 
@@ -214,8 +220,10 @@ class LoggingService : Service() {
         }
 
         /** Runs a speed test in the logging session; ignored when not logging. */
-        fun speedTest(context: Context) {
-            context.startService(Intent(context, LoggingService::class.java).setAction(ACTION_SPEED_TEST))
+        fun speedTest(context: Context, target: SpeedTestTarget = SpeedTestTarget.PRIMARY) {
+            context.startService(
+                Intent(context, LoggingService::class.java).setAction(ACTION_SPEED_TEST).putExtra(EXTRA_TARGET, target.name),
+            )
         }
     }
 }

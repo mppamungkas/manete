@@ -22,8 +22,10 @@ import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.telephony.EventDetector
 import kotlinx.coroutines.CancellationException
@@ -201,20 +203,24 @@ class LoggingEngine @Inject constructor(
     }
 
     /**
-     * Runs one speed test (ping, download, upload) and stores its results in the running session. Returns false when
-     * not logging, a test is already running, or no server is set.
+     * Runs one speed test (ping, download, upload) and stores its results in the running session. [target] PRIMARY is
+     * the user's server from Settings; PUBLIC the secondary public endpoints. Each result's serverUrl is the URL its
+     * phase used. Returns false when not logging, a test is already running, or no server is set.
      */
-    suspend fun runSpeedTest(): Boolean {
+    suspend fun runSpeedTest(target: SpeedTestTarget = SpeedTestTarget.PRIMARY): Boolean {
         val session = recorder.get() ?: return false
         if (!speedTestBusy.compareAndSet(false, true)) return false
         try {
-            val config = speedTestSettings.config.value
+            val config = when (target) {
+                SpeedTestTarget.PRIMARY -> speedTestSettings.config.value
+                SpeedTestTarget.PUBLIC -> SpeedTestConfig.cloudflare()
+            }
             if (!config.isComplete) {
                 setSpeedTest(SpeedTestState.Refused(NO_SERVER))
                 return false
             }
             setSpeedTest(SpeedTestState.Running(null))
-            log("speed test started against ${config.downloadUrl}")
+            log("speed test ($target) started against ${config.downloadUrl}")
             val captureBefore = capture.state.value.running
             val results = speedTestRunner.run(config) { setSpeedTest(SpeedTestState.Running(it)) }
                 // Capture overhead (VPN) affects the result: flagged when a capture ran at its start or end.
