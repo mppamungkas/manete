@@ -15,8 +15,8 @@ class CaptureStateHolder @Inject constructor() {
 }
 
 /**
- * Where NetLogger's own captures are stored (PCAPdroid TCP mode and native mode): app-private
- * files/captures/<session uuid>.pcap, + _sync.csv, + _connections.csv (native mode only).
+ * Where NetLogger's captures are stored: app-private files/captures/<session uuid>.pcap, + _sync.csv,
+ * + _connections.csv (sessions from the removed PCAPdroid bridge have no _connections.csv).
  */
 interface CaptureFileStore {
     fun pcap(sessionUuid: String): File

@@ -549,6 +549,12 @@ YouTube for ~3 min; the session was then stopped (CAPTURE_STOPPED SESSION_END).
   PCAPdroid): stop it first" (any network with `TRANSPORT_VPN`; Android doesn't say whose); checked on the A56: no
   dialog, no files.
 
+### PCAPdroid bridge removed, 2026-10-15 (CLAUDE.md 1.7.0)
+
+At the user's request NetLogger now captures only with its own VPN. The PCAPdroid findings above (milestone 10) stay
+for the record and for reading old sessions. PCAPdroid can still run as a separate app, but not at the same time as
+a NetLogger capture (one VPN at a time; NetLogger refuses to start while another VPN is active).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

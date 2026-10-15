@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Native capture: the network in use before the VPN starts (DNS servers, IPv6). Normal permission. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Package visibility (Android 11+): to find out whether PCAPdroid is installed. -->
     <queries>
-        <package android:name="com.emanuelef.remote_capture" />
-        <package android:name="com.emanuelef.remote_capture.debug" />
         <!--
             Native capture, connections.csv: the package name of each connection's uid. Android 11+ hides other
             apps' names unless declared; this makes every app with a launcher icon visible (no permission needed).
@@ -41,18 +37,5 @@
             </intent-filter>
         </service>
 
-        <!--
-            PCAPdroid sends an explicit broadcast here when its capture stops (we pass this class name in the
-            start request). Exported because PCAPdroid is another app; the worst a spoofed broadcast can do is end
-            our listener, which is logged as an event.
-        -->
-        <receiver
-            android:name=".CaptureStatusReceiver"
-            android:exported="true"
-            tools:ignore="ExportedReceiver">
-            <intent-filter>
-                <action android:name="com.emanuelef.remote_capture.CaptureStatus" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>

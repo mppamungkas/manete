@@ -107,7 +107,7 @@ private fun SnapshotView(
     ) {
         item { LoggingCard(ui.logging, scenario, onScenario) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest) } }
-        item { captureCard() } // shows itself only while a session records or PCAPdroid may still run
+        item { captureCard() } // shows itself only while a session records or a capture is ending
         item { NetworkCard(snapshot) }
         item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
         ui.tick?.device?.let { item { DeviceCard(it) } }

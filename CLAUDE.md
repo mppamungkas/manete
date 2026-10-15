@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.6.0** · last updated 2026-10-14
+**CLAUDE.md version 1.7.0** · last updated 2026-10-15
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented; needs a server and a field check. Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented; to check with PCAPdroid on a phone. Still open for the MVP definition of done: the 1-hour screen-off drive.
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented; needs a server and a field check. Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: in-app speed test during a capture, IPv6 path). Still open for the MVP definition of done: the 1-hour screen-off drive.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.0:** Phase 3 capture is NetLogger's own VpnService only (milestone 11): the PCAPdroid bridge (Phase 3a, milestone 10) was removed at the user's request. Native capture: `libnetcapture` (C, NDK r27d, CMake) with zdtun (LGPL v3+, copied unchanged) in a separate `:vpn` process; nanosecond pcap whose timestamps are elapsedRealtimeNs + one fixed offset; `connections.csv` with each connection's app; MTU setting (1500 realistic / 10 000 fast). Old PCAPdroid sessions stay readable and exportable.
 - **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. NetLogger's packet count on the capture card and in CAPTURE_STOPPED.
 - **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); the stream mode writes `files/captures/<uuid>.pcap` + `_sync.csv`, exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
 - **1.5.8:** Schema v2 (`throughput_test`, migration 1→2 tested; the A56's field data migrated on the phone). `throughput_test` also stores `startedElapsedNs` (timing rule), `streams` and `error`. Speed test (milestone 8): HTTP RTT ping, OkHttp download/upload over mobile data only, manual trigger, server URLs in Settings (LibreSpeed or any web server).
@@ -25,7 +26,7 @@
 ## Goal
 Android app for research-grade drive tests:
 1. **Phase 1–2:** log cellular radio measurements (LTE + 5G NSA, later SA), GPS, battery and data-usage context, show them live and on a map, and export clean datasets.
-2. **Phase 3:** capture the phone's IP traffic (PCAPdroid-style) in sync with the radio log, so radio conditions can be correlated with application behavior (QoE, throughput, battery).
+2. **Phase 3:** capture the phone's IP traffic (own VpnService, PCAPdroid-style) in sync with the radio log, so radio conditions can be correlated with application behavior (QoE, throughput, battery).
 
 The data is used for research (LTE anchor quality vs. 5G NSA availability, ML on drive-test data, RAT vs. battery consumption). **Data quality and traceability matter more than UI polish.**
 
@@ -49,12 +50,12 @@ The data is used for research (LTE anchor quality vs. 5G NSA availability, ML on
 - Candidate dependency: **NetMonster Core** (Apache 2.0) for cell parsing and OEM quirks. Evaluate in Milestone 2 before writing our own parser (see Reference code).
 - Gradle Kotlin DSL, version catalog (`gradle/libs.versions.toml`)
 - Testing: JUnit5 (or JUnit4 if simpler with Android), Turbine for Flows, Robolectric only where needed
-- Phase 3b only: Android NDK (C/C++) via CMake, JNI
+- Phase 3: Android NDK r27 LTS (C) via CMake 3.22.1, JNI (versions pinned in `gradle/libs.versions.toml`)
 
 ## Commands (run these to verify your own work)
 ```
 ./gradlew assembleDebug          # build
-./gradlew testDebugUnitTest      # unit tests (must pass before every commit)
+./gradlew testDebugUnitTest      # unit tests (must pass before every commit; includes :feature:capture:nativeHostTest, the C tests with ASan/UBSan)
 ./gradlew lintDebug              # lint (no new errors)
 ./gradlew connectedDebugAndroidTest   # instrumented tests (needs device)
 ./gradlew :core:data:kspDebugKotlin   # regenerate Room schema
@@ -72,7 +73,7 @@ adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for revie
 - Host: Proxmox homelab. Guest: **Ubuntu Server LTS VM** (no desktop), min. 4 vCPU, 8–16 GB RAM, 60+ GB disk.
 - Agent: **Claude Code CLI**, run inside `tmux` (session `netlogger`) so sessions survive disconnects. Access via Proxmox xterm.js console (campus blocks VPN); optionally Claude Code Remote Control from the Claude app.
 - Run everything as user `pams`, never as root.
-- Toolchain: JDK 17 or 21 (whichever is installed on the VM), Android SDK command-line tools (`platform-tools`, `platforms;android-35`, `build-tools`), Gradle wrapper from the repo. NDK + CMake only from Phase 3b.
+- Toolchain: JDK 17 or 21 (whichever is installed on the VM), Android SDK command-line tools (`platform-tools`, `platforms;android-35`, `build-tools`, `ndk;27.3.13750724`, `cmake;3.22.1`), Gradle wrapper from the repo, host `gcc` for the native host tests.
 - Gradle: `org.gradle.jvmargs=-Xmx4g` (raise if the VM has more RAM), configuration cache and build cache enabled.
 - No emulator: it has no real radio data. All radio testing happens on a **real phone**. Primary: pilot phone via **Proxmox USB port passthrough** (udev rule for vendor `22b8` + `plugdev`). Fallback: ADB over Wi-Fi (`adb pair` / `adb connect`), same network only.
 - Editing by the user: VS Code Remote-SSH or Android Studio on a laptop via git. Do not assume a GUI exists on the server.
@@ -131,7 +132,7 @@ netlogger/
 │   ├── sessions/                # Sessions list, detail, export, delete
 │   ├── speedtest/               # ping + HTTP download/upload against own server (Phase 2)
 │   ├── settings/
-│   └── capture/                 # Phase 3: PCAPdroid bridge, later native VpnService capture
+│   └── capture/                 # Phase 3: native VpnService capture (libnetcapture + zdtun, :vpn process)
 └── docs/
     ├── device-quirks.md         # update after every real-device test
     ├── field-test-checklist.md
@@ -167,7 +168,7 @@ git clone --depth 1 https://github.com/emanuele-f/PCAPdroid pcapdroid
 | netmonster-core | Apache 2.0 | Cell parsing, OEM workarounds, band mapping. Prefer as a Gradle dependency over reimplementing. |
 | network-survey | Apache 2.0 | Foreground service architecture, logging pipeline, export formats |
 | tower-collector | MPL 2.0 | Cell info throttling, background collection strategies |
-| pcapdroid | GPL v3 (see `COPYING`) | Phase 3 only: `docs/app_api.md` (our integration contract), VpnService lifecycle, capture architecture, how zdtun/nDPI are wired in |
+| pcapdroid | GPL v3 (see `COPYING`) | Phase 3 only: VpnService lifecycle, capture architecture, how zdtun is wired in. Its zdtun submodule (LGPL v3+) is copied into `feature/capture/src/main/cpp/third_party/zdtun/` |
 
 Rules:
 - Read-only: never edit, build, or add `reference/` to the Gradle build.
@@ -178,7 +179,7 @@ Rules:
 - Code licensed "GPL v2 only" or under a proprietary/unknown license: **do not copy**.
 - Before copying or adapting anything: tell the user the source file, project and license, and wait for approval. Then keep the original copyright/license header in the file, add our own modification note, and list the project in `docs/third-party.md`.
 - Prefer using a library as a dependency over copying its source.
-- PCAPdroid integration in Phase 3a still goes through its public app API (it is a separate app). Phase 3b may reuse PCAPdroid/zdtun code under the rules above.
+- Phase 3 may reuse PCAPdroid/zdtun code under the rules above.
 - No decompiled code from any closed-source app (e.g. G-NetTrack Pro). Compare with it only as a black box using its exported logs.
 - When a design choice is based on a reference project, mention it in the commit message (e.g. `inspired by network-survey: CellularController`).
 
@@ -251,7 +252,7 @@ Timing rules:
 `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `READ_PHONE_STATE`, `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `WAKE_LOCK`, `INTERNET` (tiles, speed test).
 - `ACCESS_BACKGROUND_LOCATION` is **not** needed: the service is started from the foreground.
 - Rationale screen before requesting; app stays usable (read-only sessions, export) if denied.
-- Phase 3b adds the `VpnService` declaration and its foreground service type. Check current Android 14+ rules for VPN foreground services before implementing.
+- Phase 3 adds `FOREGROUND_SERVICE_SPECIAL_USE` (the VpnService's foreground type on Android 14+), `ACCESS_NETWORK_STATE` and the `VpnService` declaration (`BIND_VPN_SERVICE`, system-bound). The VPN consent dialog is the system's; the user answers it.
 
 ## Export
 Per session, export a **ZIP bundle** via Storage Access Framework or `ACTION_SEND`:
@@ -259,7 +260,7 @@ Per session, export a **ZIP bundle** via Storage Access Framework or `ACTION_SEN
 - `measurements.csv`, `cells.csv`, `events.csv`, `throughput.csv`
 - `flat.csv`: one row per tick with serving LTE + strongest NR columns (easy for Excel and quick plots)
 - `track.geojson` (and optional `track.kml`)
-- `capture.pcap` if available (Phase 3)
+- `capture.pcap`, `capture_sync.csv`, `connections.csv` if the session has a capture (Phase 3)
 
 CSV rules: UTF-8, comma-separated, header row, ISO-8601 timestamps with offset, empty field for null (never `0` or `-999` for missing values), `.` as decimal separator regardless of device locale.
 
@@ -274,17 +275,27 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
 - **Settings:** interval, SIM selection, speed test server URL, export options.
 
 ## Phase 3: Traffic capture
-**3a — PCAPdroid bridge (do first).**
-PCAPdroid (installed separately on the phone) exposes an app API to control capture from another app. Read `reference/pcapdroid/docs/app_api.md` and implement exactly what it documents; do not guess intent extras or permissions. Two modes, user-selectable in Settings:
-- **File mode:** PCAPdroid writes a `.pcap`; NetLogger links the file to the session by session UUID.
-- **TCP stream mode:** PCAPdroid's TCP exporter streams the PCAP to a local port opened by NetLogger, which writes `capture.pcap` itself. Preferred, because NetLogger then owns the file. Packets keep PCAPdroid's own timestamps; the wall-clock ↔ `elapsedRealtimeNs` offset is recorded at capture start and stop for alignment. TCP, not UDP: the UDP exporter lost ~46 % of the packets of a 10 MB download on the moto g45 (2026-10-14); UDP mode was removed. NetLogger must never be the bottleneck (dedicated receive thread, large buffered writer, no per-packet database work), and PCAPdroid's packet count vs. NetLogger's is shown and logged so loss is always visible.
-Store capture start/stop `elapsedRealtimeNs` for alignment in both modes. Handle "PCAPdroid not installed" and "user denied capture" gracefully. Do not depend on PCAPdroid paid features (PCAPng, firewall).
+NetLogger's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):
+- `NativeCaptureService` runs in a separate `:vpn` process, so a native crash cannot end radio logging; it writes no
+  database rows and reports to the main process by package-limited broadcasts (counters every second, ENDED once).
+- `libnetcapture` (C, NDK): one select() loop over the tun and zdtun's sockets (zdtun, LGPL v3+, copied unchanged),
+  our own pcap writer (classic pcap, nanosecond timestamps, LINKTYPE_RAW); every packet crossing the tun is captured.
+- Timing: packet timestamp = `elapsedRealtimeNs` (CLOCK_BOOTTIME) + one wall-clock offset taken at start, so the pcap
+  aligns exactly with the radio log; `capture_sync.csv` has START (the offset), CHECK every 60 s, STOP.
+- Per-app attribution via `ConnectivityManager.getConnectionOwnerUid()`, written to `connections.csv`.
+- MTU setting: 1500 (realistic packet sizes, default) or 10 000 (much less throughput cost; zdtun forwards one
+  segment per socket per loop round).
+- One capture per session, stopped at the session end; refused while another VPN is active. A failed capture never
+  crashes the app: it ends the capture, is stored as a CAPTURE_STOPPED reason, and logging continues.
 
-**3b — Native capture (later, separate milestone).**
-`VpnService` + userspace TCP/UDP forwarding in C (NDK/JNI), our own PCAP/PCAPNG writer, per-app attribution via `ConnectivityManager.getConnectionOwnerUid()`. Document limits in the UI:
-- only IP traffic of apps, no radio signaling;
+Limits, shown in the UI:
+- only IP traffic of apps, between each app and the VPN; no radio signaling, and packet sizes/timing are rebuilt by
+  the forwarder, not the ones on the air;
 - cannot run together with another VPN;
 - adds overhead, so throughput tests during capture are flagged (`captureActive = true`).
+
+History: milestone 10 bridged to PCAPdroid's app API (TCP stream into NetLogger, or PCAPdroid's own file). It worked
+without loss but was removed in 1.7.0 in favour of the native capture; old sessions keep their files and events.
 
 ## Coding conventions
 - Kotlin official style; no `!!` in production code.
@@ -309,8 +320,8 @@ Store capture start/stop `elapsedRealtimeNs` for alignment in both modes. Handle
 9. Session detail with charts (RSRP/SINR vs time, network type timeline).
 
 **Phase 3 — Capture**
-10. PCAPdroid bridge (3a).
-11. Native `VpnService` capture (3b) — plan first, get approval before coding.
+10. PCAPdroid bridge (3a) — done, removed in 1.7.0.
+11. Native `VpnService` capture (3b) — done (`docs/decisions/002-native-capture.md`).
 
 **Always**
 12. Keep `docs/device-quirks.md` and `docs/field-test-checklist.md` updated.
@@ -339,6 +350,7 @@ local.properties
 *.keystore
 .gradle/
 build/
+.cxx/
 captures/
 *.pcap
 *.pcapng

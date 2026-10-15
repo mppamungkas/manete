@@ -28,7 +28,7 @@ data class SessionJson(
     val device: Device,
     val network: Network,
     val counts: Counts,
-    /** Traffic capture of the session: capture.pcap (TCP mode, in this ZIP) or PCAPdroid's Download/PCAPdroid file. */
+    /** Traffic capture of the session: capture.pcap (in this ZIP), or for old PCAPdroid FILE-mode sessions Download/PCAPdroid/<name>. */
     val captureFile: String? = null,
     val files: List<String>,
 ) {

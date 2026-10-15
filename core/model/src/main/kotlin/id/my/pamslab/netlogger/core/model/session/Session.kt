@@ -42,10 +42,10 @@ enum class EventType {
     /** The default data SIM changed during the session; from/to are subscription IDs. The session keeps its SIM. */
     DATA_SIM_CHANGED,
 
-    /** PCAPdroid capture started (Phase 3a): from = mode (TCP/FILE), to = file name and wall-clock offset. */
+    /** Capture started: from = mode (NATIVE; TCP/FILE in sessions from the removed PCAPdroid bridge), to = file name, wall-clock offset, MTU. */
     CAPTURE_STARTED,
 
-    /** Capture ended: from = why (USER, SESSION_END, PCAPDROID), to = packet / byte counts. */
+    /** Capture ended: from = why (USER, SESSION_END, VPN_REVOKED, ERROR, PROCESS_DIED; PCAPDROID in old sessions), to = counts. */
     CAPTURE_STOPPED,
 }
 

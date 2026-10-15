@@ -96,8 +96,8 @@ class SessionExporter @Inject constructor(
             }
             geo.finish(events)
         }
-        // Traffic capture written by NetLogger (PCAPdroid TCP mode or native mode): copied byte for byte. A FILE-mode capture stays in
-        // PCAPdroid's Download folder (session.captureFile names it); NetLogger cannot read it.
+        // Traffic capture written by NetLogger: copied byte for byte. Sessions from the removed PCAPdroid bridge in its
+        // FILE mode have their capture in PCAPdroid's Download folder (session.captureFile names it); not exported.
         val captureFiles = captures?.let { store ->
             listOfNotNull(
                 store.pcap(session.uuid).takeIf { it.isFile }?.let { CAPTURE to it },

@@ -16,7 +16,6 @@ import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureStateHolder
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.model.Clock
-import id.my.pamslab.netlogger.core.model.capture.CaptureMode
 import id.my.pamslab.netlogger.core.model.capture.CaptureState
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.session.EventType
@@ -31,7 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,33 +40,26 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Why a capture ended, stored as CAPTURE_STOPPED fromValue. PCAPDROID: PCAPdroid stopped by itself. Native capture:
- * VPN_REVOKED (another VPN started, or the VPN was turned off in the system settings), ERROR (the capture loop
- * failed), PROCESS_DIED (the ":vpn" process ended without reporting; the pcap is valid up to its last flush).
+ * Why a capture ended, stored as CAPTURE_STOPPED fromValue: USER (stop button), SESSION_END, VPN_REVOKED (another VPN
+ * started, or the VPN was turned off in the system settings), ERROR (the capture loop failed), PROCESS_DIED (the
+ * ":vpn" process ended without reporting; the pcap is valid up to its last flush). Sessions recorded with the
+ * PCAPdroid bridge (removed in CLAUDE.md 1.7.0) may also show PCAPDROID.
  */
-enum class StopReason { USER, SESSION_END, PCAPDROID, VPN_REVOKED, ERROR, PROCESS_DIED }
+enum class StopReason { USER, SESSION_END, VPN_REVOKED, ERROR, PROCESS_DIED }
 
 /**
- * Links a traffic capture to the open logging session: PCAPdroid (Phase 3a, below) or NetLogger's own VpnService
- * ([CaptureMode.NATIVE], Phase 3b: see the "Native capture" section).
+ * Links a traffic capture to the open logging session (Phase 3b, docs/decisions/002-native-capture.md). The capture
+ * runs in NetLogger's own VpnService in the ":vpn" process, which reports its counters here; this class stores the
+ * CAPTURE_STARTED / CAPTURE_STOPPED events and capture_sync.csv, stops the capture at the session end and notices a
+ * capture process that died. The UI launches the system VPN consent intent and reports the result back.
  *
- * PCAPdroid (Phase 3a). The UI launches the intents this class builds
- * (PCAPdroid wants startActivityForResult) and reports the results back. In TCP mode this class owns the receiver
- * and capture.pcap; in FILE mode PCAPdroid owns the file and only its name is linked.
- *
- * Timing: packets keep PCAPdroid's own record timestamps (wall clock). For alignment with the radio log, the
- * wall-clock ↔ elapsedRealtimeNs offset is written to capture_sync.csv at capture start and stop, and both
- * CAPTURE_STARTED / CAPTURE_STOPPED events carry both time bases. When the session ends, NetLogger's side closes;
- * PCAPdroid itself keeps capturing until stopped from the capture card or PCAPdroid.
+ * Timing: packet timestamps are elapsedRealtimeNs plus the START row's wallMinusElapsedNs, exactly, for the whole
+ * file (capture_sync.csv).
  */
 @Singleton
 class CaptureController @Inject constructor(
@@ -81,12 +72,10 @@ class CaptureController @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
-    private var receiver: TcpPcapReceiver? = null
-    private var pcapOut: OutputStream? = null
     private var syncFile: File? = null
     private var preparedUuid: String? = null
 
-    // Native capture (main process side; the capture itself runs in ":vpn").
+    // The capture itself runs in ":vpn"; this is the main process side.
     private var nativePcap: File? = null
     private var nativeRequestedStop: StopReason? = null
     private var nativeLastStatusMs = 0L
@@ -101,20 +90,15 @@ class CaptureController @Inject constructor(
         .map { list -> list.firstOrNull { it.endedAtMs == null } }
         .stateIn(scope, SharingStarted.Eagerly, null)
 
-    /** PCAPdroid may still capture after our side ended (session stopped from the notification). */
-    private val _pcapdroidMayRun = MutableStateFlow(false)
-    val pcapdroidMayRun: StateFlow<Boolean> = _pcapdroidMayRun.asStateFlow()
+    /** Whether this phone can capture (libnetcapture loads). */
+    val available: Boolean get() = NativeCapture.available
 
     init {
         scope.launch {
             openSession.collect { open ->
                 val s = holder.state.value
-                if (s.sessionId != null && s.sessionId != open?.id) {
-                    if (s.mode == CaptureMode.NATIVE) {
-                        if (s.running || nativePcap != null) stopNative(StopReason.SESSION_END)
-                    } else if (s.running) {
-                        finish(StopReason.SESSION_END, null)
-                    }
+                if (s.sessionId != null && s.sessionId != open?.id && (s.running || nativePcap != null)) {
+                    stopNative(StopReason.SESSION_END)
                 }
             }
         }
@@ -133,151 +117,33 @@ class CaptureController @Inject constructor(
         }
     }
 
-    fun pcapdroidPackage(): String? = Pcapdroid.installedPackage(context.packageManager)
-
     /**
-     * Prepares a capture for the open session and returns PCAPdroid's start intent, or null with
-     * [CaptureState.error] set. In TCP mode the receiver is already listening when this returns.
+     * Prepares a capture for the open session. Returns the system's VPN consent intent for the UI to launch, or null:
+     * either the consent was given before and the capture is starting, or [CaptureState.error] says why not.
      */
     suspend fun prepareStart(): Intent? = mutex.withLock {
         val session = openSession.value ?: return fail("Start logging first: a capture belongs to a session")
         if (holder.state.value.running) return fail("A capture is already running")
         // One capture per session: a second one would overwrite capture.pcap and capture_sync.csv.
         if (files.sync(session.uuid).exists()) return fail("This session already has a capture. Start a new session for another one.")
-        val mode = settings.mode
-        if (mode == CaptureMode.NATIVE) return prepareNative(session)
-        val pkg = pcapdroidPackage() ?: return fail("PCAPdroid is not installed")
-        val extras = try {
-            when (mode) {
-                CaptureMode.TCP -> {
-                    val out = BufferedOutputStream(FileOutputStream(files.pcap(session.uuid)), WRITE_BUFFER)
-                    pcapOut = out
-                    val r = TcpPcapReceiver(out)
-                    receiver = r
-                    holder.state.value = CaptureState(sessionId = session.id, mode = mode, fileName = files.pcap(session.uuid).name)
-                    Pcapdroid.startExtras(mode, r.port, null, settings.appFilter, RECEIVER_CLASS)
-                }
-                CaptureMode.FILE -> {
-                    val name = "netlogger_${session.uuid}.pcap"
-                    holder.state.value = CaptureState(sessionId = session.id, mode = mode, fileName = name)
-                    Pcapdroid.startExtras(mode, null, name, settings.appFilter, RECEIVER_CLASS)
-                }
-                CaptureMode.NATIVE -> error("handled above")
-            }
-        } catch (e: IOException) {
-            closeReceiver()
-            return fail("Capture file or TCP port: ${e.message}")
-        }
-        syncFile = files.sync(session.uuid)
-        preparedUuid = session.uuid
-        Log.i(TAG, "capture: asking $pkg to start ($mode)")
-        Pcapdroid.intent(pkg, extras)
+        prepareNative(session)
     }
 
-    /** Result of the start request: RESULT_OK means PCAPdroid started (consent given), or the VPN consent (NATIVE). */
+    /** Result of the VPN consent dialog. */
     fun onStartResult(ok: Boolean) {
-        scope.launch {
-            mutex.withLock {
-                val s = holder.state.value
-                if (s.mode == CaptureMode.NATIVE) return@withLock onNativeConsent(ok)
-                val sessionId = s.sessionId ?: return@withLock
-                if (s.running) return@withLock
-                val uuid = openSession.value?.takeIf { it.id == sessionId }?.uuid
-                if (!ok || uuid == null) {
-                    closeReceiver()
-                    // Nothing was captured for this session: leave no empty files behind.
-                    preparedUuid?.let(files::delete)
-                    if (ok) _pcapdroidMayRun.value = true // the session ended while PCAPdroid asked for consent
-                    holder.state.value = CaptureState(
-                        error = if (ok) "The session ended before the capture started; stop PCAPdroid"
-                        else "PCAPdroid did not start the capture (consent denied or error)",
-                    )
-                    return@withLock
-                }
-                val sync = ClockSync.now(clock)
-                holder.state.value = s.copy(running = true, startedElapsedNs = sync.elapsedNs, error = null)
-                _pcapdroidMayRun.value = true
-                syncFile?.let { ClockSync.writeHeader(it); ClockSync.append(it, "START", sync, null) }
-                repository.setCaptureFile(sessionId, s.fileName?.let { if (s.mode == CaptureMode.FILE) "$PCAPDROID_DIR/$it" else it })
-                repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, s.mode?.name, "${s.fileName} ${sync.describe()}", sync))
-                Log.i(TAG, "capture started: ${s.mode} ${s.fileName}")
-                if (s.mode == CaptureMode.TCP) launch { publishStats(sessionId) }
-            }
-        }
+        scope.launch { mutex.withLock { onNativeConsent(ok) } }
     }
-
-    fun stopIntent(): Intent? = pcapdroidPackage()?.let { Pcapdroid.intent(it, Pcapdroid.stopExtras) }
-
-    /** Result of the stop request (stats in the result intent). */
-    fun onStopResult(ok: Boolean, result: Intent?) {
-        if (ok) _pcapdroidMayRun.value = false
-        scope.launch { finish(StopReason.USER, Pcapdroid.stats(result)) }
-    }
-
-    /** PCAPdroid's CaptureStatus broadcast: its capture stopped (from PCAPdroid itself or our stop request). */
-    fun onPcapdroidStopped(stats: Pcapdroid.Stats?) {
-        _pcapdroidMayRun.value = false
-        scope.launch { finish(StopReason.PCAPDROID, stats) }
-    }
-
-    private suspend fun finish(reason: StopReason, stats: Pcapdroid.Stats?) = mutex.withLock {
-        val s = holder.state.value
-        if (!s.running) {
-            // The stop result and the broadcast both come; the second one only adds PCAPdroid's count if missing.
-            if (stats != null && s.pcapdroidPackets == null && s.sessionId != null) holder.state.value = s.copy(pcapdroidPackets = stats.packets)
-            return@withLock
-        }
-        val r = receiver
-        // PCAPdroid closes the TCP stream once its capture stopped: wait for it, so no buffered packet is cut off.
-        // At the session end PCAPdroid still runs, so NetLogger's side closes right away.
-        val drained = reason != StopReason.SESSION_END && r?.awaitEnd(DRAIN_TIMEOUT_MS) == true
-        closeReceiver()
-        val sync = ClockSync.now(clock)
-        val missing = if (r != null && stats != null) stats.packets - r.packets else null
-        val counts = buildString {
-            append("netlogger_packets=${r?.packets ?: "–"} netlogger_bytes=${r?.bytes ?: "–"}")
-            append(" pcapdroid_packets=${stats?.packets ?: "–"} pcapdroid_bytes_dumped=${stats?.bytesDumped ?: "–"}")
-            missing?.let { append(" missing=$it") }
-            if (r != null && !drained && reason != StopReason.SESSION_END) append(" not_drained")
-            r?.error?.let { append(" error=$it") }
-            append(" ${sync.describe()}")
-        }
-        syncFile?.let { ClockSync.append(it, "STOP", sync, counts) }
-        s.sessionId?.let { repository.addEvent(it, event(EventType.CAPTURE_STOPPED, reason.name, counts, sync)) }
-        holder.state.value = s.copy(
-            running = false, packets = r?.packets ?: s.packets, bytes = r?.bytes ?: s.bytes,
-            pcapdroidPackets = stats?.packets, error = r?.error,
-        )
-        Log.i(TAG, "capture stopped ($reason): $counts")
-    }
-
-    private suspend fun publishStats(sessionId: Long) {
-        while (scope.isActive) {
-            val r = receiver ?: return
-            holder.state.update { s ->
-                if (!s.running || s.sessionId != sessionId) return
-                s.copy(packets = r.packets, bytes = r.bytes, error = r.error)
-            }
-            delay(STATS_MS)
-        }
-    }
-
-    // --- Native capture (Phase 3b) ----------------------------------------------------------------------------------
-
-    /** Whether this phone can run the native capture (libnetcapture loads). */
-    val nativeAvailable: Boolean get() = NativeCapture.available
 
     /**
      * Prepares a native capture. Returns the system's VPN consent intent for the UI to launch, or null: either the
      * consent was given before and the capture is starting, or [CaptureState.error] says why not. Called under [mutex].
      */
     private fun prepareNative(session: SessionSummary): Intent? {
-        if (!NativeCapture.available) return fail("Native capture is not available on this phone (${NativeCapture.loadError})")
-        if (_pcapdroidMayRun.value) return fail("Stop the PCAPdroid capture first: only one VPN can run at a time")
+        if (!NativeCapture.available) return fail("Traffic capture is not available on this phone (${NativeCapture.loadError})")
         if (nativePcap != null) return fail("The last native capture is still ending; try again in a moment")
         // Android allows one VPN: starting ours would silently end the other (e.g. a capture started in PCAPdroid).
         if (otherVpnActive()) return fail("Another VPN is active (e.g. PCAPdroid): stop it first, only one VPN can run at a time")
-        holder.state.value = CaptureState(sessionId = session.id, mode = CaptureMode.NATIVE, fileName = files.pcap(session.uuid).name)
+        holder.state.value = CaptureState(sessionId = session.id, fileName = files.pcap(session.uuid).name)
         preparedUuid = session.uuid
         syncFile = files.sync(session.uuid)
         val consent = try {
@@ -394,8 +260,8 @@ class CaptureController @Inject constructor(
             ClockSync.append(it, "START", start, "pcap_offset clock_uncertainty_ns=${st.clockUncertaintyNs} mtu=$nativeMtu")
         }
         repository.setCaptureFile(sessionId, s.fileName)
-        repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, CaptureMode.NATIVE.name, "${s.fileName} ${start.describe()} mtu=$nativeMtu", start))
-        Log.i(TAG, "capture started: NATIVE ${s.fileName} ${start.describe()} mtu=$nativeMtu")
+        repository.addEvent(sessionId, event(EventType.CAPTURE_STARTED, MODE, "${s.fileName} ${start.describe()} mtu=$nativeMtu", start))
+        Log.i(TAG, "capture started: $MODE ${s.fileName} ${start.describe()} mtu=$nativeMtu")
     }
 
     /** Called under [mutex]. */
@@ -486,13 +352,6 @@ class CaptureController @Inject constructor(
         droppedPackets = st.pcapDropped, connections = st.connsTcp + st.connsUdp + st.connsIcmp,
     )
 
-    private fun closeReceiver() {
-        receiver?.close()
-        receiver = null
-        pcapOut?.let { runCatching { it.close() } }
-        pcapOut = null
-    }
-
     private fun fail(message: String): Intent? {
         holder.state.update { it.copy(error = message) }
         Log.w(TAG, "capture: $message")
@@ -504,16 +363,13 @@ class CaptureController @Inject constructor(
 
     companion object {
         private const val TAG = "NetLogger"
-        private const val STATS_MS = 1_000L
-        private const val WRITE_BUFFER = 1 shl 20
-        private const val DRAIN_TIMEOUT_MS = 5_000L
+        /** CAPTURE_STARTED fromValue (sessions from the PCAPdroid bridge show TCP or FILE). */
+        const val MODE = "NATIVE"
         private const val WATCH_MS = 2_000L
         private const val SYNC_CHECK_MS = 60_000L
         /** ":vpn" reports every second; this long without a report, and the process gone, means it died. */
         private const val SILENT_RUNNING_MS = 5_000L
         private const val SILENT_STARTING_MS = 15_000L
-        const val PCAPDROID_DIR = "Download/PCAPdroid"
-        val RECEIVER_CLASS: String = CaptureStatusReceiver::class.java.name
     }
 }
 

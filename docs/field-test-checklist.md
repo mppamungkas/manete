@@ -110,7 +110,10 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] A 1-hour session: charts load in a few seconds, scrolling stays smooth
 - [ ] A recording session: "Reload" shows newer ticks
 
-## Milestone 10: PCAPdroid bridge (Phase 3a)
+## Milestone 10: PCAPdroid bridge (Phase 3a) — removed in CLAUDE.md 1.7.0 (native capture only)
+
+Kept for the record; these checks no longer apply.
+
 
 - [ ] PCAPdroid installed (F-Droid / Play); no other VPN active
 - [ ] Without PCAPdroid: the capture card says so, no crash
@@ -127,7 +130,7 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 
 ## Milestone 11: native capture (Phase 3b, own VpnService)
 
-- [x] Logging → capture card → "Native (VPN)" → Start capture: the system VPN consent dialog the first time only
+- [x] Logging → capture card → Start capture (since 1.7.0 the only mode): the system VPN consent dialog the first time only
       (moto g45, 2026-10-15); CAPTURE_STARTED NATIVE; key icon in the status bar; card counts packets, MB, connections
 - [x] Deny the VPN consent: the card shows the error, no CAPTURE_STARTED, no file left behind (A56)
 - [x] Stop capture on the card: CAPTURE_STOPPED USER, pcap packets = expected, dropped 0; capture_sync.csv START,
