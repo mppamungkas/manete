@@ -13,8 +13,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.export.ExportResult
 import id.my.pamslab.netlogger.core.export.SessionExporter
+import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.feature.sessions.charts.ChartData
@@ -27,6 +29,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,11 +40,38 @@ import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
-class SessionsViewModel @Inject constructor(repository: SessionRepository) : ViewModel() {
+class SessionsViewModel @Inject constructor(
+    repository: SessionRepository,
+    captureFiles: CaptureFileStore,
+    @ApplicationContext context: Context,
+) : ViewModel() {
     /** null until the first database read. */
     val sessions: StateFlow<List<SessionSummary>?> = repository.observeSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Estimated sizes per session id, from the row counts and the capture files on disk. */
+    val sizes: StateFlow<Map<Long, SizeEstimate>> = repository.observeSessions()
+        .map { list ->
+            list.associate { s ->
+                s.id to SizeEstimate.of(s.measurements, s.cells, s.warnings, captureFiles.existing(s.uuid).sumOf { it.length() })
+            }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /** All sessions: the database files' real size, the capture files, and the summed export estimate. */
+    val totals: StateFlow<StorageTotals?> = sizes
+        .map { sizes ->
+            val db = context.getDatabasePath(NetLoggerDatabase.NAME)
+            val dbBytes = listOf(db, File("${db.path}-wal"), File("${db.path}-shm")).sumOf { if (it.isFile) it.length() else 0L }
+            StorageTotals(dbBytes, sizes.values.sumOf { it.captureBytes }, sizes.values.sumOf { it.exportBytes })
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
+
+/** [databaseFileBytes]: the database file with its WAL, as on disk (exact; the per-session values are estimates). */
+data class StorageTotals(val databaseFileBytes: Long, val captureBytes: Long, val exportBytes: Long)
 
 sealed interface ChartState {
     data object Loading : ChartState
@@ -62,6 +93,12 @@ class SessionDetailViewModel @Inject constructor(
     val id: Long = savedStateHandle.toRoute<SessionDetailRoute>().id
 
     val session: StateFlow<SessionSummary?> = repository.observeSession(id)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Estimated size on the phone and of the export (row counts + capture files on disk). */
+    val size: StateFlow<SizeEstimate?> = session
+        .map { s -> s?.let { SizeEstimate.of(it.measurements, it.cells, it.warnings, captureFiles.existing(it.uuid).sumOf { f -> f.length() }) } }
+        .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _charts = MutableStateFlow<ChartState>(ChartState.Loading)

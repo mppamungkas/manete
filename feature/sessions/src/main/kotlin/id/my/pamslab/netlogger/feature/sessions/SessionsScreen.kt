@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
@@ -35,6 +36,8 @@ internal fun SessionsScreen(
     viewModel: SessionsViewModel = hiltViewModel(),
 ) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
+    val sizes by viewModel.sizes.collectAsStateWithLifecycle()
+    val totals by viewModel.totals.collectAsStateWithLifecycle()
     val list = sessions
     when {
         list == null -> PlaceholderScreen("Sessions", "Loading…", modifier)
@@ -44,13 +47,36 @@ internal fun SessionsScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(list, key = { it.id }) { SessionRow(it, onClick = { onOpen(it.id) }) }
+            totals?.let { t -> item(key = "totals") { Totals(t, list.size) } }
+            items(list, key = { it.id }) { SessionRow(it, sizes[it.id], onClick = { onOpen(it.id) }) }
         }
     }
 }
 
 @Composable
-private fun SessionRow(s: SessionSummary, onClick: () -> Unit) {
+private fun Totals(t: StorageTotals, sessions: Int) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            "On this phone: database ${SizeEstimate.format(t.databaseFileBytes)}" +
+                (if (t.captureBytes > 0) " · captures ${SizeEstimate.format(t.captureBytes)}" else "") +
+                " · export of all $sessions sessions ≈ ${SizeEstimate.format(t.exportBytes)}",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "Sizes per session are estimates from their rows (≈ ±20 %); capture files are counted exactly.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** "≈ 1.2 MB on phone · ≈ 340 kB export", with the capture's own size when there is one. */
+internal fun sizeLine(e: SizeEstimate): String =
+    "≈ ${SizeEstimate.format(e.storageBytes)} on phone · ≈ ${SizeEstimate.format(e.exportBytes)} export" +
+        if (e.captureBytes > 0) " (capture ${SizeEstimate.format(e.captureBytes)})" else ""
+
+@Composable
+private fun SessionRow(s: SessionSummary, size: SizeEstimate?, onClick: () -> Unit) {
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(s.label ?: formatTime(s.startedAtMs), style = MaterialTheme.typography.titleMedium)
@@ -67,6 +93,7 @@ private fun SessionRow(s: SessionSummary, onClick: () -> Unit) {
                 Text("${s.measurements} ticks", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
                 Text(if (s.markers == 1L) "1 marker" else "${s.markers} markers", style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
             }
+            size?.let { Text(sizeLine(it), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace) }
             status(s)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary) }
         }
     }
