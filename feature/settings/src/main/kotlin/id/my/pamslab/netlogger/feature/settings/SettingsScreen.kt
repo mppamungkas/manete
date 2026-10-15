@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.data.CaptureSettings
+import id.my.pamslab.netlogger.feature.settings.navigation.CapabilitiesRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CaptureSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.LoggingSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.SpeedTestSettingsRoute
@@ -63,5 +64,9 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
                 else -> pluralStringResource(R.plurals.settings_capture_summary_specific, captureApps.size, captureApps.size, mtu)
             },
         ) { onOpen(CaptureSettingsRoute) }
+        Text(stringResource(R.string.settings_section_info), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        SettingsEntry(stringResource(R.string.settings_capabilities), stringResource(R.string.settings_capabilities_summary)) {
+            onOpen(CapabilitiesRoute)
+        }
     }
 }

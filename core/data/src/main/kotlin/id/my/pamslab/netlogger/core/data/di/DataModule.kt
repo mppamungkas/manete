@@ -12,6 +12,8 @@ import id.my.pamslab.netlogger.core.data.AppCaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.LoggingSettings
+import id.my.pamslab.netlogger.core.data.RecordedCoverage
+import id.my.pamslab.netlogger.core.data.RoomRecordedCoverage
 import id.my.pamslab.netlogger.core.data.RoomSessionRepository
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.SharedPreferencesCaptureSettings
@@ -40,6 +42,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindCaptureSettings(impl: SharedPreferencesCaptureSettings): CaptureSettings
+
+    @Binds
+    abstract fun bindRecordedCoverage(impl: RoomRecordedCoverage): RecordedCoverage
 
     companion object {
         // No fallbackToDestructiveMigration: losing field data silently is worse than a crash that names the

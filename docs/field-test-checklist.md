@@ -161,6 +161,9 @@ Kept for the record; these checks no longer apply.
 - [x] Traffic capture page: explainer, All / Specific apps, MTU 1500 / 10 000; the picker lists launcher apps with icon, name and package (A56, ~100 apps); a tick saves `appFilter` + `allApps` and does not move the row; apps selected earlier are listed first (A56)
 - [x] Live capture card while logging: Start capture + "1 selected app · MTU 1500 · change in Settings"; the Settings list shows the same summary (A56, short test session)
 - [x] Tapping the open tab again returns from a Settings page to the list (A56)
+- [x] Phone capabilities (A56, Tri 510-89, Wi-Fi on, LTE B3 only): device, data SIM, right now (mobile data "Not connected" with Wi-Fi on, not the IMS network; battery optimised), LTE fields available, NR fields "needs 5G coverage", recorded shares over 25 sessions / 6328 rows (NR in the cell list 95 %, CSI-RSRP 0 %, neighbours 59 %)
+- [x] Copy report: pasted back on the phone, a Markdown table with LTE/NR prefixes
+- [ ] Phone capabilities with 5G NSA and mobile data on (NR fields from the live check; IPv4/IPv6)
 - [ ] A capture with Specific apps: only the chosen app in connections.csv; earlier `appFilter` typed on the old card read as Specific apps after the update
 - [ ] Same on the moto g45
 - [ ] 500 ms interval over a few minutes: share of repeated (cached) cell rows
