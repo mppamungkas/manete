@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Started only from the Live screen (foreground), so no background location permission is needed. -->
+        <service
+            android:name=".service.LoggingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+    </application>
+</manifest>

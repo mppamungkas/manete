@@ -1,0 +1,66 @@
+package id.my.pamslab.netlogger.core.model.speedtest
+
+enum class ThroughputType { PING, DOWNLOAD, UPLOAD }
+
+/**
+ * Server endpoints. Works with a LibreSpeed backend ([libreSpeed]) or any web server: [pingUrl] answers small GETs,
+ * [downloadUrl] serves a large body, [uploadUrl] accepts a POST and discards it.
+ */
+data class SpeedTestConfig(
+    val pingUrl: String,
+    val downloadUrl: String,
+    val uploadUrl: String,
+    /** HTTP requests for the ping; the first one only opens the connection and is not counted. */
+    val pingCount: Int = 10,
+    /** Duration of each throughput phase. */
+    val durationMs: Long = 10_000,
+    /** Parallel connections for download and upload. */
+    val streams: Int = 4,
+    /** Stops a download early after this many bytes (all streams), to cap mobile data. */
+    val maxDownloadBytes: Long = 200L * 1024 * 1024,
+    /** Stops an upload early after this many bytes (all streams). */
+    val maxUploadBytes: Long = 50L * 1024 * 1024,
+) {
+    val isComplete: Boolean get() = listOf(pingUrl, downloadUrl, uploadUrl).all { it.startsWith("http://") || it.startsWith("https://") }
+
+    companion object {
+        /** LibreSpeed backend endpoints under [baseUrl] (e.g. https://speed.example.org/). */
+        fun libreSpeed(baseUrl: String): SpeedTestConfig {
+            val base = baseUrl.trim().trimEnd('/')
+            return SpeedTestConfig(
+                pingUrl = "$base/backend/empty.php",
+                downloadUrl = "$base/backend/garbage.php?ckSize=100",
+                uploadUrl = "$base/backend/empty.php",
+            )
+        }
+    }
+}
+
+/** One phase of a speed test; a failed phase has [error] set and keeps what was measured until then. */
+data class ThroughputResult(
+    val type: ThroughputType,
+    val startedAtMs: Long,
+    val startedElapsedNs: Long,
+    val serverUrl: String,
+    val durationMs: Long?,
+    val bytes: Long?,
+    val mbps: Double?,
+    val streams: Int?,
+    val rttMinMs: Double?,
+    val rttAvgMs: Double?,
+    val rttMaxMs: Double?,
+    /** Mean absolute difference between consecutive RTTs. */
+    val jitterMs: Double?,
+    val lossPct: Double?,
+    /** Phase 3: traffic capture was running (adds overhead). */
+    val captureActive: Boolean = false,
+    val error: String? = null,
+)
+
+/** Progress for the UI. */
+data class SpeedTestProgress(val phase: ThroughputType, val mbps: Double? = null, val rttMs: Double? = null)
+
+/** Runs ping, download and upload in that order against [SpeedTestConfig]; implemented in feature:speedtest. */
+interface SpeedTestRunner {
+    suspend fun run(config: SpeedTestConfig, onProgress: (SpeedTestProgress) -> Unit): List<ThroughputResult>
+}

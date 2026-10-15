@@ -1,0 +1,93 @@
+# Fixture: moto g45 5G (SM6375, Android 15), Tri/IOH 510-89, LTE B3 with CA, static indoor, 2026-10-13.
+# Source: `adb shell dumpsys telephony.registry`, per-phone state section only.
+# Anonymized: real cell ID (mCi) replaced by 1000001, real TAC (mTac) by 1001. The data connection
+# section (IP addresses, DNS, APN), local/listen logs and registrations were removed. PCI, EARFCN,
+# band, bandwidths and signal values are real. Sentinels (2147483647) are kept as reported.
+  Phone Id=0
+    mCallState=0
+    mRingingCallState=0
+    mForegroundCallState=0
+    mBackgroundCallState=0
+    mPreciseCallState=Ringing call state: -1, Foreground call state: -1, Background call state: -1, Disconnect cause: -1, Precise disconnect cause: -1
+    mCallDisconnectCause=-1
+    mCallIncomingNumber=
+    mServiceState={mVoiceRegState=0(IN_SERVICE), mDataRegState=0(IN_SERVICE), mVideoRegState=1(OUT_OF_SERVICE), mChannelNumber=1625, duplexMode()=1, mCellBandwidths=[20000, 10000, 10000], mOperatorAlphaLong=3, mOperatorAlphaShort=3, isManualNetworkSelection=false(automatic), getRilVoiceRadioTechnology=14(LTE), getRilDataRadioTechnology=14(LTE), mCssIndicator=unsupported, mNetworkId=-1, mSystemId=-1, mCdmaRoamingIndicator=-1, mCdmaDefaultRoamingIndicator=-1, mIsEmergencyOnly=false, isUsingCarrierAggregation=true, mArfcnRsrpBoost=0, mNetworkRegistrationInfos=[NetworkRegistrationInfo{ domain=PS transportType=WLAN registrationState=NOT_REG_OR_SEARCHING networkRegistrationState=NOT_REG_OR_SEARCHING roamingType=NOT_ROAMING accessNetworkTechnology=UNKNOWN rejectCause=0 emergencyEnabled=false availableServices=[] cellIdentity=null voiceSpecificInfo=null dataSpecificInfo=null nrState=**** rRplmn= isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}, NetworkRegistrationInfo{ domain=CS transportType=WWAN registrationState=HOME networkRegistrationState=HOME roamingType=NOT_ROAMING accessNetworkTechnology=LTE rejectCause=0 emergencyEnabled=false availableServices=[VOICE,SMS,VIDEO] cellIdentity=CellIdentityLte:{ mCi=1000001 mPci=479 mTac=1001 mEarfcn=1625 mBands=[3] mBandwidth=20000 mMcc=510 mMnc=89 mAlphaLong=3 mAlphaShort=3 mAdditionalPlmns={} mCsgInfo=null} voiceSpecificInfo=VoiceSpecificRegistrationInfo { mCssSupported=false mRoamingIndicator=0 mSystemIsInPrl=0 mDefaultRoamingIndicator=0} dataSpecificInfo=null nrState=**** rRplmn=51089 isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}, NetworkRegistrationInfo{ domain=PS transportType=WWAN registrationState=HOME networkRegistrationState=HOME roamingType=NOT_ROAMING accessNetworkTechnology=LTE rejectCause=0 emergencyEnabled=false availableServices=[DATA,MMS] cellIdentity=CellIdentityLte:{ mCi=1000001 mPci=479 mTac=1001 mEarfcn=1625 mBands=[3] mBandwidth=20000 mMcc=510 mMnc=89 mAlphaLong=3 mAlphaShort=3 mAdditionalPlmns={} mCsgInfo=null} voiceSpecificInfo=null dataSpecificInfo=android.telephony.DataSpecificRegistrationInfo :{ maxDataCalls = 16 isDcNrRestricted = false isNrAvailable = false isEnDcAvailable = false mLteAttachResultType = 0 mLteAttachExtraInfo = 0 LteVopsSupportInfo :  mVopsSupport = 2 mEmcBearerSupport = 3 } nrState=**** rRplmn=51089 isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}], mNrFrequencyRange=0, mOperatorAlphaLongRaw=3, mOperatorAlphaShortRaw=3, mIsDataRoamingFromRegistration=false, mIsIwlanPreferred=false, mIsLteFemtoCell=false}
+    mVoiceActivationState= 2
+    mDataActivationState= 0
+    mUserMobileDataState= true
+    mSignalStrength=SignalStrength:{mCdma=CellSignalStrengthCdma: cdmaDbm=2147483647 cdmaEcio=2147483647 evdoDbm=2147483647 evdoEcio=2147483647 evdoSnr=2147483647 level=0,mGsm=CellSignalStrengthGsm: rssi=2147483647 ber=2147483647 mTa=2147483647 mLevel=0,mWcdma=CellSignalStrengthWcdma: ss=2147483647 ber=2147483647 rscp=2147483647 ecno=2147483647 level=0,mTdscdma=CellSignalStrengthTdscdma: rssi=2147483647 ber=2147483647 rscp=2147483647 level=0,mLte=CellSignalStrengthLte: rssi=-67 rsrp=-98 rsrq=-8 rssnr=9 cqiTableIndex=2147483647 cqi=2147483647 ta=2147483647 level=4 parametersUseForLevel=0,mNr=CellSignalStrengthNr:{ csiRsrp = 2147483647 csiRsrq = 2147483647 csiCqiTableIndex = 2147483647 csiCqiReport = [] ssRsrp = 2147483647 ssRsrq = 2147483647 ssSinr = 2147483647 level = 0 parametersUseForLevel = 0 timingAdvance = 2147483647 },primary=CellSignalStrengthLte,mMaxLevel=4}
+    mMessageWaiting=false
+    mCallForwarding=false
+    mDataActivity=4
+    mDataConnectionState=2
+    mCellIdentity=CellIdentityLte:{ mCi=1000001 mPci=479 mTac=1001 mEarfcn=1625 mBands=[3] mBandwidth=20000 mMcc=510 mMnc=89 mAlphaLong=3 mAlphaShort=3 mAdditionalPlmns={} mCsgInfo=null}
+    mCellInfo=[CellInfoLte:{mRegistered=YES mTimeStamp=1368661575777ns mCellConnectionStatus=0 CellIdentityLte:{ mCi=1000001 mPci=479 mTac=1001 mEarfcn=1625 mBands=[3] mBandwidth=20000 mMcc=510 mMnc=01 mAlphaLong=IND INDOSAT mAlphaShort=INDOSAT mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthLte: rssi=-69 rsrp=-97 rsrq=-6 rssnr=2147483647 cqiTableIndex=2147483647 cqi=2147483647 ta=2147483647 level=2 parametersUseForLevel=0 android.telephony.CellConfigLte :{ isEndcAvailable = false }}, CellInfoLte:{mRegistered=NO mTimeStamp=1368661575777ns mCellConnectionStatus=0 CellIdentityLte:{ mCi=2147483647 mPci=478 mTac=2147483647 mEarfcn=1625 mBands=[3] mBandwidth=2147483647 mMcc=null mMnc=null mAlphaLong= mAlphaShort= mAdditionalPlmns={} mCsgInfo=null} CellSignalStrengthLte: rssi=-79 rsrp=-104 rsrq=-15 rssnr=2147483647 cqiTableIndex=2147483647 cqi=2147483647 ta=2147483647 level=2 parametersUseForLevel=0 android.telephony.CellConfigLte :{ isEndcAvailable = false }}]
+    mImsCallDisconnectCause=ImsReasonInfo :: {0 : CODE_UNSPECIFIED, 0, null}
+    mSrvccState=-1
+    mCallPreciseDisconnectCause=-1
+    mCallQuality=CallQuality: {downlinkCallQualityLevel=0 uplinkCallQualityLevel=0 callDuration=0 numRtpPacketsTransmitted=0 numRtpPacketsReceived=0 numRtpPacketsTransmittedLost=0 numRtpPacketsNotReceived=0 averageRelativeJitter=0 maxRelativeJitter=0 averageRoundTripTime=0 codecType=0 rtpInactivityDetected=false txSilenceDetected=false rxSilenceDetected=false numVoiceFrames=0 numNoDataFrames=0 numDroppedRtpPackets=0 minPlayoutDelayMillis=0 maxPlayoutDelayMillis=0 numRtpSidPacketsReceived=0 numRtpDuplicatePackets=0}
+    mCallNetworkType=0
+    mOutgoingCallEmergencyNumber=null
+    mOutgoingSmsEmergencyNumber=null
+    mBarringInfo=BarringInfo {mCellIdentity=CellIdentityLte:{ mCi=1000001 mPci=479 mTac=1001 mEarfcn=1625 mBands=[3] mBandwidth=20000 mMcc=510 mMnc=89 mAlphaLong=3 mAlphaShort=3 mAdditionalPlmns={} mCsgInfo=null}, mBarringServiceInfos={8=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}}}
+    mCarrierNetworkChangeState=false
+    mTelephonyDisplayInfo=TelephonyDisplayInfo {network=LTE, overrideNetwork=LTE_CA, isRoaming=false}
+    mIsDataEnabled=true
+    mDataEnabledReason=0
+    mAllowedNetworkTypeReason=2
+    mAllowedNetworkTypeValue=578439
+    mPhysicalChannelConfigs=[{mConnectionStatus=PrimaryServing,mCellBandwidthDownlinkKhz=20000,mCellBandwidthUplinkKhz=0,mNetworkType=LTE,mFrequencyRange=MID,mDownlinkChannelNumber=2147483647,mUplinkChannelNumber=2147483647,mContextIds=[0, 1],mPhysicalCellId=479,mBand=0,mDownlinkFrequency=0,mUplinkFrequency=0}]
+    mLinkCapacityEstimateList=[{mType=2, mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1}]
+    mECBMReason=0
+    mECBMStarted=false
+    mSCBMReason=0
+    mSCBMStarted=false
+    mCarrierPrivilegeState=<packages=[], uids=[]>
+    mCarrierServiceState=<package=***, uid=-1>
+  Phone Id=1
+    mCallState=0
+    mRingingCallState=0
+    mForegroundCallState=0
+    mBackgroundCallState=0
+    mPreciseCallState=Ringing call state: -1, Foreground call state: -1, Background call state: -1, Disconnect cause: -1, Precise disconnect cause: -1
+    mCallDisconnectCause=-1
+    mCallIncomingNumber=
+    mServiceState={mVoiceRegState=1(OUT_OF_SERVICE), mDataRegState=1(OUT_OF_SERVICE), mVideoRegState=1(OUT_OF_SERVICE), mChannelNumber=-1, duplexMode()=0, mCellBandwidths=[], mOperatorAlphaLong=, mOperatorAlphaShort=, isManualNetworkSelection=false(automatic), getRilVoiceRadioTechnology=0(Unknown), getRilDataRadioTechnology=0(Unknown), mCssIndicator=unsupported, mNetworkId=-1, mSystemId=-1, mCdmaRoamingIndicator=-1, mCdmaDefaultRoamingIndicator=-1, mIsEmergencyOnly=false, isUsingCarrierAggregation=false, mArfcnRsrpBoost=0, mNetworkRegistrationInfos=[NetworkRegistrationInfo{ domain=PS transportType=WLAN registrationState=NOT_REG_OR_SEARCHING networkRegistrationState=NOT_REG_OR_SEARCHING roamingType=NOT_ROAMING accessNetworkTechnology=UNKNOWN rejectCause=0 emergencyEnabled=false availableServices=[] cellIdentity=null voiceSpecificInfo=null dataSpecificInfo=null nrState=**** rRplmn= isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}, NetworkRegistrationInfo{ domain=CS transportType=WWAN registrationState=NOT_REG_SEARCHING networkRegistrationState=NOT_REG_SEARCHING roamingType=NOT_ROAMING accessNetworkTechnology=UNKNOWN rejectCause=0 emergencyEnabled=false availableServices=[] cellIdentity=null voiceSpecificInfo=VoiceSpecificRegistrationInfo { mCssSupported=false mRoamingIndicator=0 mSystemIsInPrl=0 mDefaultRoamingIndicator=0} dataSpecificInfo=null nrState=**** rRplmn= isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}, NetworkRegistrationInfo{ domain=PS transportType=WWAN registrationState=NOT_REG_SEARCHING networkRegistrationState=NOT_REG_SEARCHING roamingType=NOT_ROAMING accessNetworkTechnology=UNKNOWN rejectCause=0 emergencyEnabled=false availableServices=[] cellIdentity=null voiceSpecificInfo=null dataSpecificInfo=android.telephony.DataSpecificRegistrationInfo :{ maxDataCalls = 16 isDcNrRestricted = false isNrAvailable = false isEnDcAvailable = false mLteAttachResultType = 0 mLteAttachExtraInfo = 0 LteVopsSupportInfo :  mVopsSupport = 1 mEmcBearerSupport = 1 } nrState=**** rRplmn= isUsingCarrierAggregation=false isNonTerrestrialNetwork=TERRESTRIAL}], mNrFrequencyRange=0, mOperatorAlphaLongRaw=, mOperatorAlphaShortRaw=, mIsDataRoamingFromRegistration=false, mIsIwlanPreferred=false, mIsLteFemtoCell=false}
+    mVoiceActivationState= 0
+    mDataActivationState= 0
+    mUserMobileDataState= false
+    mSignalStrength=SignalStrength:{mCdma=CellSignalStrengthCdma: cdmaDbm=2147483647 cdmaEcio=2147483647 evdoDbm=2147483647 evdoEcio=2147483647 evdoSnr=2147483647 level=0,mGsm=CellSignalStrengthGsm: rssi=2147483647 ber=2147483647 mTa=2147483647 mLevel=0,mWcdma=CellSignalStrengthWcdma: ss=2147483647 ber=2147483647 rscp=2147483647 ecno=2147483647 level=0,mTdscdma=CellSignalStrengthTdscdma: rssi=2147483647 ber=2147483647 rscp=2147483647 level=0,mLte=CellSignalStrengthLte: rssi=2147483647 rsrp=2147483647 rsrq=2147483647 rssnr=2147483647 cqiTableIndex=2147483647 cqi=2147483647 ta=2147483647 level=0 parametersUseForLevel=0,mNr=CellSignalStrengthNr:{ csiRsrp = 2147483647 csiRsrq = 2147483647 csiCqiTableIndex = 2147483647 csiCqiReport = [] ssRsrp = 2147483647 ssRsrq = 2147483647 ssSinr = 2147483647 level = 0 parametersUseForLevel = 0 timingAdvance = 2147483647 },primary=CellSignalStrengthLte,mMaxLevel=4}
+    mMessageWaiting=false
+    mCallForwarding=false
+    mDataActivity=0
+    mDataConnectionState=-1
+    mCellIdentity=null
+    mCellInfo=[]
+    mImsCallDisconnectCause=ImsReasonInfo :: {0 : CODE_UNSPECIFIED, 0, null}
+    mSrvccState=-1
+    mCallPreciseDisconnectCause=-1
+    mCallQuality=CallQuality: {downlinkCallQualityLevel=0 uplinkCallQualityLevel=0 callDuration=0 numRtpPacketsTransmitted=0 numRtpPacketsReceived=0 numRtpPacketsTransmittedLost=0 numRtpPacketsNotReceived=0 averageRelativeJitter=0 maxRelativeJitter=0 averageRoundTripTime=0 codecType=0 rtpInactivityDetected=false txSilenceDetected=false rxSilenceDetected=false numVoiceFrames=0 numNoDataFrames=0 numDroppedRtpPackets=0 minPlayoutDelayMillis=0 maxPlayoutDelayMillis=0 numRtpSidPacketsReceived=0 numRtpDuplicatePackets=0}
+    mCallNetworkType=0
+    mOutgoingCallEmergencyNumber=null
+    mOutgoingSmsEmergencyNumber=null
+    mBarringInfo=BarringInfo {mCellIdentity=null, mBarringServiceInfos={0=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 1=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 2=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 3=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 4=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 5=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 6=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 7=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 8=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}, 9=BarringServiceInfo {mBarringType=NONE, mIsConditionallyBarred=false, mConditionalBarringFactor=0, mConditionalBarringTimeSeconds=0}}}
+    mCarrierNetworkChangeState=false
+    mTelephonyDisplayInfo=null
+    mIsDataEnabled=false
+    mDataEnabledReason=-1
+    mAllowedNetworkTypeReason=-1
+    mAllowedNetworkTypeValue=-1
+    mPhysicalChannelConfigs=[]
+    mLinkCapacityEstimateList=[{mType=2, mDownlinkCapacityKbps=-1, mUplinkCapacityKbps=-1}]
+    mECBMReason=0
+    mECBMStarted=false
+    mSCBMReason=0
+    mSCBMStarted=false
+    mCarrierPrivilegeState=<packages=[], uids=[]>
+    mCarrierServiceState=<package=***, uid=-1>
+  mPhoneCapability=mMaxActiveVoiceSubscriptions=1 mMaxActiveDataSubscriptions=2 mNetworkValidationBeforeSwitchSupported=true mDeviceNrCapability []
+  mActiveDataSubId=1
+  mRadioPowerState=1
+  mEmergencyNumberList={-1=[[EmergencyNumber: 112, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 911, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=]], 1=[[EmergencyNumber: 110, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 112, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 113, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 118, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 119, countryIso=id, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 199, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=], [EmergencyNumber: 911, countryIso=, mnc=, src=mdm , routing=unknown, categories=, urns=]]}
+  mDefaultPhoneId=0
+  mDefaultSubId=1

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Native capture (feature:capture): the NDK and CMake versions pinned in gradle/libs.versions.toml.
+      - name: NDK and CMake
+        run: |
+          NDK=$(sed -n 's/^ndk = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          CMAKE=$(sed -n 's/^cmake = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          # No `yes |`: with pipefail its SIGPIPE would fail the step. The runner image has the licenses accepted.
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK" "cmake;$CMAKE" > /dev/null
+
+      - name: Build
+        run: ./gradlew assembleDebug
+
+      # The native host tests use AddressSanitizer, which fails on kernels with 32 bits of mmap randomization
+      # (seen on Ubuntu 24.04 runners). 28 is the usual default; harmless where it already is.
+      - name: ASan-compatible mmap randomization
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            **/build/reports/
+            **/build/test-results/
+          if-no-files-found: ignore

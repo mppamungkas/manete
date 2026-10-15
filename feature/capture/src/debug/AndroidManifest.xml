@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <!--
+            Debug builds only: start/stop a native capture from adb before the capture card has a native mode
+            (milestone 11, step 3). Exported so `adb shell am start` can reach it; release builds don't have it.
+        -->
+        <activity
+            android:name=".vpn.NativeCaptureDebugActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            tools:ignore="ExportedActivity" />
+    </application>
+</manifest>

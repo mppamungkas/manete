@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Native capture: the network in use before the VPN starts (DNS servers, IPv6). Normal permission. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <queries>
+        <!--
+            Native capture, connections.csv: the package name of each connection's uid. Android 11+ hides other
+            apps' names unless declared; this makes every app with a launcher icon visible (no permission needed).
+            Apps without one (background-only packages) keep only their uid. QUERY_ALL_PACKAGES would cover all,
+            but is restricted on Google Play.
+        -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application>
+        <!--
+            Native capture (Phase 3b, docs/decisions/002-native-capture.md). Own process (D3): a crash in native code
+            can't end radio logging. BIND_VPN_SERVICE: only the system binds it. specialUse (D8): no other
+            foreground service type fits a VpnService of a regular app (systemExempted is for system apps).
+        -->
+        <service
+            android:name=".vpn.NativeCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:process=":vpn">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Captures the phone's IP traffic through a local VpnService for network research, in sync with a cellular measurement log" />
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+    </application>
+</manifest>
