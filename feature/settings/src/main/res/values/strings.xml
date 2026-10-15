@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings list -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_measurement">Measurement</string>
+    <string name="settings_back">← Settings</string>
+    <string name="settings_logging">Logging</string>
+    <string name="settings_logging_summary">Every %1$d ms · %2$s</string>
+    <string name="settings_speed_test">Speed test</string>
+    <string name="settings_speed_test_summary_server">Your server: %1$s</string>
+    <string name="settings_speed_test_summary_none">No server set: speed test off</string>
+    <string name="settings_speed_test_summary_public">%1$s · Cloudflare on</string>
+
+    <!-- Logging: interval -->
+    <string name="logging_interval_title">Interval</string>
+    <string name="logging_interval_info">How often NetLogger records one row of radio, GPS and battery values. Applies to the next session; a running session keeps its interval.</string>
+    <string name="logging_interval_option">%1$d ms</string>
+    <string name="logging_interval_500">Finest detail and more battery use. Android may answer with cached cell data, so some rows repeat the previous values.</string>
+    <string name="logging_interval_1000">Fine enough for drive tests at city speeds, with moderate battery use.</string>
+    <string name="logging_interval_2000">Walks and long static tests; half the rows of 1 s.</string>
+    <string name="logging_interval_5000">Very long sessions with the lowest battery use; too coarse to follow handovers while driving.</string>
+    <string name="logging_interval_recommended">%1$s (recommended)</string>
+
+    <!-- Logging: default scenario -->
+    <string name="logging_scenario_title">Default scenario</string>
+    <string name="logging_scenario_info">Preselected on the Live screen; you can still change it there before you press Start. Stored with each session to tell tests apart.</string>
+    <string name="logging_scenario_last">Same as the last session</string>
+    <string name="logging_scenario_last_info">Whatever you used the last time.</string>
+    <string name="scenario_drive">Drive</string>
+    <string name="scenario_drive_info">In a car or on a motorbike; speed and handovers matter.</string>
+    <string name="scenario_walk">Walk</string>
+    <string name="scenario_walk_info">On foot, e.g. around a campus or between indoors and outdoors.</string>
+    <string name="scenario_static">Static</string>
+    <string name="scenario_static_info">The phone stays at one spot, e.g. a speed test or a long measurement at a fixed place.</string>
+    <string name="scenario_indoor">Indoor</string>
+    <string name="scenario_indoor_info">Inside a building; GPS may be weak or missing.</string>
+
+    <!-- Logging: SIM -->
+    <string name="logging_sim_title">SIM</string>
+    <string name="logging_sim_info">NetLogger logs the SIM that carries mobile data when you press Start and stays on it for the whole session. To log another SIM, make it the data SIM in Android\'s SIM settings before you start.</string>
+    <string name="logging_sim_current">Data SIM now: %1$s (%2$s) in SIM slot %3$s</string>
+    <string name="logging_sim_none">No data SIM found, or the phone permission is missing.</string>
+    <string name="unknown">unknown</string>
+</resources>

@@ -1,6 +1,6 @@
 # 003: Settings, help and phone capabilities (UI/UX touch-up): plan
 
-- **Status:** Proposed, 2026-10-15.
+- **Status:** Accepted (D1–D5 as recommended), 2026-10-15.
 - **Date:** 2026-10-15
 - **Users:** teachers and students (not only the developer), so every option explains itself.
 - **Language:** English only. All texts go to `strings.xml` (a translation stays possible later).

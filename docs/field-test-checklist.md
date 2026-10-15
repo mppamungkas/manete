@@ -151,6 +151,15 @@ Kept for the record; these checks no longer apply.
 - [ ] Export: ZIP has capture.pcap, capture_sync.csv, connections.csv; session.json lists them
 - [ ] Both phones (the A56 is the unrooted reference)
 
+## Settings, help and phone capabilities (decision 003)
+
+- [x] Settings list shows Logging and Speed test with their current values; pages open and "← Settings" returns (A56, 2026-10-15)
+- [x] Logging interval 2000 ms: Live shows "2000 ms · change in Settings"; the next session logs every 2.000 s and stores `intervalMs` 2000 (A56, session 24)
+- [x] Default scenario Walk: preselected on Live, also when changed while the app is open; stored with the session (A56, session 24)
+- [x] SIM card names the data SIM (A56: 3SinyalKuatHemat 510-89, slot 1)
+- [ ] Same on the moto g45
+- [ ] 500 ms interval over a few minutes: share of repeated (cached) cell rows
+
 ## Before a release
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,

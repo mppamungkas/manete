@@ -25,26 +25,54 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import id.my.pamslab.netlogger.feature.settings.navigation.LoggingSettingsRoute
+import id.my.pamslab.netlogger.feature.settings.navigation.SpeedTestSettingsRoute
+import java.net.URI
 
+/** The Settings list: one entry per page, each with its current value (decision 003). */
 @Composable
-internal fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
-    val saved by viewModel.speedTest.collectAsStateWithLifecycle()
+internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
+    val speedTest by viewModel.speedTest.collectAsStateWithLifecycle()
     val publicTarget by viewModel.publicTarget.collectAsStateWithLifecycle()
+    val interval by viewModel.intervalMs.collectAsStateWithLifecycle()
+    val scenario by viewModel.defaultScenario.collectAsStateWithLifecycle()
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.settings_section_measurement), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        SettingsEntry(
+            stringResource(R.string.settings_logging),
+            stringResource(
+                R.string.settings_logging_summary,
+                interval.toInt(),
+                stringResource(scenario?.labelRes() ?: R.string.logging_scenario_last),
+            ),
+        ) { onOpen(LoggingSettingsRoute) }
+        val host = remember(speedTest) { runCatching { URI(speedTest.downloadUrl.trim()).host }.getOrNull() }
+        val server = if (speedTest.isComplete) stringResource(R.string.settings_speed_test_summary_server, host ?: speedTest.downloadUrl)
+            else stringResource(R.string.settings_speed_test_summary_none)
+        SettingsEntry(
+            stringResource(R.string.settings_speed_test),
+            if (publicTarget) stringResource(R.string.settings_speed_test_summary_public, server) else server,
+        ) { onOpen(SpeedTestSettingsRoute) }
+    }
+}
+
+/** Speed test server and the public secondary target. */
+@Composable
+internal fun SpeedTestSettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
+    val saved by viewModel.speedTest.collectAsStateWithLifecycle()
+    val publicTarget by viewModel.publicTarget.collectAsStateWithLifecycle()
+    SettingsPage(stringResource(R.string.settings_speed_test), onBack) {
         SpeedTestServerCard(saved, viewModel::save, viewModel::cleartextBlocked)
         PublicTargetCard(publicTarget, viewModel::setPublicTarget)
-        Text(
-            "Interval, SIM selection and export options will follow.",
-            style = MaterialTheme.typography.bodySmall,
-        )
     }
 }
 

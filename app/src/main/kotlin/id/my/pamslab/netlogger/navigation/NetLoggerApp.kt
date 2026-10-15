@@ -36,8 +36,8 @@ import id.my.pamslab.netlogger.feature.map.navigation.mapScreen
 import id.my.pamslab.netlogger.feature.sessions.navigation.SessionsRoute
 import id.my.pamslab.netlogger.feature.sessions.navigation.navigateToSessionDetail
 import id.my.pamslab.netlogger.feature.sessions.navigation.sessionsScreen
-import id.my.pamslab.netlogger.feature.settings.navigation.SettingsRoute
-import id.my.pamslab.netlogger.feature.settings.navigation.settingsScreen
+import id.my.pamslab.netlogger.feature.settings.navigation.SettingsGraph
+import id.my.pamslab.netlogger.feature.settings.navigation.settingsGraph
 import id.my.pamslab.netlogger.permissions.PermissionScreen
 import id.my.pamslab.netlogger.permissions.PermissionViewModel
 import kotlinx.serialization.Serializable
@@ -50,7 +50,7 @@ private enum class TopLevelDestination(val route: Any, val routeClass: KClass<*>
     LIVE(LiveRoute, LiveRoute::class, "Live", Icons.Filled.PlayArrow),
     MAP(MapRoute(), MapRoute::class, "Map", Icons.Filled.Place),
     SESSIONS(SessionsRoute, SessionsRoute::class, "Sessions", Icons.AutoMirrored.Filled.List),
-    SETTINGS(SettingsRoute, SettingsRoute::class, "Settings", Icons.Filled.Settings),
+    SETTINGS(SettingsGraph, SettingsGraph::class, "Settings", Icons.Filled.Settings),
 }
 
 @Composable
@@ -120,7 +120,7 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
                 },
                 onBack = { navController.popBackStack() },
             )
-            settingsScreen()
+            settingsGraph(navController)
         }
     }
 }

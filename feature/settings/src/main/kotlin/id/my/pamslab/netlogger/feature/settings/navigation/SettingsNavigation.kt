@@ -4,14 +4,31 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
+import id.my.pamslab.netlogger.feature.settings.LoggingSettingsScreen
 import id.my.pamslab.netlogger.feature.settings.SettingsScreen
+import id.my.pamslab.netlogger.feature.settings.SpeedTestSettingsScreen
 import kotlinx.serialization.Serializable
+
+/** The Settings tab: the list and its pages (decision 003). The bottom bar selects the tab by this graph. */
+@Serializable
+data object SettingsGraph
 
 @Serializable
 data object SettingsRoute
 
-fun NavController.navigateToSettings(navOptions: NavOptions? = null) = navigate(SettingsRoute, navOptions)
+@Serializable
+data object LoggingSettingsRoute
 
-fun NavGraphBuilder.settingsScreen() {
-    composable<SettingsRoute> { SettingsScreen() }
+@Serializable
+data object SpeedTestSettingsRoute
+
+fun NavController.navigateToSettings(navOptions: NavOptions? = null) = navigate(SettingsGraph, navOptions)
+
+fun NavGraphBuilder.settingsGraph(navController: NavController) {
+    navigation<SettingsGraph>(startDestination = SettingsRoute) {
+        composable<SettingsRoute> { SettingsScreen(onOpen = { navController.navigate(it) }) }
+        composable<LoggingSettingsRoute> { LoggingSettingsScreen(onBack = { navController.popBackStack() }) }
+        composable<SpeedTestSettingsRoute> { SpeedTestSettingsScreen(onBack = { navController.popBackStack() }) }
+    }
 }
