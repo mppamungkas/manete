@@ -598,6 +598,15 @@ At the user's request NetLogger now captures only with its own VPN. The PCAPdroi
 for the record and for reading old sessions. PCAPdroid can still run as a separate app, but not at the same time as
 a NetLogger capture (one VPN at a time; NetLogger refuses to start while another VPN is active).
 
+### moto g45: NetLogger data lost and partly restored, 2026-10-15 11:00
+
+Running `:app:connectedDebugAndroidTest` (launcher icon previews) uninstalled NetLogger afterwards, as AGP does for
+the app module, and deleted its data. Restored from a database copy taken at 07:02 for the screen-off check:
+sessions 1–16 (integrity ok, schema 2). **Lost:** session 16 after 07:02 (it ends there now) and its
+CAPTURE_STOPPED event; session 17 (09:40, speed test, invalid anyway); all capture files of sessions 7–16 (copies
+exist only of session 12's pcap and two debug captures, `docs/samples/m11/`); the speed test and capture settings.
+App-module device tests are no longer used for this (the previews come from a debug-only activity).
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
