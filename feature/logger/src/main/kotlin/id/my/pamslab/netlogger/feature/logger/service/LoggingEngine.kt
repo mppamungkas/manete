@@ -28,6 +28,8 @@ import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.telephony.EventDetector
+import id.my.pamslab.netlogger.feature.logger.LiveEvent
+import id.my.pamslab.netlogger.feature.logger.LiveEventTracker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.coroutineScope
@@ -62,6 +64,8 @@ sealed interface LoggingState {
         /** Ticks whose database write failed (logged, session continues). */
         val writeErrors: Long = 0,
         val speedTest: SpeedTestState? = null,
+        /** The last detected events, newest first, for Live (decision 004); markers are in [markers]. */
+        val recentEvents: List<LiveEvent> = emptyList(),
     ) : LoggingState
 }
 
@@ -128,11 +132,13 @@ class LoggingEngine @Inject constructor(
                 var seq = 0L
                 val window = TickWindow()
                 val detector = EventDetector()
+                val liveEvents = LiveEventTracker()
                 radio.samples(intervalMs).collect { snapshot ->
                     val tick = buildTick(seq, snapshot, locationState.get(), recentFixes.get(), device.snapshot())
                     seq++
                     window.add(tick)
                     val events = detector.detect(tick)
+                    val recentEvents = liveEvents.add(tick, events)
                     window.events += events.size
                     val writeFailed = try {
                         window.writeMs(session.record(tick))
@@ -155,6 +161,7 @@ class LoggingEngine @Inject constructor(
                         else s.copy(
                             stats = s.stats.copy(recorded = seq, expected = maxOf(expected, seq)),
                             latest = tick,
+                            recentEvents = recentEvents,
                             writeErrors = s.writeErrors + if (writeFailed) 1 else 0,
                         )
                     }

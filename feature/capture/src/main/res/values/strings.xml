@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Live capture row (decision 004). -->
+    <string name="capture_on">Capturing</string>
+    <string name="capture_off">Off</string>
+    <string name="capture_unavailable">Not available on this phone (the native library could not be loaded).</string>
+    <string name="capture_start">Start</string>
+    <string name="capture_stop">Stop</string>
+</resources>

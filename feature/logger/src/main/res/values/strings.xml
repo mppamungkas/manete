@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Live tab (decision 004). -->
+    <string name="live_rec">REC</string>
+    <string name="live_ticks">%1$d ticks</string>
+    <string name="live_ticks_share">%1$d ticks (%2$.1f %%)</string>
+    <plurals name="live_markers">
+        <item quantity="one">%1$d marker</item>
+        <item quantity="other">%1$d markers</item>
+    </plurals>
+    <string name="live_marker">Marker</string>
+    <string name="live_stop">Stop</string>
+    <string name="live_start">Start</string>
+    <string name="live_not_logging">Not logging</string>
+    <string name="live_last_session">Last session: %1$d of %2$d ticks (%3$.1f %%)</string>
+    <string name="live_write_errors">%1$d ticks not stored, see logcat</string>
+    <string name="live_details">Details</string>
+    <string name="live_details_hint">Raw radio values, battery, warnings</string>
+    <string name="live_no_operator">No operator</string>
+    <string name="live_roaming">Roaming</string>
+    <string name="live_data_sim_changed">The data SIM is now subId %1$s. This session keeps logging subId %2$s; stop and start a new session to log the new SIM.</string>
+    <string name="live_listener_error">Radio listener: %1$s</string>
+    <string name="live_no_serving">No serving cell reported.</string>
+    <string name="live_serving">Serving</string>
+    <string name="live_signal">Signal</string>
+    <string name="live_ss_hint">SS: from SignalStrength (the phone did not report it with the cell).</string>
+    <string name="live_neighbours">Neighbours (%1$d)</string>
+    <string name="live_no_neighbours">No neighbour cells reported.</string>
+    <string name="live_gps">GPS</string>
+    <string name="live_data">Data</string>
+    <string name="live_route_cellular">Cellular</string>
+    <string name="live_route_cellular_operator">Cellular (%1$s)</string>
+    <string name="live_route_wifi">Wi-Fi</string>
+    <string name="live_route_wifi_ssid">Wi-Fi \"%1$s\"</string>
+    <string name="live_route_ethernet">Ethernet</string>
+    <string name="live_route_other">Other network</string>
+    <string name="live_route_none">No connection</string>
+    <string name="live_route_vpn">%1$s · via VPN</string>
+    <string name="live_rate_window">5 s average</string>
+    <string name="live_speed_test">Speed test</string>
+    <string name="live_speed_not_run">Not run in this session</string>
+    <string name="live_speed_starting">starting</string>
+    <string name="live_speed_run">Run</string>
+    <string name="live_speed_public">Run on Cloudflare (public, for comparison)</string>
+    <string name="live_capture">Capture</string>
+    <string name="live_events">Events</string>
+    <string name="live_no_events">No events in this session yet.</string>
+    <string name="live_no_events_preview">No events since Live was opened.</string>
+    <string name="live_events_preview">Not logging: these events are not stored.</string>
+</resources>

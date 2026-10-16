@@ -180,6 +180,22 @@ Kept for the record; these checks no longer apply.
 - [x] Map "Live session" while logging: switches from the preview to the recording session ("22 / 22 ticks · 2 events · recording", moto session 18) and back to a fresh preview after Stop
 - [ ] Export a session and compare its ZIP size with the estimate
 
+## Live dashboard (decision 004, CLAUDE.md 1.7.4)
+
+- [x] One screen, moto g45 not logging: status bar, operator + "5G NSA · 3 carriers", serving table LTE B3 | NR n41
+      (NR values marked SS, copied LTE PCI shown as "–"), Neighbours collapsed, GPS + Data, Events, Details collapsed
+      (2026-10-16); on LTE only the table has one column
+- [x] Recording: "REC h:mm:ss · ticks · scenario · markers", Marker and Stop; Speed test and Capture rows appear in
+      the data card; Marker, "5G added" and "Network type change LTE → 5G NSA" listed in Events (moto)
+- [x] Data rate: a 57 kbps ping (1400 B every 0.2 s) shows 57 kbps on cellular ("5 s average")
+- [x] Details open survives a force-stop and restart (D7)
+- [x] Capture refused (VPN consent cancelled): the capture row shows the reason, logging continues
+- [ ] Wi-Fi on: Data shows Wi-Fi "SSID" (needs Wi-Fi switched on by the user); with location off only "Wi-Fi"
+- [ ] Capture running: row shows Capturing with packets / MB / connections; Data shows "via VPN"; rates not doubled
+- [ ] Speed test row with a result ("↓ … ↑ … Mbps · … ms") and the Cloudflare link when enabled
+- [ ] A cell change while moving: "LTE cell change PCI a → b  x → y dBm" (walk or drive)
+- [ ] The same checks on the A56 (layout at its width, Samsung values, IPv6)
+
 ## Before a release
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,

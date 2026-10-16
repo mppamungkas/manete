@@ -664,6 +664,15 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
 - Fixed: tapping the open tab of a screen without sub-pages (Live, Map) does nothing; `TrackMap` skips a style
   that MapLibre has invalidated. After the fix: 5 of 5 taps on the open Map tab and 2 switches without a crash.
 
+### moto g45, traffic counters and VPN consent, 2026-10-16 (decision 004)
+- `TrafficStats` (total and mobile) stays flat for ~3 s and then jumps, also during a steady 57 kbps ping. Rates
+  between consecutive 1 s samples swung between 0 and 1.25 Mbps; Live averages over at least 5 s (57 kbps shown).
+  The per-tick `rxBytesTotal`/`txBytesTotal` in the database have the same steps (session 17: 10 changes in 400
+  ticks), so per-tick throughput from them needs a window of several seconds.
+- The VPN consent dialog appeared again at Start capture, although consent had been given on 2026-10-15 (reason
+  unknown: Android drops it e.g. when another app's VPN was used). Cancelled: the capture row showed "VPN consent
+  denied", logging continued.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
