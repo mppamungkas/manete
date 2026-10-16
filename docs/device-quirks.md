@@ -705,6 +705,31 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
 - Wi-Fi on (2026-10-16): the Live data row shows the SSID with the existing permissions (fine location, location on);
   mobile data shows "Data disconnected".
 
+### moto g45, 1.5-hour screen-off drive, Tri (510-89), 2026-10-16 17:29–19:03 (MVP definition of done)
+Mostly parked, ~3.3 km driven (up to 45 km/h); unplugged (98 → 91 %, 4.5 %/h); screen off 98 % of the time. Release
+0.2.0 recorded with a native capture (all apps, MTU 1500) while a ping to google.com ran once per second; the debug
+build (`.debug`) recorded the same time in parallel.
+- **Ticks:** 5603 / 5603 (release) and 5584 / 5584 (debug), 100 %; max tick spacing 1.01 s; no crash. The two apps
+  agree on the serving LTE cell in 99.9 % of the seconds both recorded, on RSRP in 95.9 % (each requests cell info at
+  its own moment; up to 18 dB apart around cell changes).
+- **Cell info with the screen off:** the serving cell's age rises like a saw-tooth to just under 10 s (median 5.0 s,
+  46 % of ticks older than 5 s, never 10 s); with the screen on median 1.0 s, never 5 s. The values are stored with
+  their age, so stale rows can be filtered.
+- **LTE SINR is missing with the screen off:** it only comes from SignalStrength, which goes stale with the screen off
+  (`LTE_SIGNAL_STRENGTH_STALE` on 98 % of the ticks), so `lteSinr` is set in 2 % of the ticks. RSRP / RSRQ come from
+  CellInfo and are always there. The same for NR SS-SINR.
+- **Band from the API is wrong for B1:** `getBands()` says band 3 for the B1 cells (EARFCN 75 and 200);
+  `API_BAND_CONFLICT`, mapped to B1.
+- **Thermal status 3 (SEVERE)** from 18:42 to the end at a battery temperature of only 39–40.5 °C: the status is the
+  device's own (skin / SoC), not the battery's; logging was not affected.
+- **Capture:** 19 249 packets, none dropped; the wall-clock offset moved 1.0 ms in 93 min (93 CHECK rows). The ping
+  (ICMP) has no app in `connections.csv`: `getConnectionOwnerUid()` covers TCP and UDP only. IPv4 only. From the pcap:
+  5550 of 5556 echo requests answered (0.1 % lost), RTT median 32.7 ms, p90 38 ms, p99 46 ms; no ping lost around the
+  19 LTE cell changes (one 172 ms spike within 5 s after one of them).
+- **Export cut off (bug):** the debug build's "Save ZIP" left an incomplete ZIP in Download (measurements.csv and part
+  of cells.csv, no central directory) without an error: the export runs in the session screen's ViewModel scope and is
+  cancelled when the screen is left before it finishes. The release ZIP (the user waited) was complete.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

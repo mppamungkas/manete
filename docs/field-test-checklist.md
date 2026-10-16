@@ -31,11 +31,14 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] Add marker from the notification and from the Live screen: marker count goes up
 - [ ] GPS card: status OK, accuracy and age plausible (age < 2 s while moving outdoors)
 - [ ] Device card: battery %, current (note sign while charging vs. discharging), voltage, temperature, thermal, screen
-- [ ] Unplug, screen off, **1 hour** (walk or drive if possible). Then plug in and read
+- [x] Unplug, screen off, **1 hour** (walk or drive if possible). Then plug in and read
       `adb -s <serial> logcat -d -s NetLogger:I | grep ticks` (one summary per minute: ticks recorded/expected,
       cell info origin, max serving-cell age, max GPS age, screen-off ticks, NR ticks)
-- [ ] Pass: ≥ 95 % of expected ticks (Live: "Last session x / y"), no crash
-- [ ] Note the max serving-cell age with screen off (moto plugged in: ~10 s) and whether NR disappears
+- [x] Pass: ≥ 95 % of expected ticks (Live: "Last session x / y"), no crash. **moto g45, 2026-10-16 17:29–19:03,
+      unplugged, 98 % screen off, release 0.2.0 with a capture and the debug build logging in parallel: 5603 / 5603 and
+      5584 / 5584 ticks (100 %), max tick spacing 1.01 s, no crash** (device-quirks)
+- [x] Max serving-cell age with screen off: just under 10 s (median 5.0 s, 46 % of ticks > 5 s); NR (NSA) only 2 % of
+      the time here, also with the screen on
 - [ ] Stop from the notification: notification gone, wake lock released (`REL NetLogger:logging` in dumpsys power)
 - [ ] Record results per phone in `docs/device-quirks.md`
 
