@@ -13,4 +13,14 @@
     <string name="live_write_errors">%1$d ticks not stored, see logcat</string>
     <string name="live_details">Details</string>
     <string name="live_details_hint">Raw radio values, battery, warnings</string>
+    <string name="live_no_operator">No operator</string>
+    <string name="live_roaming">Roaming</string>
+    <string name="live_data_sim_changed">The data SIM is now subId %1$s. This session keeps logging subId %2$s; stop and start a new session to log the new SIM.</string>
+    <string name="live_listener_error">Radio listener: %1$s</string>
+    <string name="live_no_serving">No serving cell reported.</string>
+    <string name="live_serving">Serving</string>
+    <string name="live_signal">Signal</string>
+    <string name="live_ss_hint">SS: from SignalStrength (the phone did not report it with the cell).</string>
+    <string name="live_neighbours">Neighbours (%1$d)</string>
+    <string name="live_no_neighbours">No neighbour cells reported.</string>
 </resources>

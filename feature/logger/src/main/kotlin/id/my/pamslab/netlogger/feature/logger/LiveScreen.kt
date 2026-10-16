@@ -41,7 +41,10 @@ import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.CellSource
+import id.my.pamslab.netlogger.core.model.radio.Rat
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
+import id.my.pamslab.netlogger.core.ui.signal.NetworkColors
+import id.my.pamslab.netlogger.core.ui.signal.SignalLevel
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
@@ -50,9 +53,6 @@ import id.my.pamslab.netlogger.feature.logger.service.LoggingService
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
 import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
 import java.util.Locale
-
-/** Values older than this are grayed out. */
-private const val STALE_AGE_MS = 5_000L
 
 @Composable
 internal fun LiveScreen(
@@ -123,6 +123,13 @@ private fun SnapshotView(
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item { NetworkSection(snapshot) }
+        item {
+            SectionHeader(stringResource(R.string.live_neighbours, neighbors.size), null, LiveSection.NEIGHBOURS in open) {
+                onOpen(LiveSection.NEIGHBOURS, it)
+            }
+        }
+        if (LiveSection.NEIGHBOURS in open) item { NeighborRows(neighbors) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
         item { captureCard() } // shows itself only while a session records or a capture is ending
         item {
@@ -135,8 +142,6 @@ private fun SnapshotView(
             item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
             ui.tick?.device?.let { item { DeviceCard(it) } }
             items(serving) { ServingCellCard(it) }
-            if (serving.isEmpty()) item { Text("No serving cell reported.", style = MaterialTheme.typography.bodyMedium) }
-            item { NeighborTable(neighbors) }
             if (snapshot.warnings.isNotEmpty()) item { WarningsCard(snapshot) }
         }
     }
@@ -230,6 +235,105 @@ private fun SectionHeader(title: String, hint: String?, open: Boolean, onToggle:
     }
 }
 
+/** Operator, network type in words and the serving-cell table (decision 004). */
+@Composable
+private fun NetworkSection(s: RadioSnapshot) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(s.operatorName ?: stringResource(R.string.live_no_operator), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    s.operatorNumeric?.let { Text(it.chunked(3).joinToString("-"), style = MaterialTheme.typography.bodySmall) }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        networkLabel(s.networkType, s.cellBandwidthsKhz),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = NetworkColors.color(s.networkType.name),
+                    )
+                    val flags = listOfNotNull(
+                        stringResource(R.string.live_roaming).takeIf { s.isRoaming == true },
+                        dataStateLabel(s.dataState),
+                    )
+                    if (flags.isNotEmpty()) Text(flags.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+            }
+            if (s.dataSubscriptionId != s.subscriptionId) {
+                Text(
+                    stringResource(R.string.live_data_sim_changed, s.dataSubscriptionId.orDash(), s.subscriptionId.orDash()),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            s.listenerError?.let { Text(stringResource(R.string.live_listener_error, it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            ServingTable(servingColumns(s.cells))
+        }
+    }
+}
+
+@Composable
+private fun ServingTable(columns: List<ServingColumn>) {
+    if (columns.isEmpty()) {
+        Text(stringResource(R.string.live_no_serving), style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+    val levelLabel = if (columns.all { it.rat == Rat.LTE || it.rat == Rat.NR }) "RSRP" else stringResource(R.string.live_signal)
+    TableLine(stringResource(R.string.live_serving), columns.map { { Text(it.title(), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium) } })
+    TableLine("PCI / ARFCN", columns.map { c -> { Value("${c.pci.orDash()} / ${c.arfcn.orDash()}", c.stale) } })
+    TableLine(levelLabel, columns.map { c -> { Level(c.level, "dBm", c.stale, if (c.rat == Rat.LTE || c.rat == Rat.NR) SignalLevel.rsrp(c.level.value) else null) } })
+    TableLine("RSRQ", columns.map { c -> { Level(c.rsrq, "dB", c.stale, null) } })
+    TableLine("SINR", columns.map { c -> { Level(c.sinr, "dB", c.stale, SignalLevel.sinr(c.sinr.value)) } })
+    TableLine("Cell / TAC", columns.map { c -> { Value(if (c.cellId == null && c.tac == null) "–" else "${c.cellId.orDash()} / ${c.tac.orDash()}", c.stale) } })
+    if (columns.any { c -> listOf(c.level, c.rsrq, c.sinr).any { it.fromSignalStrength } }) {
+        Text(stringResource(R.string.live_ss_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun TableLine(label: String, cells: List<@Composable () -> Unit>) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(0.9f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        cells.forEach { Box(Modifier.weight(1f)) { it() } }
+    }
+}
+
+@Composable
+private fun Value(text: String, stale: Boolean) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace, color = if (stale) Color.Gray else Color.Unspecified)
+}
+
+/** A value with its unit, a colour dot when [level] is given, and "SS" when it came from SignalStrength. */
+@Composable
+private fun Level(shown: Shown<Int>, unit: String, stale: Boolean, level: SignalLevel?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (level != null && shown.value != null) Text("● ", color = level.color, style = MaterialTheme.typography.bodyMedium)
+        Value(shown.value?.let { "$it $unit" } ?: "–", stale && !shown.fromSignalStrength)
+        if (shown.fromSignalStrength) Text(" SS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Neighbour cells, strongest first. */
+@Composable
+private fun NeighborRows(neighbors: List<CellSample>) {
+    Column(Modifier.padding(horizontal = 4.dp)) {
+        if (neighbors.isEmpty()) {
+            Text(stringResource(R.string.live_no_neighbours), style = MaterialTheme.typography.bodySmall)
+            return
+        }
+        TableRow(listOf("RAT", "PCI", "ARFCN", "RSRP", "RSRQ", "Age s"), header = true)
+        neighbors.forEach { c ->
+            TableRow(
+                listOf(
+                    c.rat.name, c.pci.orDash(), c.arfcn.orDash(), (c.rsrpDbm ?: c.rscpDbm ?: c.rssiDbm).orDash(), c.rsrqDb.orDash(),
+                    c.cellInfoAgeMs?.let { "%.1f".format(Locale.ROOT, it / 1000.0) }.orDash(),
+                ),
+                stale = c.isStale(),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SpeedTestCard(test: SpeedTestState?, publicTarget: Boolean) {
     val context = LocalContext.current
@@ -311,16 +415,8 @@ private fun DeviceCard(d: DeviceContext) {
 private fun NetworkCard(s: RadioSnapshot) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(s.networkType.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("${s.operatorName.orDash()} (${s.operatorNumeric.orDash()})", style = MaterialTheme.typography.titleMedium)
+            Text("Network · ${s.networkType.name}", style = MaterialTheme.typography.titleSmall)
             Field("SIM", "subId ${s.subscriptionId.orDash()} · slot ${s.simSlot.orDash()}")
-            if (s.dataSubscriptionId != s.subscriptionId) {
-                Text(
-                    "Data SIM is now subId ${s.dataSubscriptionId.orDash()}. This keeps logging subId ${s.subscriptionId.orDash()}; " +
-                        "stop and start a new session to log the new SIM.",
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
             Field("Service / data", "${s.serviceState.orDash()} / ${s.dataState.orDash()} · roaming ${s.isRoaming.orDash()}")
             with(s.nsaInputs) {
                 Field("NSA inputs", "lteServing=$lteServing nrCellInfo=$nrServingCellInfo nrSignal=$nrSignalStrength")
@@ -328,7 +424,6 @@ private fun NetworkCard(s: RadioSnapshot) {
             }
             Field("Bandwidths kHz", s.cellBandwidthsKhz.ifEmpty { null }?.joinToString().orDash())
             Field("Cell info", "${s.cellInfoOrigin} · ${s.cells.size} cells · ${s.warningCount} warnings" + if (s.parseErrors > 0) " · ${s.parseErrors} parse errors" else "")
-            s.listenerError?.let { Text("Listener: $it", color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -356,22 +451,6 @@ private fun ServingCellCard(c: CellSample) {
                 Field("Updated", c.cellInfoAgeMs?.let { "%.1f s ago".format(Locale.ROOT, it / 1000.0) }.orDash())
             } else {
                 Field("Age", "${c.cellInfoAgeMs.orDash()} ms", stale)
-            }
-        }
-    }
-}
-
-@Composable
-private fun NeighborTable(neighbors: List<CellSample>) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Text("Neighbors (${neighbors.size})", style = MaterialTheme.typography.titleSmall)
-            TableRow(listOf("RAT", "PCI", "ARFCN", "RSRP", "RSRQ", "Age"), header = true)
-            neighbors.forEach { c ->
-                TableRow(
-                    listOf(c.rat.name, c.pci.orDash(), c.arfcn.orDash(), (c.rsrpDbm ?: c.rscpDbm ?: c.rssiDbm).orDash(), c.rsrqDb.orDash(), c.cellInfoAgeMs.orDash()),
-                    stale = c.isStale(),
-                )
             }
         }
     }
