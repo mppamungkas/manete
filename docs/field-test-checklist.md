@@ -171,6 +171,15 @@ Kept for the record; these checks no longer apply.
 - [x] 500 ms interval (moto, screen on, session 17): ticks exactly 500 ms, but 57.5 % of rows carry cell info older than 500 ms (modem refreshes every 1–2 s)
 - [ ] IPv6 traffic through the capture: the A56 on Telkomsel has IPv6, but the test traffic (map tiles) went over IPv4
 
+## Map live preview and session sizes (CLAUDE.md 1.7.3)
+
+- [x] Sessions list: size line per session and totals; A56 estimates sum to ~4.1 MB vs. a 4.8 MB database file incl. WAL, captures 159 MB exact; session 23 shows its 103 MB capture (2026-10-16)
+- [x] Map "Live session" while not logging: position + trail, "live preview, not recorded", legend counts (moto 28, A56 26 ticks after 25 s); NR SS-RSRP on the moto: 75 in -96 … -110, 9 none
+- [x] The preview stops with the Map: moto GPS request OFF ~5 s after switching to Sessions (shared location stream)
+- [x] "Recorded session": session and metric dropdowns, legend counts (A56 session 26: LTE 81)
+- [x] Map "Live session" while logging: switches from the preview to the recording session ("22 / 22 ticks · 2 events · recording", moto session 18) and back to a fresh preview after Stop
+- [ ] Export a session and compare its ZIP size with the estimate
+
 ## Before a release
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,

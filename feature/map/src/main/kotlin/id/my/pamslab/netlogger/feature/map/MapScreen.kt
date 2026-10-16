@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,46 +41,60 @@ import java.util.Locale
 @Composable
 internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = hiltViewModel()) {
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
+    val recording by viewModel.recording.collectAsStateWithLifecycle()
+    val mode by viewModel.mode.collectAsStateWithLifecycle()
     val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
-    val track by viewModel.track.collectAsStateWithLifecycle()
+    val content by viewModel.content.collectAsStateWithLifecycle()
     val metric by viewModel.metric.collectAsStateWithLifecycle()
     val selectedSeq by viewModel.selectedSeq.collectAsStateWithLifecycle()
     var follow by rememberSaveable { mutableStateOf(true) }
 
-    val session = sessions?.firstOrNull { it.id == selectedId }
-    val recording = session != null && session.endedAtMs == null
-    // Only draw a track that belongs to the selected session (avoids a frame of the previous one).
-    val shown = track?.takeIf { it.sessionId == selectedId }
+    val live = mode == MapMode.LIVE
+    val wantedId = when {
+        live && recording != null -> recording?.id
+        live -> LiveTrail.LIVE_ID
+        else -> selectedId
+    }
+    // Only draw a track that belongs to what is selected (avoids a frame of the previous one).
+    val shown = content.track?.takeIf { it.sessionId == wantedId }
 
     Column(modifier.fillMaxSize()) {
-        SessionPicker(sessions.orEmpty(), session, viewModel::pickSession)
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Metric.entries.forEach { m ->
-                FilterChip(selected = m == metric, onClick = { viewModel.setMetric(m) }, label = { Text(m.label) })
-            }
-            if (recording) FilterChip(selected = follow, onClick = { follow = !follow }, label = { Text("Follow") })
-        }
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when {
-                sessions?.isEmpty() == true -> Hint("No sessions yet. Start logging on the Live screen.")
-                else -> TrackMap(
-                    track = shown,
-                    metric = metric,
-                    selectedSeq = selectedSeq,
-                    fitKey = selectedId,
-                    follow = recording && follow,
-                    onPointClick = viewModel::selectPoint,
-                    modifier = Modifier.fillMaxSize(),
+            Dropdown(
+                text = if (live) "Live session" else "Recorded session",
+                options = listOf("Live session" to MapMode.LIVE, "Recorded session" to MapMode.RECORDED),
+                onPick = viewModel::setMode,
+            )
+            if (!live) {
+                val session = sessions?.firstOrNull { it.id == selectedId }
+                Dropdown(
+                    text = session?.let(::sessionTitle) ?: "No session",
+                    options = sessions.orEmpty().map { s ->
+                        sessionTitle(s) + (s.scenario?.let { " · ${it.name.lowercase()}" } ?: "") + " · ${s.measurements} ticks" to s.id
+                    },
+                    onPick = viewModel::pickSession,
                 )
             }
-            if (shown != null && shown.points.isEmpty() && sessions?.isEmpty() == false) {
-                Hint(if (shown.ticks == 0L) "No ticks yet." else "None of the ${shown.ticks} ticks has a GPS fix.")
-            }
+            Dropdown(text = metric.label, options = Metric.entries.map { it.label to it }, onPick = viewModel::setMetric)
+            if (live) FilterChip(selected = follow, onClick = { follow = !follow }, label = { Text("Follow") })
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            TrackMap(
+                track = shown,
+                metric = metric,
+                selectedSeq = selectedSeq,
+                fitKey = wantedId,
+                follow = live && follow,
+                onPointClick = viewModel::selectPoint,
+                modifier = Modifier.fillMaxSize(),
+            )
+            hint(live, recording != null, content, shown, sessions)?.let { Hint(it) }
             Column(Modifier.align(Alignment.BottomStart).padding(6.dp)) {
-                Legend(metric)
+                Legend(metric, shown?.points.orEmpty())
                 Text(
                     "© OpenStreetMap contributors",
                     Modifier.padding(top = 4.dp).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = 4.dp),
@@ -89,7 +104,11 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
             }
             shown?.let { t ->
                 Text(
-                    "${t.points.size} / ${t.ticks} ticks with GPS · ${t.events.size} events" + if (recording) " · recording" else "",
+                    "${t.points.size} / ${t.ticks} ticks with GPS · ${t.events.size} events" + when {
+                        content.preview -> " · live preview, not recorded"
+                        live -> " · recording"
+                        else -> ""
+                    },
                     Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Black,
@@ -100,20 +119,31 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
     }
 }
 
+/** Why nothing (or little) is drawn; null when the track speaks for itself. */
+private fun hint(live: Boolean, recording: Boolean, content: MapContent, shown: Track?, sessions: List<SessionSummary>?): String? = when {
+    !live && sessions?.isEmpty() == true -> "No sessions yet. Start logging on the Live screen."
+    live && !recording && content.locationStatus == LocationStatus.NO_PERMISSION -> "Live preview needs the location permission."
+    live && !recording && content.locationStatus == LocationStatus.DISABLED -> "Live preview: location is switched off."
+    shown == null -> null
+    shown.points.isNotEmpty() -> null
+    content.preview -> "Live preview: waiting for a GPS fix (not recorded)."
+    shown.ticks == 0L -> "No ticks yet."
+    else -> "None of the ${shown.ticks} ticks has a GPS fix."
+}
+
+/** A button showing [text] that opens a menu of [options] (label, value). */
 @Composable
-private fun SessionPicker(sessions: List<SessionSummary>, selected: SessionSummary?, onPick: (Long) -> Unit) {
+private fun <T> Dropdown(text: String, options: List<Pair<String, T>>, onPick: (T) -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
-    Box(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-        OutlinedButton(onClick = { open = true }, enabled = sessions.isNotEmpty()) {
-            Text(selected?.let(::sessionTitle) ?: "No session")
-        }
+    Box {
+        OutlinedButton(onClick = { open = true }, enabled = options.isNotEmpty()) { Text("$text ▾") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            sessions.forEach { s ->
+            options.forEach { (label, value) ->
                 DropdownMenuItem(
-                    text = { Text(sessionTitle(s) + (s.scenario?.let { " · ${it.name.lowercase()}" } ?: "") + " · ${s.measurements} ticks") },
+                    text = { Text(label) },
                     onClick = {
                         open = false
-                        onPick(s.id)
+                        onPick(value)
                     },
                 )
             }
@@ -125,13 +155,20 @@ private fun sessionTitle(s: SessionSummary): String =
     (s.label?.takeIf { it.isNotBlank() } ?: SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT).format(Date(s.startedAtMs))) +
         if (s.endedAtMs == null) " (recording)" else ""
 
+/** Colour, range and how many shown ticks fall in it. */
 @Composable
-private fun Legend(metric: Metric) {
+private fun Legend(metric: Metric, points: List<TrackPoint>) {
     Column(Modifier.background(Color.White.copy(alpha = 0.85f)).padding(4.dp)) {
-        metric.legend().forEach { (argb, text) ->
+        metric.legendCounts(points).forEach { (argb, text, count) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(10.dp).background(Color(argb), CircleShape))
                 Text(" $text", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                Text(
+                    "  $count",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Black,
+                    fontFamily = FontFamily.Monospace,
+                )
             }
         }
     }

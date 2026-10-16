@@ -12,12 +12,21 @@ enum class Metric(val label: String) {
     NETWORK_TYPE("Network"),
     ;
 
-    fun hex(p: TrackPoint): String = when (this) {
-        LTE_RSRP -> SignalLevel.rsrp(p.lteRsrp).hex
-        NR_RSRP -> SignalLevel.rsrp(p.nrRsrp).hex
-        LTE_SINR -> SignalLevel.sinr(p.lteSinr).hex
-        NR_SINR -> SignalLevel.sinr(p.nrSinr).hex
-        NETWORK_TYPE -> NetworkColors.hex(p.networkType)
+    fun hex(p: TrackPoint): String = "#%06X".format(argb(p) and 0xFFFFFF)
+
+    /** The point's colour, which is also its legend category. */
+    fun argb(p: TrackPoint): Long = when (this) {
+        LTE_RSRP -> SignalLevel.rsrp(p.lteRsrp).argb
+        NR_RSRP -> SignalLevel.rsrp(p.nrRsrp).argb
+        LTE_SINR -> SignalLevel.sinr(p.lteSinr).argb
+        NR_SINR -> SignalLevel.sinr(p.nrSinr).argb
+        NETWORK_TYPE -> NetworkColors.ARGB[p.networkType] ?: SignalLevel.NONE.argb
+    }
+
+    /** Legend rows with the number of [points] in each: colour, text, count. */
+    fun legendCounts(points: List<TrackPoint>): List<Triple<Long, String, Int>> {
+        val counts = points.groupingBy(::argb).eachCount()
+        return legend().map { (argb, text) -> Triple(argb, text, counts[argb] ?: 0) }
     }
 
     /** Legend rows: color and text. */

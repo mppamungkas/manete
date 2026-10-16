@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
@@ -48,6 +49,7 @@ internal fun SessionDetailScreen(
     viewModel: SessionDetailViewModel = hiltViewModel(),
 ) {
     val session by viewModel.session.collectAsStateWithLifecycle()
+    val size by viewModel.size.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val charts by viewModel.charts.collectAsStateWithLifecycle()
@@ -67,7 +69,7 @@ internal fun SessionDetailScreen(
     }
     val s = session ?: return PlaceholderScreen("Session", "Loading…", modifier)
     DetailContent(
-        s, message, exporting, viewModel::save, onDelete = { viewModel.delete(onBack) },
+        s, size, message, exporting, viewModel::save, onDelete = { viewModel.delete(onBack) },
         onSaveZip = { scope.launch { viewModel.exportFileName()?.let(saveLauncher::launch) } },
         onShareZip = viewModel::share,
         onShowOnMap = { onShowOnMap(s.id) },
@@ -79,6 +81,7 @@ internal fun SessionDetailScreen(
 @Composable
 private fun DetailContent(
     s: SessionSummary,
+    size: SizeEstimate?,
     message: String?,
     exporting: Boolean,
     onSave: (String, String, Scenario?) -> Unit,
@@ -111,6 +114,7 @@ private fun DetailContent(
         Info("Ticks / cells", "${s.measurements} / ${s.cells}")
         Info("Markers", s.markers.toString())
         Info("Warnings (distinct)", s.warnings.toString())
+        size?.let { Info("Size", sizeLine(it)) }
         Info("UUID", s.uuid)
         charts()
 
