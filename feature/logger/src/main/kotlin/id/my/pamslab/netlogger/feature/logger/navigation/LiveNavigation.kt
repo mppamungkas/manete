@@ -19,12 +19,15 @@ fun NavGraphBuilder.liveScreen(
     loggingPermissionsMissing: () -> Boolean,
     onRequestPermissions: () -> Unit,
     captureRow: CaptureRowSlot = {},
+    /** Opens a problem report in Settings (decision 005), passed in by the app. */
+    onOpenProblem: (String) -> Unit = {},
 ) {
     composable<LiveRoute> {
         LiveScreen(
             loggingPermissionsMissing = loggingPermissionsMissing(),
             onRequestPermissions = onRequestPermissions,
             captureRow = captureRow,
+            onOpenProblem = onOpenProblem,
         )
     }
 }

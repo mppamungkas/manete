@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.diagnostics.Problem
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
 import id.my.pamslab.netlogger.core.model.device.NetworkRoute
 import id.my.pamslab.netlogger.core.model.location.LocationFix
@@ -68,6 +69,7 @@ internal fun LiveScreen(
     onRequestPermissions: () -> Unit,
     modifier: Modifier = Modifier,
     captureRow: CaptureRowSlot = {},
+    onOpenProblem: (String) -> Unit = {},
 ) {
     if (loggingPermissionsMissing) {
         Column(modifier.fillMaxSize()) {
@@ -88,12 +90,12 @@ internal fun LiveScreen(
         }
     } else {
         // Only created (and sampling) when permissions are present.
-        LiveContent(hiltViewModel(), captureRow, modifier)
+        LiveContent(hiltViewModel(), captureRow, onOpenProblem, modifier)
     }
 }
 
 @Composable
-private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, modifier: Modifier = Modifier) {
+private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, onOpenProblem: (String) -> Unit, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
@@ -103,8 +105,10 @@ private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, mo
             val publicSpeedTest by viewModel.publicSpeedTest.collectAsStateWithLifecycle()
             val intervalMs by viewModel.intervalMs.collectAsStateWithLifecycle()
             val open by viewModel.openSections.collectAsStateWithLifecycle()
+            val problem by viewModel.newProblem.collectAsStateWithLifecycle()
             Column(modifier.fillMaxSize()) {
                 StatusBar(s, scenario, viewModel::selectScenario, intervalMs)
+                problem?.let { ProblemCard(it, onView = { onOpenProblem(it.id) }, onDismiss = { viewModel.dismissProblem(it.id) }) }
                 SnapshotView(s, publicSpeedTest, open, viewModel::setOpen, captureRow, Modifier.weight(1f))
             }
         }
@@ -151,6 +155,26 @@ private fun SnapshotView(
             ui.tick?.device?.let { item { DeviceCard(it) } }
             items(serving) { ServingCellCard(it) }
             if (snapshot.warnings.isNotEmpty()) item { WarningsCard(snapshot) }
+        }
+    }
+}
+
+/** After an unexpected end of NetLogger: what happened, View report, Dismiss (decision 005). Shown once per report. */
+@Composable
+private fun ProblemCard(problem: Problem, onView: () -> Unit, onDismiss: () -> Unit) {
+    val time = remember(problem.shownTimeMs) { SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(problem.shownTimeMs)) }
+    Card(
+        Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.live_problem_title, time), style = MaterialTheme.typography.titleSmall)
+            problem.title?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
+            problem.state?.sessionId?.let { Text(stringResource(R.string.live_problem_recording, it), style = MaterialTheme.typography.bodySmall) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onView) { Text(stringResource(R.string.live_problem_view)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.live_problem_dismiss)) }
+            }
         }
     }
 }

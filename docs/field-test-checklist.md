@@ -190,11 +190,31 @@ Kept for the record; these checks no longer apply.
 - [x] Data rate: a 57 kbps ping (1400 B every 0.2 s) shows 57 kbps on cellular ("5 s average")
 - [x] Details open survives a force-stop and restart (D7)
 - [x] Capture refused (VPN consent cancelled): the capture row shows the reason, logging continues
-- [ ] Wi-Fi on: Data shows Wi-Fi "SSID" (needs Wi-Fi switched on by the user); with location off only "Wi-Fi"
+- [x] Wi-Fi on: Data shows Wi-Fi "SSID" (A56, 2026-10-16; no ACCESS_WIFI_STATE needed); mobile data shows "Data disconnected"
+- [ ] With location off, Data shows only "Wi-Fi"
 - [ ] Capture running: row shows Capturing with packets / MB / connections; Data shows "via VPN"; rates not doubled
 - [ ] Speed test row with a result ("↓ … ↑ … Mbps · … ms") and the Cloudflare link when enabled
 - [ ] A cell change while moving: "LTE cell change PCI a → b  x → y dBm" (walk or drive)
-- [ ] The same checks on the A56 (layout at its width, Samsung values, IPv6)
+- [x] A56 (Telkomsel, LTE B1): layout at its width, one LTE column, Wi-Fi SSID in the data row (2026-10-16)
+- [ ] A56 while recording and on 5G (Samsung values)
+
+## Problem reports (decision 005, CLAUDE.md 1.7.5)
+
+Crash tests with the debug-only receiver (`adb shell am broadcast -n id.my.pamslab.netlogger/.CrashTestReceiver --es kind
+java|native|anr --receiver-foreground`; `.CrashTestVpnReceiver` for the :vpn process):
+
+- [x] Java crash, main process: report with stack trace and log lines (moto, A56)
+- [x] Native crash, main process: tombstone summary and log lines (moto, A56); the moto's real MapLibre crash imported
+- [x] Crash in :vpn: report (moto: when the app comes to the front; A56/Android 16: at the next start of the app)
+- [x] ANR ended with "Close app": report with the main thread of the dump (moto, A56)
+- [x] Crash during a recording: the report names the session (moto, session 22)
+- [x] Live card once per report; list, report page, Share sheet (raw dump attached only when ticked), GitHub warning,
+      Describe a problem (moto); Live card and report page at the A56's size
+- [x] GitHub issue: a 9.2 KB report opens the form (URL kept under 7000 encoded characters); two issues sent by the
+      user (#9, #10)
+- [x] "Was the report sent?" asked on return; Keep keeps it
+- [ ] Android ending NetLogger during a recording (low memory / battery limits): needs a long field run (no way to
+      cause it without root)
 
 ## Before a release
 

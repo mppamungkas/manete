@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":core:location"))
     implementation(project(":core:device"))
     implementation(project(":core:data"))
+    implementation(project(":core:diagnostics"))
 
     testImplementation(libs.kotlinx.coroutines.test)
 }

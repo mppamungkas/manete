@@ -22,7 +22,7 @@
     <string name="settings_capabilities">Phone capabilities</string>
     <string name="settings_capabilities_summary">What this phone reports: a live check, plus your recorded sessions</string>
     <string name="settings_help">How to use</string>
-    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, glossary</string>
+    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, problems, glossary</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version %1$s · licence, privacy, credits</string>
     <string name="yes">Yes</string>
@@ -259,7 +259,15 @@
         <item>CSV files use commas and a dot for decimals. If Excel shows everything in one column, open the file with Data › From Text/CSV and choose comma as the delimiter.</item>
         <item>Open capture.pcap in Wireshark. Packet times use the same clock as the radio log; capture_sync.csv shows how they line up.</item>
     </string-array>
-    <string name="help_glossary_title">6. Glossary</string>
+    <string name="help_problems_title">6. When something goes wrong</string>
+    <string-array name="help_problems">
+        <item>If NetLogger crashes, freezes, or Android ends it during a recording, a red card on Live says so the next time you open it. The recording is closed and keeps everything recorded until then.</item>
+        <item>Settings › Problem reports keeps these reports on the phone (at most 20). Open one to see exactly what would be sent: the app and phone model, what happened, a technical trace and NetLogger\'s own log lines; no location, cell identities, Wi-Fi names or captured traffic.</item>
+        <item>Send a report with Share (e-mail, chat) or as a GitHub issue, which is public. Nothing is sent automatically. When you come back, NetLogger asks whether it was sent, so you can delete it.</item>
+        <item>For a native crash you may also attach the raw crash dump. It helps the developer, but it can contain parts of NetLogger\'s memory, so only attach it when you trust the receiver.</item>
+        <item>Something wrong without a crash? Use Describe a problem and say what you did, what happened and what you expected.</item>
+    </string-array>
+    <string name="help_glossary_title">7. Glossary</string>
     <string-array name="help_glossary">
         <item>RSRP: received power of a cell\'s reference signal, in dBm. About −80 is strong, below −110 weak.</item>
         <item>RSRQ: signal quality in dB, lower with interference and load. About −10 is good, below −15 poor.</item>
@@ -274,6 +282,48 @@
         <item>Cell change: the serving cell\'s PCI or channel changed. It may be a handover (during a connection) or a reselection (while idle); Android\'s public interfaces do not tell which, so NetLogger does not label it.</item>
     </string-array>
 
+    <!-- Problem reports (decision 005) -->
+    <string name="problems_title">Problem reports</string>
+    <string name="problems_back">← Problem reports</string>
+    <string name="problems_summary_none">No problems recorded · describe a problem</string>
+    <plurals name="problems_summary">
+        <item quantity="one">%1$d report kept on this phone</item>
+        <item quantity="other">%1$d reports kept on this phone</item>
+    </plurals>
+    <plurals name="problems_summary_new">
+        <item quantity="one">%1$d new report</item>
+        <item quantity="other">%1$d new reports</item>
+    </plurals>
+    <string name="problems_info">When NetLogger crashes, freezes, or Android ends it during a recording, a report is kept here. Reports stay on this phone until you send one; nothing is sent automatically. A report contains the app and phone model, what happened and NetLogger\'s own log lines, but no location, cell identities, Wi-Fi names or captured traffic.</string>
+    <string name="problems_describe">Describe a problem</string>
+    <string name="problems_none">No problems recorded.</string>
+    <string name="problems_new">New</string>
+    <string name="problems_report_title">Problem report</string>
+    <string name="problems_gone">This report was deleted.</string>
+    <string name="problems_check_before_sending">This is exactly what will be sent. Check it first.</string>
+    <string name="problems_attach_raw">Also attach the raw crash dump</string>
+    <string name="problems_attach_raw_info">Helps the developer with native crashes. It is Android\'s full dump of the crash: besides the trace above it can contain parts of NetLogger\'s memory and its recent log, unfiltered, which may include location or network data.</string>
+    <string name="problems_share">Share</string>
+    <string name="problems_github">GitHub issue</string>
+    <string name="problems_github_title">Open a public GitHub issue?</string>
+    <string name="problems_github_info">Issues on github.com/mppamungkas/netlogger are public: anyone can read the report. You need a GitHub account. The browser opens a new issue with the report filled in; the full report is also copied to the clipboard, in case it had to be shortened.</string>
+    <string name="problems_github_continue">Open GitHub</string>
+    <string name="problems_delete">Delete</string>
+    <string name="problems_sent_title">Was the report sent?</string>
+    <string name="problems_sent_info">NetLogger cannot see whether you sent it in the other app. If it reached GitHub or the person you shared it with, it can be deleted from this phone.</string>
+    <string name="problems_sent_delete">Sent, delete it</string>
+    <string name="problems_sent_keep">Keep it</string>
+    <string name="problems_delete_title">Delete this report?</string>
+    <string name="problems_cancel">Cancel</string>
+    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines are added; you see the whole report before sending it.</string>
+    <string name="problems_describe_hint">What happened?</string>
+    <string name="problems_preview">Show report</string>
+    <string name="problems_user_title">Problem reported by a user</string>
+    <string name="problems_kind_crash">Crash</string>
+    <string name="problems_kind_native">Crash (native)</string>
+    <string name="problems_kind_anr">Not responding</string>
+    <string name="problems_kind_killed">Ended by Android during a recording</string>
+
     <!-- About -->
     <string name="about_tagline">LTE and 5G NSA drive-test logger with its own traffic capture, for research and teaching.</string>
     <string name="about_version">Version %1$s · build %2$s</string>
@@ -285,6 +335,7 @@
     <string-array name="about_privacy">
         <item>Sessions and exports contain your precise location and track, the cells you used (which also give your location) and your phone model and SIM operator. Share them only with people who need them.</item>
         <item>A traffic capture contains the network traffic of the captured apps: which servers they contact, and the content of anything not encrypted. Handle capture files like private data.</item>
+        <item>Problem reports (crashes, freezes) stay on the phone until you send one yourself; they contain no location, cell identities, Wi-Fi names or captured traffic.</item>
         <item>Everything stays on the phone until you export it. NetLogger has no account, no analytics and no upload. It contacts only the map tile server (OpenStreetMap, for the area you view), the speed test server you set (and Cloudflare if you turn it on), and Google Play services, which provides the location.</item>
     </string-array>
     <string name="about_map_title">Map data</string>

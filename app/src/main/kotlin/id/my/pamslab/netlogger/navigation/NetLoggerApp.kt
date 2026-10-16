@@ -38,6 +38,7 @@ import id.my.pamslab.netlogger.feature.sessions.navigation.SessionsRoute
 import id.my.pamslab.netlogger.feature.sessions.navigation.navigateToSessionDetail
 import id.my.pamslab.netlogger.feature.sessions.navigation.sessionsScreen
 import id.my.pamslab.netlogger.feature.settings.navigation.SettingsGraph
+import id.my.pamslab.netlogger.feature.settings.navigation.navigateToProblem
 import id.my.pamslab.netlogger.feature.settings.navigation.settingsGraph
 import id.my.pamslab.netlogger.permissions.PermissionScreen
 import id.my.pamslab.netlogger.permissions.PermissionViewModel
@@ -55,7 +56,11 @@ private enum class TopLevelDestination(val route: Any, val routeClass: KClass<*>
 }
 
 @Composable
-fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
+fun NetLoggerApp(
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
+    /** The open screen's route name, for problem reports (decision 005). */
+    onScreen: (String?) -> Unit = {},
+) {
     val navController = rememberNavController()
     val permissionState by permissionViewModel.state.collectAsStateWithLifecycle()
     // Show the rationale once per launch, on top of Live, if logging permissions are missing.
@@ -69,6 +74,10 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+    LaunchedEffect(currentDestination) {
+        // "id.my…MapRoute?sessionId={sessionId}" -> "MapRoute"
+        onScreen(currentDestination?.route?.substringBefore('?')?.substringAfterLast('.'))
+    }
     val showBottomBar = currentDestination?.hasRoute(PermissionsRoute::class) == false
 
     Scaffold(
@@ -119,6 +128,7 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
                 loggingPermissionsMissing = { !permissionState.canLog },
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
                 captureRow = { label -> CaptureRow(label) },
+                onOpenProblem = { navController.navigateToProblem(it) },
             )
             mapScreen()
             sessionsScreen(

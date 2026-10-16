@@ -47,4 +47,8 @@
     <string name="live_no_events">No events in this session yet.</string>
     <string name="live_no_events_preview">No events since Live was opened.</string>
     <string name="live_events_preview">Not logging: these events are not stored.</string>
+    <string name="live_problem_title">NetLogger stopped unexpectedly at %1$s</string>
+    <string name="live_problem_recording">A recording was running (session %1$d). It was closed and keeps everything recorded until then.</string>
+    <string name="live_problem_view">View report</string>
+    <string name="live_problem_dismiss">Dismiss</string>
 </resources>

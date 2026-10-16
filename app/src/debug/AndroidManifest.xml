@@ -13,5 +13,20 @@
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             tools:ignore="ExportedActivity" />
+        <!--
+            Debug builds only: crashes the app on purpose to check the problem reports (decision 005, D6).
+            DUMP is held by the shell, not by normal apps, so only `adb shell am broadcast` can trigger it.
+        -->
+        <receiver
+            android:name=".CrashTestReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            tools:ignore="ExportedReceiver" />
+        <receiver
+            android:name=".CrashTestVpnReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP"
+            android:process=":vpn"
+            tools:ignore="ExportedReceiver" />
     </application>
 </manifest>
