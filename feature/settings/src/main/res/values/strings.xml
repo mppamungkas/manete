@@ -273,6 +273,7 @@
         <item>RSRQ: signal quality in dB, lower with interference and load. About −10 is good, below −15 poor.</item>
         <item>SINR: signal to interference and noise, in dB. Above 20 is excellent, below 0 poor. LTE phones report it as RSSNR, scaled differently by each maker.</item>
         <item>PCI: physical cell ID (0 to 503 in LTE, 0 to 1007 in 5G NR). Not unique; together with the channel it tells cells apart.</item>
+        <item>Cell ID (LTE ECI): the 28-bit identity of an LTE cell, shown on Live as Cell and exported as ciOrNci (cells.csv) and lteCi (flat.csv). It holds the eNB (the base station) and the cell on it: eNB ID = ECI ÷ 256 without the remainder, local cell ID = the remainder. In Excel: =INT(lteCi/256) and =MOD(lteCi,256); e.g. 12866888 is eNB 50261, cell 72. A 5G NR cell ID (NCI) cannot be split this way: each operator chooses how many of its bits are the gNB.</item>
         <item>EARFCN / NR-ARFCN: channel number of an LTE or 5G carrier; gives its frequency.</item>
         <item>Band: frequency range of the carrier, e.g. LTE B3 (1800 MHz) or 5G n40 (2300 MHz).</item>
         <item>NSA and SA: 5G non-standalone uses an LTE cell as anchor and adds 5G for data; standalone uses 5G alone.</item>
