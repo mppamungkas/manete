@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +38,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.my.pamslab.netlogger.core.diagnostics.Problem
@@ -90,6 +94,20 @@ internal fun ProblemScreen(id: String, onBack: () -> Unit, viewModel: ProblemsVi
     }
     var attachRaw by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    // Android does not tell whether the report was sent in the other app: ask once on the way back.
+    var handedOver by rememberSaveable { mutableStateOf(false) }
+    var askSent by rememberSaveable { mutableStateOf(false) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && handedOver) {
+                handedOver = false
+                askSent = true
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
 
     SettingsPage(stringResource(R.string.problems_report_title), onBack, backLabel = stringResource(R.string.problems_back)) {
         if (problem == null) {
@@ -110,8 +128,23 @@ internal fun ProblemScreen(id: String, onBack: () -> Unit, viewModel: ProblemsVi
             }
         }
         val title = problem.title ?: kindLabel(problem.kind)
-        SendButtons(title, text, rawTrace?.takeIf { attachRaw })
+        SendButtons(title, text, rawTrace?.takeIf { attachRaw }, onHandedOver = { handedOver = true })
         OutlinedButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.problems_delete)) }
+    }
+    if (askSent && problem != null) {
+        AlertDialog(
+            onDismissRequest = { askSent = false },
+            title = { Text(stringResource(R.string.problems_sent_title)) },
+            text = { Text(stringResource(R.string.problems_sent_info)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    askSent = false
+                    viewModel.reports.delete(problem.id)
+                    onBack()
+                }) { Text(stringResource(R.string.problems_sent_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { askSent = false }) { Text(stringResource(R.string.problems_sent_keep)) } },
+        )
     }
     if (confirmDelete && problem != null) {
         AlertDialog(
@@ -152,7 +185,7 @@ internal fun DescribeProblemScreen(onBack: () -> Unit, viewModel: ProblemsViewMo
         } else {
             Text(stringResource(R.string.problems_check_before_sending), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             ReportText(current)
-            SendButtons(stringResource(R.string.problems_user_title), current, rawTrace = null)
+            SendButtons(stringResource(R.string.problems_user_title), current, rawTrace = null, onHandedOver = {})
         }
     }
 }
@@ -187,12 +220,12 @@ private fun ReportText(text: String?) {
 
 /** Share (any app) and GitHub issue (public; warned first). Nothing is sent without the user's choice. */
 @Composable
-private fun SendButtons(title: String, report: String?, rawTrace: File?) {
+private fun SendButtons(title: String, report: String?, rawTrace: File?, onHandedOver: () -> Unit) {
     val context = LocalContext.current
     var confirmGithub by rememberSaveable { mutableStateOf(false) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = {
-            report?.let { start(context) { ProblemSharing.shareIntent(context, title, it, rawTrace) } }
+            report?.let { if (start(context) { ProblemSharing.shareIntent(context, title, it, rawTrace) }) onHandedOver() }
         }, enabled = report != null) { Text(stringResource(R.string.problems_share)) }
         OutlinedButton(onClick = { confirmGithub = true }, enabled = report != null) { Text(stringResource(R.string.problems_github)) }
     }
@@ -205,7 +238,7 @@ private fun SendButtons(title: String, report: String?, rawTrace: File?) {
                 TextButton(onClick = {
                     confirmGithub = false
                     context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("NetLogger report", report))
-                    start(context) { ProblemSharing.githubIssueIntent(title, report) }
+                    if (start(context) { ProblemSharing.githubIssueIntent(title, report) }) onHandedOver()
                 }) { Text(stringResource(R.string.problems_github_continue)) }
             },
             dismissButton = { TextButton(onClick = { confirmGithub = false }) { Text(stringResource(R.string.problems_cancel)) } },
@@ -213,14 +246,16 @@ private fun SendButtons(title: String, report: String?, rawTrace: File?) {
     }
 }
 
-private fun start(context: Context, intent: () -> android.content.Intent) {
-    try {
-        context.startActivity(intent())
-    } catch (e: ActivityNotFoundException) {
-        Log.w("NetLogger", "no app to send the report", e)
-    } catch (e: IllegalArgumentException) { // FileProvider path
-        Log.w("NetLogger", "report attachment not shared", e)
-    }
+/** True if another app was opened with the report. */
+private fun start(context: Context, intent: () -> android.content.Intent): Boolean = try {
+    context.startActivity(intent())
+    true
+} catch (e: ActivityNotFoundException) {
+    Log.w("NetLogger", "no app to send the report", e)
+    false
+} catch (e: IllegalArgumentException) { // FileProvider path
+    Log.w("NetLogger", "report attachment not shared", e)
+    false
 }
 
 @Composable

@@ -17,9 +17,6 @@ object ProblemSharing {
 
     const val SOURCE_URL = "https://github.com/mppamungkas/netlogger"
 
-    /** GitHub cuts long URLs; the body is shortened to this and the full report goes to the clipboard. */
-    private const val MAX_ISSUE_BODY = 6_000
-
     /** Manifest meta-data written by app/build.gradle.kts. */
     private const val BUILD_COMMIT_KEY = "id.my.pamslab.netlogger.BUILD_COMMIT"
 
@@ -56,11 +53,9 @@ object ProblemSharing {
 
     /** A new GitHub issue with title and (shortened) body filled in; the caller copies the full report first. */
     fun githubIssueIntent(title: String, report: String): Intent {
-        val body = if (report.length <= MAX_ISSUE_BODY) report
-            else report.take(MAX_ISSUE_BODY) + "\n…\n(Shortened. The full report is on the clipboard: paste it below.)"
         val uri = Uri.parse("$SOURCE_URL/issues/new").buildUpon()
             .appendQueryParameter("title", title)
-            .appendQueryParameter("body", "```\n$body\n```")
+            .appendQueryParameter("body", IssueText.body(title, report))
             .build()
         return Intent(Intent.ACTION_VIEW, uri)
     }

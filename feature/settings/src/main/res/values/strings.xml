@@ -301,6 +301,10 @@
     <string name="problems_github_info">Issues on github.com/mppamungkas/netlogger are public: anyone can read the report. You need a GitHub account. The browser opens a new issue with the report filled in; the full report is also copied to the clipboard, in case it had to be shortened.</string>
     <string name="problems_github_continue">Open GitHub</string>
     <string name="problems_delete">Delete</string>
+    <string name="problems_sent_title">Was the report sent?</string>
+    <string name="problems_sent_info">NetLogger cannot see whether you sent it in the other app. If it reached GitHub or the person you shared it with, it can be deleted from this phone.</string>
+    <string name="problems_sent_delete">Sent, delete it</string>
+    <string name="problems_sent_keep">Keep it</string>
     <string name="problems_delete_title">Delete this report?</string>
     <string name="problems_cancel">Cancel</string>
     <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines are added; you see the whole report before sending it.</string>
