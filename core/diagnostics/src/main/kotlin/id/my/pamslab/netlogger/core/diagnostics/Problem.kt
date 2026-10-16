@@ -48,6 +48,8 @@ data class Problem(
     val seen: Boolean = false,
     /** One line, [ReportBuilder.title]; set when the report is kept. */
     val title: String? = null,
+    /** [ReportBuilder.TITLE_VERSION] that wrote [title]; an older one is rewritten on load. */
+    val titleVersion: Int = 0,
     /** When the crash happened, from the Java stack trace; can be well before [timeMs] (crash dialog left open). */
     val crashTimeMs: Long? = null,
 ) {

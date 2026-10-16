@@ -92,6 +92,12 @@ class ReportBuilderTest {
         assertFalse(anr.contains("Signal Catcher"))
         assertFalse(anr.contains("\"other\""))
 
+        assertEquals(
+            "Input dispatching timed out",
+            ReportBuilder.anrReason("user request after error: Input dispatching timed out (a9dc28a id.my.pamslab.netlogger/id.my.pamslab.netlogger.MainActivity is not responding. Waited 10000ms for FocusEvent(hasFocus=false))."),
+        )
+        assertEquals("Broadcast of Intent", ReportBuilder.anrReason("Broadcast of Intent (x)"))
+
         val killed = ReportBuilder.build(ReportInput(problem(ProblemKind.KILLED_WHILE_RECORDING, ExitReason.LOW_MEMORY, state = ProcessStateSummary(sessionId = 3, capture = true))), ctx)
         assertTrue(killed, killed.contains("What       Ended by Android during a recording (LOW_MEMORY)"))
         assertTrue(killed.contains("Running    recording session 3; capture on"))

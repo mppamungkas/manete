@@ -1,6 +1,10 @@
 # 005: Crash and problem reports without the Play Store: plan
 
-- **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16. Step 1 finding (moto g45): a tombstone also holds memory dumps and the process' log buffer, unfiltered, so the
+- **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16. Implemented (steps 1–4),
+  checked on both phones 2026-10-16. Differences from the plan: the debug test hook is a broadcast receiver only the
+  shell can trigger (DUMP permission), not a screen; a report cannot delete itself after sending (Android does not tell
+  whether it was sent), so NetLogger asks on return; GitHub issue bodies are limited by their encoded URL length
+  (7000), not by characters; on Android 16 a `:vpn` crash appears only at the next app start. Step 1 finding (moto g45): a tombstone also holds memory dumps and the process' log buffer, unfiltered, so the
   report shows only its summary; the raw file is attached only when the user ticks a box that says what it may
   contain (D5 changed so by the user, 2026-10-16; step 3).
 - **Date:** 2026-10-16

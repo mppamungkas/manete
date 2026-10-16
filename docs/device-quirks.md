@@ -692,6 +692,19 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
   after the crash, and the exit record's time is when the process finally ended. The report takes the crash time from
   the Java stack trace (step 2). `setProcessStateSummary` worked: the report has the session id and the open screen.
 
+### Samsung A56, problem reports (decision 005, step 4), 2026-10-16 14:16–14:25
+- The A56 had only normal exits stored (PACKAGE_UPDATED, USER_REQUESTED), so no report was imported.
+- Java and native crashes in the main process: reports with stack trace / tombstone and log lines, as on the moto.
+- **Android 16: a running process does not get exit records added after it started.** A Java crash of `:vpn` while the
+  main process kept running was in `dumpsys activity exit-info` but not returned to the app; it appeared at the next
+  start of the main process. The moto (Android 15) returned it at once. The capture row shows the ended capture
+  meanwhile.
+- ANR (main thread blocked, app in the foreground): Samsung's "NetLogger isn't responding" dialog; "Close app" ends
+  the process with REASON_ANR and a 78 KB thread dump; description "user request after error: Input dispatching timed
+  out (… Waited 10000ms …)", shortened in the title. Same on the moto.
+- Wi-Fi on (2026-10-16): the Live data row shows the SSID with the existing permissions (fine location, location on);
+  mobile data shows "Data disconnected".
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |

@@ -22,7 +22,7 @@
     <string name="settings_capabilities">Phone capabilities</string>
     <string name="settings_capabilities_summary">What this phone reports: a live check, plus your recorded sessions</string>
     <string name="settings_help">How to use</string>
-    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, glossary</string>
+    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, problems, glossary</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version %1$s · licence, privacy, credits</string>
     <string name="yes">Yes</string>
@@ -259,7 +259,15 @@
         <item>CSV files use commas and a dot for decimals. If Excel shows everything in one column, open the file with Data › From Text/CSV and choose comma as the delimiter.</item>
         <item>Open capture.pcap in Wireshark. Packet times use the same clock as the radio log; capture_sync.csv shows how they line up.</item>
     </string-array>
-    <string name="help_glossary_title">6. Glossary</string>
+    <string name="help_problems_title">6. When something goes wrong</string>
+    <string-array name="help_problems">
+        <item>If NetLogger crashes, freezes, or Android ends it during a recording, a red card on Live says so the next time you open it. The recording is closed and keeps everything recorded until then.</item>
+        <item>Settings › Problem reports keeps these reports on the phone (at most 20). Open one to see exactly what would be sent: the app and phone model, what happened, a technical trace and NetLogger\'s own log lines; no location, cell identities, Wi-Fi names or captured traffic.</item>
+        <item>Send a report with Share (e-mail, chat) or as a GitHub issue, which is public. Nothing is sent automatically. When you come back, NetLogger asks whether it was sent, so you can delete it.</item>
+        <item>For a native crash you may also attach the raw crash dump. It helps the developer, but it can contain parts of NetLogger\'s memory, so only attach it when you trust the receiver.</item>
+        <item>Something wrong without a crash? Use Describe a problem and say what you did, what happened and what you expected.</item>
+    </string-array>
+    <string name="help_glossary_title">7. Glossary</string>
     <string-array name="help_glossary">
         <item>RSRP: received power of a cell\'s reference signal, in dBm. About −80 is strong, below −110 weak.</item>
         <item>RSRQ: signal quality in dB, lower with interference and load. About −10 is good, below −15 poor.</item>
@@ -327,6 +335,7 @@
     <string-array name="about_privacy">
         <item>Sessions and exports contain your precise location and track, the cells you used (which also give your location) and your phone model and SIM operator. Share them only with people who need them.</item>
         <item>A traffic capture contains the network traffic of the captured apps: which servers they contact, and the content of anything not encrypted. Handle capture files like private data.</item>
+        <item>Problem reports (crashes, freezes) stay on the phone until you send one yourself; they contain no location, cell identities, Wi-Fi names or captured traffic.</item>
         <item>Everything stays on the phone until you export it. NetLogger has no account, no analytics and no upload. It contacts only the map tile server (OpenStreetMap, for the area you view), the speed test server you set (and Cloudflare if you turn it on), and Google Play services, which provides the location.</item>
     </string-array>
     <string name="about_map_title">Map data</string>

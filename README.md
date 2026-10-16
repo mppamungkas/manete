@@ -59,6 +59,9 @@ only** (no root, no vendor diagnostic interfaces), and it never crashes on missi
   - **Phone capabilities:** which radio fields this phone reports right now, and how often they appeared in your
     recorded sessions. Copy report gives a Markdown table.
   - How to use, About (licences, privacy, credits).
+- **Problem reports:** if NetLogger crashes, freezes or is ended by Android during a recording, a card on Live says
+  so and Settings › Problem reports keeps a report (what happened, a technical trace, NetLogger's own log lines; no
+  location or cell identities). The user sends it by e-mail/chat or as a GitHub issue; nothing is sent automatically.
 
 **Traffic capture** (NetLogger's own `VpnService`, no other app needed)
 - Native C capture loop with [zdtun](https://github.com/emanuele-f/zdtun) as the user-space forwarder, in a separate
@@ -133,6 +136,7 @@ core/location     Location stream
 core/device       Battery, traffic counters, thermal, device info
 core/data         Room database, repositories, settings
 core/export       CSV, GeoJSON and ZIP writers, size estimate
+core/diagnostics  Problem reports: crash handler, exit records, report text
 core/ui           Theme and shared components
 feature/logger    Logging service and Live screen
 feature/map       Map screen
@@ -144,13 +148,14 @@ docs/             Column definitions, device quirks, field test checklist, desig
 ```
 
 Design decisions: [cell parsing](docs/decisions/001-cell-parsing.md),
-[native capture](docs/decisions/002-native-capture.md), [settings](docs/decisions/003-settings-ux.md).
+[native capture](docs/decisions/002-native-capture.md), [settings](docs/decisions/003-settings-ux.md),
+[Live dashboard](docs/decisions/004-live-dashboard.md), [problem reports](docs/decisions/005-problem-reports.md).
 
 ## Privacy
 
 Sessions and exports contain your precise location, the cells you used and your phone model and operator. A traffic
 capture contains the network traffic of the captured apps. Everything stays on the phone until you export it.
-NetLogger has no account, no analytics and no upload. It only contacts the OpenStreetMap tile server, the speed test
+Problem reports also stay on the phone until you send one. NetLogger has no account, no analytics and no upload. It only contacts the OpenStreetMap tile server, the speed test
 server you set (and Cloudflare if you turn it on), and Google Play services for the location.
 
 ## Licence

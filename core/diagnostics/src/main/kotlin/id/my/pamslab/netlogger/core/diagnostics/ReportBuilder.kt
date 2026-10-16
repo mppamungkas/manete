@@ -37,6 +37,9 @@ data class ReportInput(
  */
 object ReportBuilder {
 
+    /** Raise when [title] changes, so kept reports get the new title. 2: short ANR reason. */
+    const val TITLE_VERSION = 2
+
     private const val MAX_STACK_LINES = 60
     private const val LABEL = 11
 
@@ -58,6 +61,7 @@ object ReportBuilder {
                 line("Process", "${processLabel(p.processName)} · ${importanceLabel(p.importance)}")
                 line("What", what(p, java, tombstone))
                 line("Running", running(p.state))
+                if (p.kind == ProblemKind.ANR) p.description?.let { line("Android", it) }
             }
             input.userNote?.trim()?.takeIf { it.isNotEmpty() }?.let {
                 appendLine()
@@ -103,9 +107,16 @@ object ReportBuilder {
     private fun what(p: Problem, java: JavaCrash?, tombstone: TombstoneSummary?): String = when (p.kind) {
         ProblemKind.CRASH -> java?.exception?.let { "Crash: $it" } ?: "Crash (no stack trace kept)"
         ProblemKind.CRASH_NATIVE -> "Crash (native): " + (tombstone?.headline() ?: "signal ${p.status}")
-        ProblemKind.ANR -> "Not responding (ANR)" + (p.description?.let { ": $it" } ?: "")
+        ProblemKind.ANR -> "Not responding (ANR)" + (anrReason(p.description)?.let { ": $it" } ?: "")
         ProblemKind.KILLED_WHILE_RECORDING -> "Ended by Android during a recording (${p.reasonName})"
     }
+
+    /**
+     * "user request after error: Input dispatching timed out (a9dc… is not responding. Waited 10000ms …)." (A56) ->
+     * "Input dispatching timed out"; the full text stays in the report's "Android" line.
+     */
+    internal fun anrReason(description: String?): String? =
+        description?.substringAfter("after error: ")?.substringBefore(" (")?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
 
     private fun running(state: ProcessStateSummary?): String {
         if (state == null) return "unknown"

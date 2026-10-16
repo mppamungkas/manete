@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.7.4** · last updated 2026-10-16
+**CLAUDE.md version 1.7.5** · last updated 2026-10-16
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Live dashboard (`docs/decisions/004-live-dashboard.md`) implemented and checked on the moto (2026-10-16); A56 check open. Still open for the MVP definition of done: the 1-hour screen-off drive.
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Live dashboard (`docs/decisions/004-live-dashboard.md`) implemented and checked on both phones (2026-10-16). Problem reports (`docs/decisions/005-problem-reports.md`) implemented and checked on both phones (2026-10-16). Still open for the MVP definition of done: the 1-hour screen-off drive.
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.5:** Problem reports without the Play Store (`docs/decisions/005-problem-reports.md`, new module `core:diagnostics`): crashes (Java with stack trace, native with a tombstone summary), ANRs and Android ending NetLogger during a recording, from `ApplicationExitInfo` plus an uncaught-exception handler in both processes; a card on Live, Settings › Problem reports (view, share, public GitHub issue, delete; raw tombstone only if the user ticks it), Describe a problem. Nothing is sent automatically; reports contain no location, cell identities, SSID or capture content. Debug builds: `CrashTestReceiver` for tests.
 - **1.7.4:** Live is a dashboard (`docs/decisions/004-live-dashboard.md`): status bar (recording time, ticks, Marker/Stop; scenario and Start when idle), operator and network type in words, one serving-cell table (NR merged from CellInfo and SignalStrength, "SS" marks the latter), GPS, data route (Wi-Fi SSID / cellular, `NetworkRouteSource`, Live only, not stored) with 5 s average rates, compact speed test and capture rows, the last events ("cell change", never "handover"), raw values under Details. Tapping the open Map tab no longer rebuilds (and crashed) the map.
 - **1.7.3:** Map: "Live session" (the recording session, or while not logging an in-memory live preview of position and radio values, never stored, read only while the Map is visible) or "Recorded session"; session, metric and mode as dropdowns; the legend counts the ticks per colour. Sessions: estimated size on the phone and of the export ZIP per session (`SizeEstimate`, weights measured on both phones) plus the real database and capture sizes.
 - **1.7.2:** Settings redesigned for teachers and students (decision 003): a list of pages (Logging, Speed test, Traffic capture; Phone capabilities, How to use, About), every option with a description. Logging interval (500/1000/2000/5000 ms) and default scenario are settings (`LoggingSettings`, core:data). Capture options (all or specific apps from an app picker, MTU) moved from the Live card to Settings (`CaptureSettings` now in core:data, same prefs); start/stop stays on Live. Phone capabilities: live check of the reported fields plus their share in recorded sessions (read-only queries, no schema change), Copy report. About: version and build commit, GPL text, privacy note, OSM attribution, third-party credits with full licence texts (`Licences.kt`; update with dependencies). English only, all texts in strings.xml.
@@ -130,6 +131,7 @@ netlogger/
 │   ├── device/                  # battery, TrafficStats, thermal, screen state, device info
 │   ├── data/                    # Room DB, DAOs, repositories, migrations, schemas/
 │   ├── export/                  # CSV / GeoJSON / KML / ZIP bundle writers
+│   ├── diagnostics/             # problem reports: crash handler, exit records, report text (decision 005)
 │   └── ui/                      # theme, shared components, RsrpColor
 ├── feature/
 │   ├── logger/                  # LoggingService (foreground), Live screen
@@ -277,7 +279,7 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
   RSRP colors: > -80 green, -80 to -95 yellow, -95 to -110 orange, < -110 red, null gray (integer dBm: -80 … -95 yellow, -96 … -110 orange).
   SINR colors (LTE RSSNR and NR SS-SINR): >= 20 green, 13 to < 20 yellow, 0 to < 13 orange, < 0 red, null gray.
 - **Sessions:** list with estimated size on the phone and of the export, rename/label, notes, export, delete (with confirmation).
-- **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Speed test (server URLs, public secondary target), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
+- **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Speed test (server URLs, public secondary target), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, Problem reports (decision 005), About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
 
 ## Phase 3: Traffic capture
 NetLogger's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):
@@ -305,6 +307,8 @@ without loss but was removed in 1.7.0 in favour of the native capture; old sessi
 ## Coding conventions
 - Kotlin official style; no `!!` in production code.
 - Parsers are pure functions returning nullable fields + a list of parse warnings.
+- Log lines (`Log.*`, tag "NetLogger") never contain locations, cell identities (cell ID, TAC, PCI), SSIDs, IP
+  addresses or capture content: problem reports include NetLogger's own log lines (decision 005).
 - Domain units in names: `rsrpDbm`, `speedMps`, `bandwidthKhz` in code; CSV headers may drop suffixes but must be documented in `docs/columns.md`.
 - Every Room schema change needs a migration and a migration test.
 - No new dependency without saying why in the commit message.

@@ -54,7 +54,8 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
         }
         pendingJavaFiles().forEach { if (it.lastModified() < System.currentTimeMillis() - PENDING_MAX_AGE_MS) it.delete() }
         prune()
-        load().filter { it.title == null }.forEach { p ->
+        // Reports kept before titles existed, or titled by an older ReportBuilder.
+        load().filter { it.title == null || it.titleVersion != ReportBuilder.TITLE_VERSION }.forEach { p ->
             try {
                 File(File(root, p.id), PROBLEM).writeText(json.encodeToString(Problem.serializer(), complete(p)))
             } catch (e: Exception) {
@@ -104,6 +105,7 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
         val input = input(problem)
         return problem.copy(
             title = ReportBuilder.title(problem, input.javaText, input.trace),
+            titleVersion = ReportBuilder.TITLE_VERSION,
             crashTimeMs = ReportBuilder.crashTimeMs(input.javaText),
         )
     }

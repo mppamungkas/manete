@@ -14,6 +14,7 @@ private val SECTIONS: List<Pair<Int, Int>> = listOf(
     R.string.help_speed_title to R.array.help_speed,
     R.string.help_capture_title to R.array.help_capture,
     R.string.help_results_title to R.array.help_results,
+    R.string.help_problems_title to R.array.help_problems,
     R.string.help_glossary_title to R.array.help_glossary,
 )
 

@@ -1,7 +1,7 @@
 # 004: Live tab as a dashboard (UI/UX): plan
 
 - **Status:** Accepted (D1–D7 as recommended; D3 = no hint), 2026-10-16. Implemented (steps 1–5), checked on the
-  moto g45 2026-10-16; open: the A56, Wi-Fi SSID, a running capture and a speed test result on Live
+  moto g45 2026-10-16, on the A56 (layout, Wi-Fi SSID) 2026-10-16; open: a running capture and a speed test result on Live
   (`docs/field-test-checklist.md`). Differences from the plan: the data rates are a 5 s average (the phone updates
   its traffic counters only every few seconds); cellular rates use the mobile counters, so a capture's tun interface
   is not counted twice.
