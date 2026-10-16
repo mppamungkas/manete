@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Live tab (decision 004). -->
+    <string name="live_rec">REC</string>
+    <string name="live_ticks">%1$d ticks</string>
+    <string name="live_ticks_share">%1$d ticks (%2$.1f %%)</string>
+    <string name="live_markers">%1$d markers</string>
+    <string name="live_marker">Marker</string>
+    <string name="live_stop">Stop</string>
+    <string name="live_start">Start</string>
+    <string name="live_not_logging">Not logging</string>
+    <string name="live_last_session">Last session: %1$d of %2$d ticks (%3$.1f %%)</string>
+    <string name="live_write_errors">%1$d ticks not stored, see logcat</string>
+    <string name="live_details">Details</string>
+    <string name="live_details_hint">Raw radio values, battery, warnings</string>
+</resources>

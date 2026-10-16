@@ -1,6 +1,16 @@
 package id.my.pamslab.netlogger.feature.logger
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -85,7 +94,11 @@ private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () ->
             val scenario by viewModel.scenario.collectAsStateWithLifecycle()
             val publicSpeedTest by viewModel.publicSpeedTest.collectAsStateWithLifecycle()
             val intervalMs by viewModel.intervalMs.collectAsStateWithLifecycle()
-            SnapshotView(s, scenario, viewModel::selectScenario, intervalMs, publicSpeedTest, captureCard, modifier)
+            val open by viewModel.openSections.collectAsStateWithLifecycle()
+            Column(modifier.fillMaxSize()) {
+                StatusBar(s, scenario, viewModel::selectScenario, intervalMs)
+                SnapshotView(s, publicSpeedTest, open, viewModel::setOpen, captureCard, Modifier.weight(1f))
+            }
         }
     }
 }
@@ -93,10 +106,9 @@ private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () ->
 @Composable
 private fun SnapshotView(
     ui: LiveUiState.Ready,
-    scenario: Scenario,
-    onScenario: (Scenario) -> Unit,
-    intervalMs: Long,
     publicSpeedTest: Boolean,
+    open: Set<LiveSection>,
+    onOpen: (LiveSection, Boolean) -> Unit,
     captureCard: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -104,64 +116,116 @@ private fun SnapshotView(
     val serving = snapshot.cells.filter { it.servingInferred }
     // Stale SignalStrength rows have no identity and are not neighbors; they show up as a warning.
     val neighbors = snapshot.cells.filter { !it.servingInferred && it.source == CellSource.CELL_INFO }.sortedByDescending { it.rsrpDbm ?: it.rssiDbm ?: Int.MIN_VALUE }
+    val detailsOpen = LiveSection.DETAILS in open
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { LoggingCard(ui.logging, scenario, onScenario, intervalMs) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
         item { captureCard() } // shows itself only while a session records or a capture is ending
-        item { NetworkCard(snapshot) }
-        item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
-        ui.tick?.device?.let { item { DeviceCard(it) } }
-        items(serving) { ServingCellCard(it) }
-        if (serving.isEmpty()) item { Text("No serving cell reported.", style = MaterialTheme.typography.bodyMedium) }
-        item { NeighborTable(neighbors) }
-        if (snapshot.warnings.isNotEmpty()) item { WarningsCard(snapshot) }
+        item {
+            SectionHeader(stringResource(R.string.live_details), stringResource(R.string.live_details_hint), detailsOpen) {
+                onOpen(LiveSection.DETAILS, it)
+            }
+        }
+        if (detailsOpen) {
+            item { NetworkCard(snapshot) }
+            item { LocationCard(ui.tick?.location ?: ui.location?.fix, ui.tick?.locationStatus ?: ui.location?.status, ui.locationAgeMs, ui.location?.error) }
+            ui.tick?.device?.let { item { DeviceCard(it) } }
+            items(serving) { ServingCellCard(it) }
+            if (serving.isEmpty()) item { Text("No serving cell reported.", style = MaterialTheme.typography.bodyMedium) }
+            item { NeighborTable(neighbors) }
+            if (snapshot.warnings.isNotEmpty()) item { WarningsCard(snapshot) }
+        }
+    }
+}
+
+/** Recording state and the session controls; stays above the scrolling sections. */
+@Composable
+private fun StatusBar(ui: LiveUiState.Ready, scenario: Scenario, onScenario: (Scenario) -> Unit, intervalMs: Long) {
+    val context = LocalContext.current
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (val logging = ui.logging) {
+                    is LoggingState.Running -> {
+                        val st = logging.stats
+                        val nowNs = ui.tick?.radio?.elapsedRealtimeNs ?: st.startedElapsedNs
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("● ", color = RecordingRed, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${stringResource(R.string.live_rec)} ${formatElapsed(nowNs - st.startedElapsedNs)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                )
+                            }
+                            val ticks = if (st.recordedPct < WARN_TICK_SHARE_PCT) {
+                                stringResource(R.string.live_ticks_share, st.recorded, st.recordedPct)
+                            } else {
+                                stringResource(R.string.live_ticks, st.recorded)
+                            }
+                            val markers = logging.markers.size.takeIf { it > 0 }?.let { stringResource(R.string.live_markers, it) }
+                            Text(listOfNotNull(ticks, scenario.label(), markers).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(onClick = { LoggingService.addMarker(context) }) { Text(stringResource(R.string.live_marker)) }
+                        Button(onClick = { LoggingService.stop(context) }) { Text(stringResource(R.string.live_stop)) }
+                    }
+                    is LoggingState.Idle -> {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.live_not_logging), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            logging.lastSession?.let { st ->
+                                Text(
+                                    stringResource(R.string.live_last_session, st.recorded, st.expected, st.recordedPct),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                        ScenarioDropdown(scenario, onScenario)
+                        Button(onClick = { LoggingService.start(context, scenario, intervalMs) }) { Text(stringResource(R.string.live_start)) }
+                    }
+                }
+            }
+            (ui.logging as? LoggingState.Running)?.writeErrors?.takeIf { it > 0 }?.let {
+                Text(stringResource(R.string.live_write_errors, it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
 
 @Composable
-private fun LoggingCard(logging: LoggingState, scenario: Scenario, onScenario: (Scenario) -> Unit, intervalMs: Long) {
-    val context = LocalContext.current
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            when (logging) {
-                is LoggingState.Running -> {
-                    val st = logging.stats
-                    Text("Logging", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Field("Ticks", "${st.recorded} / ${st.expected} expected (%.1f %%) · ${st.missed} missed".format(Locale.ROOT, st.recordedPct))
-                    Field("Interval", "${st.intervalMs} ms")
-                    Field("Session", "#${logging.sessionId}")
-                    Field("Markers", logging.markers.size.toString())
-                    if (logging.writeErrors > 0) {
-                        Text("${logging.writeErrors} ticks not stored, see logcat", color = MaterialTheme.colorScheme.error)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { LoggingService.stop(context) }) { Text("Stop") }
-                        OutlinedButton(onClick = { LoggingService.addMarker(context) }) { Text("Add marker") }
-                    }
-                }
-                is LoggingState.Idle -> {
-                    Text("Not logging", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    logging.lastSession?.let { st ->
-                        Field("Last session", "${st.recorded} / ${st.expected} ticks (%.1f %%)".format(Locale.ROOT, st.recordedPct))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Scenario.entries.forEach { s ->
-                            FilterChip(
-                                selected = s == scenario,
-                                onClick = { onScenario(s) },
-                                label = { Text(s.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                            )
-                        }
-                    }
-                    Field("Interval", "$intervalMs ms · change in Settings")
-                    Button(onClick = { LoggingService.start(context, scenario, intervalMs) }) { Text("Start logging") }
-                }
+private fun ScenarioDropdown(scenario: Scenario, onScenario: (Scenario) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text("${scenario.label()} ▾") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            Scenario.entries.forEach { s ->
+                DropdownMenuItem(
+                    text = { Text(s.label()) },
+                    onClick = {
+                        expanded = false
+                        onScenario(s)
+                    },
+                )
             }
+        }
+    }
+}
+
+/** A row that opens or closes the section below it. */
+@Composable
+private fun SectionHeader(title: String, hint: String?, open: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable { onToggle(!open) }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(if (open) "▾ " else "▸ ", style = MaterialTheme.typography.titleSmall)
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        if (!open && hint != null) {
+            Text("  $hint", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -360,6 +424,11 @@ private fun TableRow(cells: List<String>, header: Boolean = false, stale: Boolea
 }
 
 private const val MAX_WARNINGS_SHOWN = 10
+
+/** Below this share of expected ticks, the status bar shows the share. */
+private const val WARN_TICK_SHARE_PCT = 95.0
+
+private val RecordingRed = Color(0xFFD32F2F)
 
 // SignalStrength only fires on change, so a large age there means "unchanged", not "stale": never grayed out.
 private fun CellSample.isStale() = source == CellSource.CELL_INFO && (cellInfoAgeMs ?: 0) > STALE_AGE_MS

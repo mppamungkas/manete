@@ -57,6 +57,7 @@ class LiveViewModel @Inject constructor(
     repository: SessionRepository,
     speedTestSettings: SpeedTestSettings,
     loggingSettings: LoggingSettings,
+    private val livePrefs: LivePrefs,
 ) : ViewModel() {
 
     /** The public secondary speed test target is offered (Settings). */
@@ -78,6 +79,11 @@ class LiveViewModel @Inject constructor(
             }
         }
     }
+
+    /** Collapsible sections that are open (remembered across app starts). */
+    val openSections: StateFlow<Set<LiveSection>> = livePrefs.open
+
+    fun setOpen(section: LiveSection, open: Boolean) = livePrefs.setOpen(section, open)
 
     fun selectScenario(scenario: Scenario) {
         _scenario.value = scenario

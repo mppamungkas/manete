@@ -1,6 +1,6 @@
 # 004: Live tab as a dashboard (UI/UX): plan
 
-- **Status:** Proposed, 2026-10-16. Waiting for approval of D1–D7.
+- **Status:** Accepted (D1–D7 as recommended; D3 = no hint), 2026-10-16.
 - **Date:** 2026-10-16
 - **Users:** teachers and students during a walk or drive, and researchers who still need the raw values.
 - **Language:** English only. Live's texts move to `strings.xml`, as Settings' did in 003.
