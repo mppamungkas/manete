@@ -218,6 +218,13 @@ java|native|anr --receiver-foreground`; `.CrashTestVpnReceiver` for the :vpn pro
 
 ## Before a release
 
+- [x] Release APK 0.2.0 (versionCode 2, build 5349cb9, signed with the release key, arm64-v8a + armeabi-v7a, 49 MB)
+      installed on the A56 after uninstalling the debug build (data backed up): permissions flow, Live, a 25-tick
+      session with a capture, Sessions, Map (tiles after a few seconds on the empty cache), About, Problem reports;
+      no crash; the debug-only CrashTestReceiver and IconPreviewActivity are not in the APK (2026-10-16)
+- [ ] The moto g45 still runs the debug build: switching it needs one uninstall (its sessions are lost unless
+      exported or backed up)
+
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
       2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
 - [x] The same on the A56 (`RRGYB06DN2T`): DatabaseSmokeTest 2/2 (2026-10-15, build f973dc1)
