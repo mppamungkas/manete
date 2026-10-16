@@ -653,6 +653,17 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
   IPv4 even with IPv6 available; the 9 IPv6 packets in the pcap are the ones counted as unparsed (not app
   connections), so the IPv6 capture path is still untested. The VPN consent from the earlier tests still held.
 
+### moto g45, Map crash when tapping the open Map tab, 2026-10-16 08:57
+- The crash log had a NetLogger crash at 05:51 (process 5 s old, foreground). Reproduced: with the Map open,
+  tapping the Map tab again crashed the app 4 of 4 times; switching Map → Live 0 of 4. Each crash: a native
+  SIGSEGV in MapLibre's `MapRenderer::render` (null pointer, render thread), then on the main thread
+  `IllegalStateException: Calling getSourceAs when a newer style is loading/has loaded` from `TrackMap`.
+- Cause: the bottom bar navigated to the already open Map tab (`popUpTo` start + `restoreState`), which pops the
+  Map entry and builds a new one; destroying the old `MapView` that way crashes MapLibre 13.6.1. The logging
+  service shares the process, so this would also have ended a recording.
+- Fixed: tapping the open tab of a screen without sub-pages (Live, Map) does nothing; `TrackMap` skips a style
+  that MapLibre has invalidated. After the fix: 5 of 5 taps on the open Map tab and 2 switches without a crash.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
