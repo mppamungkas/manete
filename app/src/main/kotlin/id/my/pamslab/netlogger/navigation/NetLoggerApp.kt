@@ -81,16 +81,19 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
                             selected = selected,
                             onClick = {
                                 // Tapping the open tab again leaves a sub-page (e.g. Settings › Logging) for the tab's
-                                // first screen; restoreState alone would bring the sub-page back.
+                                // first screen; restoreState alone would bring the sub-page back. A tab without
+                                // sub-pages stays as it is: navigating would rebuild its screen, and destroying a
+                                // MapView that way crashes MapLibre's renderer (moto g45, 2026-10-16).
                                 val graph = if (!selected) null else runCatching {
                                     navController.getBackStackEntry(destination.route).destination as? NavGraph
                                 }.getOrNull()
-                                if (graph != null) {
-                                    navController.popBackStack(graph.startDestinationId, inclusive = false)
-                                } else navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                                when {
+                                    graph != null -> navController.popBackStack(graph.startDestinationId, inclusive = false)
+                                    !selected -> navController.navigate(destination.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             },
                             icon = { Icon(destination.icon, contentDescription = null) },

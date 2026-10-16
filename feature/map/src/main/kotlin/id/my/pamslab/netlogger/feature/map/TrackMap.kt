@@ -132,7 +132,8 @@ internal fun TrackMap(
     }
 
     LaunchedEffect(style, track, metric) {
-        val s = style ?: return@LaunchedEffect
+        // MapLibre invalidates a style when the MapView is destroyed; touching it then throws.
+        val s = style?.takeIf { it.isFullyLoaded } ?: return@LaunchedEffect
         val points = track?.points.orEmpty()
         s.getSourceAs<GeoJsonSource>(SRC_LINE)?.setGeoJson(
             if (points.size < 2) FeatureCollection.fromFeatures(emptyList())
@@ -167,7 +168,7 @@ internal fun TrackMap(
     }
 
     LaunchedEffect(style, track, metric, selectedSeq) {
-        val s = style ?: return@LaunchedEffect
+        val s = style?.takeIf { it.isFullyLoaded } ?: return@LaunchedEffect
         val p = track?.points?.firstOrNull { it.seq == selectedSeq }
         s.getSourceAs<GeoJsonSource>(SRC_SELECTED)?.setGeoJson(
             FeatureCollection.fromFeatures(
