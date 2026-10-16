@@ -15,12 +15,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +31,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -52,24 +55,30 @@ internal fun SessionDetailScreen(
     val size by viewModel.size.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
+    val export by viewModel.export.collectAsStateWithLifecycle()
     val charts by viewModel.charts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let(viewModel::saveTo)
     }
-    LaunchedEffect(viewModel) {
-        viewModel.shareIntents.collect { intent ->
+    // The export runs outside this screen; a finished Share opens the chooser here, also after coming back.
+    val shareIntent = export?.shareIntent
+    LaunchedEffect(shareIntent) {
+        if (shareIntent != null) {
+            viewModel.shareStarted()
             try {
-                context.startActivity(intent)
+                context.startActivity(shareIntent)
             } catch (e: ActivityNotFoundException) {
                 Log.w("NetLogger", "no app to share with", e)
             }
         }
     }
+    // A finished export's result is shown until the screen is left after it was seen.
+    DisposableEffect(viewModel) { onDispose { viewModel.dismissExport() } }
     val s = session ?: return PlaceholderScreen("Session", "Loading…", modifier)
     DetailContent(
-        s, size, message, exporting, viewModel::save, onDelete = { viewModel.delete(onBack) },
+        s, size, message, exporting, export, viewModel::save, onDelete = { viewModel.delete(onBack) },
         onSaveZip = { scope.launch { viewModel.exportFileName()?.let(saveLauncher::launch) } },
         onShareZip = viewModel::share,
         onShowOnMap = { onShowOnMap(s.id) },
@@ -84,6 +93,7 @@ private fun DetailContent(
     size: SizeEstimate?,
     message: String?,
     exporting: Boolean,
+    export: ExportJob?,
     onSave: (String, String, Scenario?) -> Unit,
     onDelete: () -> Unit,
     onSaveZip: () -> Unit,
@@ -140,6 +150,7 @@ private fun DetailContent(
         }
         OutlinedButton(onClick = onShowOnMap) { Text("Show on map") }
         if (s.endedAtMs == null) Text("Export is available after the session is stopped.", style = MaterialTheme.typography.bodySmall)
+        export?.let { ExportStatus(it) }
         message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     }
 
@@ -155,6 +166,30 @@ private fun DetailContent(
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
+    }
+}
+
+/** The running export's progress, or its result. Leaving the screen does not stop it. */
+@Composable
+private fun ExportStatus(job: ExportJob) {
+    if (job.running) {
+        val p = job.progress
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (p == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+            else LinearProgressIndicator(progress = { p.fraction.toFloat().coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+            Text(
+                (if (job.kind == ExportJob.Kind.SAVE) "Saving ZIP" else "Preparing ZIP") +
+                    (p?.let { " · ${it.file} · ${(it.fraction * 100).toInt()} %" } ?: "…") +
+                    " · you can leave this screen",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    } else {
+        Text(
+            job.message.orEmpty(),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (job.failed) MaterialTheme.colorScheme.error else Color.Unspecified,
         )
     }
 }

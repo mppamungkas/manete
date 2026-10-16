@@ -728,7 +728,10 @@ build (`.debug`) recorded the same time in parallel.
   19 LTE cell changes (one 172 ms spike within 5 s after one of them).
 - **Export cut off (bug):** the debug build's "Save ZIP" left an incomplete ZIP in Download (measurements.csv and part
   of cells.csv, no central directory) without an error: the export runs in the session screen's ViewModel scope and is
-  cancelled when the screen is left before it finishes. The release ZIP (the user waited) was complete.
+  cancelled when the screen is left before it finishes. The release ZIP (the user waited) was complete. **Fixed** the
+  same day (`ExportRunner`): exports run outside the screen, "Save ZIP" writes to a cache file and copies it to the
+  chosen document only when complete (deleting the document on failure); checked on the moto by leaving the screen at
+  31 %: an 801 kB ZIP that tests clean, and Share opening its chooser on return.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
