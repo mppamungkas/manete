@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug builds (app ID …netlogger.debug) sit next to the release app; the launcher tells them apart. -->
+    <string name="app_name">NetLogger debug</string>
+</resources>

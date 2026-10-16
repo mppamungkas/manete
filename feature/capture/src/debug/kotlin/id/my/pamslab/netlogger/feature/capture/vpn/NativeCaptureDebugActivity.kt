@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter
  * Debug builds only: starts or stops a native capture from adb (milestone 11, step 3).
  *
  * ```
- * adb shell am start -n id.my.pamslab.netlogger/id.my.pamslab.netlogger.feature.capture.vpn.NativeCaptureDebugActivity \
+ * adb shell am start -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.feature.capture.vpn.NativeCaptureDebugActivity \
  *     --es cmd start [--es apps com.example.a,com.example.b] [--ei mtu 10000]
  * adb shell am start -n ... --es cmd stop
  * ```

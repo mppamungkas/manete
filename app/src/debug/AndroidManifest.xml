@@ -5,7 +5,7 @@
     <application>
         <!--
             Debug builds only: renders the launcher icon previews and checks the safe zone, started with
-            `adb shell am start -n id.my.pamslab.netlogger/.IconPreviewActivity`. An activity rather than an
+            `adb shell am start -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.IconPreviewActivity`. An activity rather than an
             instrumented test of :app, because connectedAndroidTest uninstalls the app and wipes its data.
         -->
         <activity

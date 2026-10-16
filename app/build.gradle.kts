@@ -71,6 +71,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Own app ID, so a debug build installs next to the release APK on one phone, each with its own data.
+            // adb: id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.MainActivity (classes keep their names).
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             // Not yet: R8 needs keep rules checked on both phones (Room, Hilt, JNI of libnetcapture).
             isMinifyEnabled = false

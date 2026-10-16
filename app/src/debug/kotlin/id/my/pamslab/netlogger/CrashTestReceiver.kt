@@ -11,9 +11,9 @@ import android.util.Log
  * Debug builds only (decision 005, D6): ends the process on purpose, so every problem-report path can be checked on
  * a phone. Only the shell can send it (the receiver requires the DUMP permission):
  *
- *     adb shell am broadcast -n id.my.pamslab.netlogger/.CrashTestReceiver --es kind java|native|anr [--receiver-foreground]
+ *     adb shell am broadcast -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.CrashTestReceiver --es kind java|native|anr [--receiver-foreground]
  *
- * `.CrashTestVpnReceiver` does the same in the :vpn process.
+ * `CrashTestVpnReceiver` does the same in the :vpn process. (Debug builds have the app ID id.my.pamslab.netlogger.debug.)
  */
 open class CrashTestReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

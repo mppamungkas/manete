@@ -21,8 +21,8 @@ import kotlin.math.hypot
  * (icon-previews/; copied to docs/branding/previews/). Result in logcat (tag NetLogger).
  *
  * ```
- * adb shell am start -n id.my.pamslab.netlogger/.IconPreviewActivity
- * adb pull /sdcard/Android/data/id.my.pamslab.netlogger/files/icon-previews
+ * adb shell am start -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.IconPreviewActivity
+ * adb pull /sdcard/Android/data/id.my.pamslab.netlogger.debug/files/icon-previews
  * ```
  */
 class IconPreviewActivity : Activity() {

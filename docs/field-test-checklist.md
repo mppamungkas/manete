@@ -44,10 +44,10 @@ Doze, so a plugged-in test proves nothing about screen-off behavior.
 - [ ] Live: pick a scenario chip, Start, Add marker (Live and notification), Stop
 - [ ] Sessions: the session shows scenario, operator, device, duration, ticks and the marker count
 - [ ] Detail: edit label and notes, change scenario, Save; values survive an app restart
-- [ ] Kill test: start a session, `adb -s <serial> shell am force-stop id.my.pamslab.netlogger`, reopen the app.
+- [ ] Kill test: start a session, `adb -s <serial> shell am force-stop id.my.pamslab.netlogger` (debug builds: `…netlogger.debug`), reopen the app.
       The session shows "closed after the app was killed (end = last tick)" and its end time equals the last tick
 - [ ] Delete with confirmation removes the session (the recording session cannot be deleted)
-- [ ] Pull the database (`adb -s <serial> exec-out run-as id.my.pamslab.netlogger cat databases/netlogger.db`,
+- [ ] Pull the database (`adb -s <serial> exec-out run-as id.my.pamslab.netlogger.debug cat databases/netlogger.db`; run-as needs a debug build,
       also `-wal`) into `docs/samples/`; check that each tick has at most one `servingInferred` NR cell per NR-ARFCN
       and look at `servingSource`
 - [ ] Release check: `ANDROID_SERIAL=<serial> ./gradlew :core:data:connectedDebugAndroidTest` passes on both phones
@@ -200,8 +200,8 @@ Kept for the record; these checks no longer apply.
 
 ## Problem reports (decision 005, CLAUDE.md 1.7.5)
 
-Crash tests with the debug-only receiver (`adb shell am broadcast -n id.my.pamslab.netlogger/.CrashTestReceiver --es kind
-java|native|anr --receiver-foreground`; `.CrashTestVpnReceiver` for the :vpn process):
+Crash tests with the debug-only receiver (`adb shell am broadcast -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.CrashTestReceiver --es kind
+java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnReceiver` for the :vpn process):
 
 - [x] Java crash, main process: report with stack trace and log lines (moto, A56)
 - [x] Native crash, main process: tombstone summary and log lines (moto, A56); the moto's real MapLibre crash imported

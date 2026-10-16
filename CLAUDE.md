@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.7.5** · last updated 2026-10-16
+**CLAUDE.md version 1.7.6** · last updated 2026-10-16
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.6:** Release builds: signed with the release key from `local.properties` (`netlogger.signing.*`, never in the repo; unsigned without it), arm64-v8a + armeabi-v7a only, version 0.2.0. Debug builds have their own app ID `id.my.pamslab.netlogger.debug` ("NetLogger debug"), so debug and release install side by side, each with its own data; adb component names keep the class package (`id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.MainActivity`).
 - **1.7.5:** Problem reports without the Play Store (`docs/decisions/005-problem-reports.md`, new module `core:diagnostics`): crashes (Java with stack trace, native with a tombstone summary), ANRs and Android ending NetLogger during a recording, from `ApplicationExitInfo` plus an uncaught-exception handler in both processes; a card on Live, Settings › Problem reports (view, share, public GitHub issue, delete; raw tombstone only if the user ticks it), Describe a problem. Nothing is sent automatically; reports contain no location, cell identities, SSID or capture content. Debug builds: `CrashTestReceiver` for tests.
 - **1.7.4:** Live is a dashboard (`docs/decisions/004-live-dashboard.md`): status bar (recording time, ticks, Marker/Stop; scenario and Start when idle), operator and network type in words, one serving-cell table (NR merged from CellInfo and SignalStrength, "SS" marks the latter), GPS, data route (Wi-Fi SSID / cellular, `NetworkRouteSource`, Live only, not stored) with 5 s average rates, compact speed test and capture rows, the last events ("cell change", never "handover"), raw values under Details. Tapping the open Map tab no longer rebuilds (and crashed) the map.
 - **1.7.3:** Map: "Live session" (the recording session, or while not logging an in-memory live preview of position and radio values, never stored, read only while the Map is visible) or "Recorded session"; session, metric and mode as dropdowns; the legend counts the ticks per colour. Sessions: estimated size on the phone and of the export ZIP per session (`SizeEstimate`, weights measured on both phones) plus the real database and capture sizes.
@@ -67,7 +68,8 @@ The data is used for research (LTE anchor quality vs. 5G NSA availability, ML on
 
 # device (pilot phone via USB passthrough; ADB over Wi-Fi as fallback)
 adb devices                                   # confirm phone is connected
-./gradlew installDebug                        # install on phone
+./gradlew installDebug                        # install the debug build (app ID id.my.pamslab.netlogger.debug)
+./gradlew assembleRelease                     # signed release APK (needs netlogger.signing.* in local.properties)
 adb logcat -s NetLogger:*                     # app logs (use tag "NetLogger")
 adb shell dumpsys telephony.registry          # raw telephony state, for comparing with parser output
 adb shell dumpsys telephony.registry > docs/samples/<device>_<operator>_<situation>_<date>.txt   # save a fixture
@@ -102,7 +104,7 @@ With two phones attached, **always** use `adb -s <serial>` (and `ANDROID_SERIAL=
 - Record everything device-specific in `docs/device-quirks.md`.
 
 ### Root safety rules (strict)
-Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.my.pamslab.netlogger`, `screencap`, `pull` of NetLogger's own files.
+Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.my.pamslab.netlogger` and `id.my.pamslab.netlogger.debug`, `screencap`, `pull` of NetLogger's own files. Uninstalling deletes that app's sessions: back them up first.
 **Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside NetLogger's own storage.
 
 ### Optional validation track (outside the app)

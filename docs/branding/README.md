@@ -50,8 +50,8 @@ python3 docs/branding/tools/make_icon.py
 layers):
 
 ```
-adb shell am start -n id.my.pamslab.netlogger/.IconPreviewActivity
-adb pull /sdcard/Android/data/id.my.pamslab.netlogger/files/icon-previews/. docs/branding/previews/
+adb shell am start -n id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.IconPreviewActivity
+adb pull /sdcard/Android/data/id.my.pamslab.netlogger.debug/files/icon-previews/. docs/branding/previews/
 ```
 
 | File | Shows |
