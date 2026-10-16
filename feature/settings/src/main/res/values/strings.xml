@@ -231,7 +231,7 @@
     <string name="help_test_title">2. A drive or walk test</string>
     <string-array name="help_test">
         <item>On Live, choose the scenario in the menu at the top (Drive, Walk, Static or Indoor), then tap Start. The bar at the top shows the recording time and the number of intervals recorded. A notification stays while NetLogger records, also with the screen off.</item>
-        <item>Live shows the operator and network type, the serving cells (LTE and 5G side by side; SS marks a value the phone reported only in its signal-strength report, not with the cell), GPS, and where the data goes (mobile network, or Wi-Fi with its name) with the download and upload rate averaged over 5 seconds. Details at the bottom holds every raw value, the battery and the parse warnings.</item>
+        <item>Live shows the operator and network type, the serving cells (LTE and 5G side by side; SS marks a value the phone reported only in its signal-strength report, not with the cell), GPS, and where the data goes (mobile network, or Wi-Fi with its name) with the download and upload rate averaged over 5 seconds, and the last events (cell changes with the signal before and after, 5G added or removed, GPS lost). Details at the bottom holds every raw value, the battery and the parse warnings.</item>
         <item>Marker, on Live or Add marker in the notification, stores the time and place of something worth noting, e.g. a tunnel, a call drop or the start of a route section.</item>
         <item>Gray values on Live are older than 5 seconds: the phone did not report anything newer. They are stored as reported, with their age, so they can be filtered later.</item>
         <item>Stop ends the session. If Android closes the app during a session, the session is closed at the next start and keeps every row recorded until then.</item>
@@ -271,7 +271,7 @@
         <item>CA: carrier aggregation, several carriers used at once for more speed.</item>
         <item>TA: timing advance, a rough distance from the cell.</item>
         <item>CQI: channel quality indicator that the phone sends to the network (0 to 15).</item>
-        <item>Handover: the phone moves from one cell to another, seen as a PCI change.</item>
+        <item>Cell change: the serving cell\'s PCI or channel changed. It may be a handover (during a connection) or a reselection (while idle); Android\'s public interfaces do not tell which, so NetLogger does not label it.</item>
     </string-array>
 
     <!-- About -->

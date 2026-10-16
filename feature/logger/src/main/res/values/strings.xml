@@ -4,7 +4,10 @@
     <string name="live_rec">REC</string>
     <string name="live_ticks">%1$d ticks</string>
     <string name="live_ticks_share">%1$d ticks (%2$.1f %%)</string>
-    <string name="live_markers">%1$d markers</string>
+    <plurals name="live_markers">
+        <item quantity="one">%1$d marker</item>
+        <item quantity="other">%1$d markers</item>
+    </plurals>
     <string name="live_marker">Marker</string>
     <string name="live_stop">Stop</string>
     <string name="live_start">Start</string>
@@ -40,4 +43,8 @@
     <string name="live_speed_run">Run</string>
     <string name="live_speed_public">Run on Cloudflare (public, for comparison)</string>
     <string name="live_capture">Capture</string>
+    <string name="live_events">Events</string>
+    <string name="live_no_events">No events in this session yet.</string>
+    <string name="live_no_events_preview">No events since Live was opened.</string>
+    <string name="live_events_preview">Not logging: these events are not stored.</string>
 </resources>

@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -54,6 +55,8 @@ import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
 import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 /** The capture row from feature:capture; it draws [label] as its first column. */
@@ -136,6 +139,7 @@ private fun SnapshotView(
         }
         if (LiveSection.NEIGHBOURS in open) item { NeighborRows(neighbors) }
         item { GpsAndDataSection(ui, publicSpeedTest, captureRow) }
+        item { EventsSection(ui.events, recording = ui.logging is LoggingState.Running) }
         item {
             SectionHeader(stringResource(R.string.live_details), stringResource(R.string.live_details_hint), detailsOpen) {
                 onOpen(LiveSection.DETAILS, it)
@@ -177,7 +181,7 @@ private fun StatusBar(ui: LiveUiState.Ready, scenario: Scenario, onScenario: (Sc
                             } else {
                                 stringResource(R.string.live_ticks, st.recorded)
                             }
-                            val markers = logging.markers.size.takeIf { it > 0 }?.let { stringResource(R.string.live_markers, it) }
+                            val markers = logging.markers.size.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.live_markers, it, it) }
                             Text(listOfNotNull(ticks, scenario.label(), markers).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                         }
                         OutlinedButton(onClick = { LoggingService.addMarker(context) }) { Text(stringResource(R.string.live_marker)) }
@@ -436,6 +440,38 @@ private fun SpeedTestRow(test: SpeedTestState?, publicTarget: Boolean) {
             }
         }
         OutlinedButton(onClick = { LoggingService.speedTest(context) }, enabled = !running) { Text(stringResource(R.string.live_speed_run)) }
+    }
+}
+
+/** The last events, newest first (decision 004). */
+@Composable
+private fun EventsSection(events: List<LiveEvent>, recording: Boolean) {
+    val time = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.live_events), style = MaterialTheme.typography.titleSmall)
+            if (events.isEmpty()) {
+                Text(
+                    stringResource(if (recording) R.string.live_no_events else R.string.live_no_events_preview),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            events.forEach { e ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(time.format(Date(e.wallTimeMs)), style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                    Column(Modifier.padding(start = 8.dp)) {
+                        Text(e.type.title(), style = MaterialTheme.typography.bodyMedium)
+                        e.detail().takeIf { it.isNotEmpty() }?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+            if (!recording && events.isNotEmpty()) {
+                Text(stringResource(R.string.live_events_preview), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 

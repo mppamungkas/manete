@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.location.LocationProvider
+import id.my.pamslab.netlogger.core.device.DeviceContextSource
 import id.my.pamslab.netlogger.core.device.NetworkRouteSource
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.device.LinkCounters
@@ -14,7 +15,9 @@ import id.my.pamslab.netlogger.core.model.device.NetworkRoute
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
+import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.telephony.EventDetector
 import id.my.pamslab.netlogger.core.telephony.RadioSampler
 import id.my.pamslab.netlogger.feature.logger.service.LoggingEngine
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
@@ -36,6 +39,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Events shown on Live. */
+private const val MAX_LIVE_EVENTS = 5
+
 sealed interface LiveUiState {
     data object Waiting : LiveUiState
 
@@ -51,7 +57,18 @@ sealed interface LiveUiState {
         val route: NetworkRoute? = null,
         /** Byte counters read with this sample, and the recent readings the data rates are averaged over. */
         val counters: List<LinkCounters> = emptyList(),
+        /** Not logging: the preview's own recent events (never stored). */
+        val previewEvents: List<LiveEvent> = emptyList(),
     ) : LiveUiState {
+        /** The last events, newest first: the session's (with its markers) while logging, else the preview's. */
+        val events: List<LiveEvent>
+            get() = when (logging) {
+                is LoggingState.Running -> (logging.recentEvents + logging.markers.map { LiveEvent(EventType.USER_MARKER, it.wallTimeMs, null, null) })
+                    .sortedByDescending { it.wallTimeMs }
+                    .take(MAX_LIVE_EVENTS)
+                is LoggingState.Idle -> previewEvents
+            }
+
         internal val rates: LinkRates? get() = counters.lastOrNull()?.let { linkRates(rateBase(counters), it, route?.transport) }
     }
 
@@ -69,6 +86,7 @@ class LiveViewModel @Inject constructor(
     loggingSettings: LoggingSettings,
     private val livePrefs: LivePrefs,
     private val routeSource: NetworkRouteSource,
+    private val device: DeviceContextSource,
 ) : ViewModel() {
 
     /** The public secondary speed test target is offered (Settings). */
@@ -113,9 +131,15 @@ class LiveViewModel @Inject constructor(
                 engine.state.filterIsInstance<LoggingState.Running>()
                     .mapNotNull { s -> s.latest?.let { LiveUiState.Ready(it.radio, null, it.locationAgeMs, it, s) } }
             } else {
+                // Events while not logging: a detector of its own on the preview, in memory only (decision 004, D6).
+                val detector = EventDetector()
+                val tracker = LiveEventTracker()
+                var seq = 0L
                 combine(sampler.samples(LIVE_INTERVAL_MS), location.updates, engine.state) { radio, loc, logging ->
                     val age = loc.fix?.let { (clock.elapsedRealtimeNs() - it.elapsedRealtimeNs) / 1_000_000 }
-                    LiveUiState.Ready(radio, loc, age, null, logging)
+                    val tick = Tick(seq++, radio, loc.fix, loc.status, age, device.snapshot())
+                    val events = tracker.add(tick, detector.detect(tick))
+                    LiveUiState.Ready(radio, loc, age, null, logging, previewEvents = events)
                 }
             }
         }
