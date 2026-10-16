@@ -34,4 +34,10 @@
     <string name="live_route_none">No connection</string>
     <string name="live_route_vpn">%1$s · via VPN</string>
     <string name="live_rate_window">5 s average</string>
+    <string name="live_speed_test">Speed test</string>
+    <string name="live_speed_not_run">Not run in this session</string>
+    <string name="live_speed_starting">starting</string>
+    <string name="live_speed_run">Run</string>
+    <string name="live_speed_public">Run on Cloudflare (public, for comparison)</string>
+    <string name="live_capture">Capture</string>
 </resources>

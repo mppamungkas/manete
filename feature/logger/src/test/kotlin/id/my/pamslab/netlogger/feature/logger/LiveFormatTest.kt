@@ -8,6 +8,8 @@ import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.Rat
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -111,6 +113,22 @@ class LiveFormatTest {
         assertEquals("85 kbps", formatRate(85_000.0))
         assertEquals("1.24 Mbps", formatRate(1_240_000.0))
         assertEquals("312 Mbps", formatRate(312_000_000.0))
+    }
+
+    @Test
+    fun `speed test summary leaves out failed phases`() {
+        fun r(type: ThroughputType, mbps: Double? = null, rtt: Double? = null, error: String? = null) = ThroughputResult(
+            type, 0, 0, "https://example.org", null, null, mbps, null, null, rtt, null, null, null, error = error,
+        )
+        assertEquals(
+            "↓ 42.1  ↑ 11.3 Mbps · 31 ms",
+            speedTestSummary(listOf(r(ThroughputType.PING, rtt = 31.2), r(ThroughputType.DOWNLOAD, 42.08), r(ThroughputType.UPLOAD, 11.3))),
+        )
+        assertEquals(
+            "↓ 42.1 Mbps",
+            speedTestSummary(listOf(r(ThroughputType.PING, error = "timeout"), r(ThroughputType.DOWNLOAD, 42.08), r(ThroughputType.UPLOAD, 1.0, error = "reset"))),
+        )
+        assertEquals("–", speedTestSummary(emptyList()))
     }
 
     @Test

@@ -56,12 +56,15 @@ import id.my.pamslab.netlogger.feature.logger.service.LoggingState
 import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
 import java.util.Locale
 
+/** The capture row from feature:capture; it draws [label] as its first column. */
+typealias CaptureRowSlot = @Composable (label: @Composable () -> Unit) -> Unit
+
 @Composable
 internal fun LiveScreen(
     loggingPermissionsMissing: Boolean,
     onRequestPermissions: () -> Unit,
     modifier: Modifier = Modifier,
-    captureCard: @Composable () -> Unit = {},
+    captureRow: CaptureRowSlot = {},
 ) {
     if (loggingPermissionsMissing) {
         Column(modifier.fillMaxSize()) {
@@ -82,12 +85,12 @@ internal fun LiveScreen(
         }
     } else {
         // Only created (and sampling) when permissions are present.
-        LiveContent(hiltViewModel(), captureCard, modifier)
+        LiveContent(hiltViewModel(), captureRow, modifier)
     }
 }
 
 @Composable
-private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () -> Unit, modifier: Modifier = Modifier) {
+private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, modifier: Modifier = Modifier) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
@@ -99,7 +102,7 @@ private fun LiveContent(viewModel: LiveViewModel, captureCard: @Composable () ->
             val open by viewModel.openSections.collectAsStateWithLifecycle()
             Column(modifier.fillMaxSize()) {
                 StatusBar(s, scenario, viewModel::selectScenario, intervalMs)
-                SnapshotView(s, publicSpeedTest, open, viewModel::setOpen, captureCard, Modifier.weight(1f))
+                SnapshotView(s, publicSpeedTest, open, viewModel::setOpen, captureRow, Modifier.weight(1f))
             }
         }
     }
@@ -111,7 +114,7 @@ private fun SnapshotView(
     publicSpeedTest: Boolean,
     open: Set<LiveSection>,
     onOpen: (LiveSection, Boolean) -> Unit,
-    captureCard: @Composable () -> Unit,
+    captureRow: CaptureRowSlot,
     modifier: Modifier = Modifier,
 ) {
     val snapshot = ui.snapshot
@@ -132,9 +135,7 @@ private fun SnapshotView(
             }
         }
         if (LiveSection.NEIGHBOURS in open) item { NeighborRows(neighbors) }
-        item { GpsAndDataSection(ui) }
-        (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
-        item { captureCard() } // shows itself only while a session records or a capture is ending
+        item { GpsAndDataSection(ui, publicSpeedTest, captureRow) }
         item {
             SectionHeader(stringResource(R.string.live_details), stringResource(R.string.live_details_hint), detailsOpen) {
                 onOpen(LiveSection.DETAILS, it)
@@ -339,14 +340,14 @@ private fun NeighborRows(neighbors: List<CellSample>) {
 
 /** GPS in two lines and the data route with its rates (decision 004). */
 @Composable
-private fun GpsAndDataSection(ui: LiveUiState.Ready) {
+private fun GpsAndDataSection(ui: LiveUiState.Ready, publicSpeedTest: Boolean, captureRow: CaptureRowSlot) {
     val fix = ui.tick?.location ?: ui.location?.fix
     val status = ui.tick?.locationStatus ?: ui.location?.status
     val stale = (ui.locationAgeMs ?: 0) > STALE_AGE_MS
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row {
-                Text(stringResource(R.string.live_gps), Modifier.width(LABEL_WIDTH), style = MaterialTheme.typography.titleSmall)
+                RowLabel(stringResource(R.string.live_gps))
                 Column {
                     Text(
                         listOfNotNull(status?.label(), fix?.let { fixLine(it, ui.locationAgeMs) }).joinToString(" · ").ifEmpty { "–" },
@@ -365,7 +366,7 @@ private fun GpsAndDataSection(ui: LiveUiState.Ready) {
                 }
             }
             Row {
-                Text(stringResource(R.string.live_data), Modifier.width(LABEL_WIDTH), style = MaterialTheme.typography.titleSmall)
+                RowLabel(stringResource(R.string.live_data))
                 Column {
                     Text(routeText(ui.route, ui.snapshot.operatorName), style = MaterialTheme.typography.bodyMedium)
                     ui.rates?.let { r ->
@@ -384,7 +385,57 @@ private fun GpsAndDataSection(ui: LiveUiState.Ready) {
                     }
                 }
             }
+            (ui.logging as? LoggingState.Running)?.let { SpeedTestRow(it.speedTest, publicSpeedTest) }
+            // Shows itself only while a session records or a capture is ending.
+            captureRow { RowLabel(stringResource(R.string.live_capture)) }
         }
+    }
+}
+
+@Composable
+private fun RowLabel(text: String) {
+    Text(text, Modifier.width(LABEL_WIDTH), style = MaterialTheme.typography.titleSmall)
+}
+
+/** The running session's speed test: the last result or the running phase, and Run (decision 004). */
+@Composable
+private fun SpeedTestRow(test: SpeedTestState?, publicTarget: Boolean) {
+    val context = LocalContext.current
+    val running = test is SpeedTestState.Running
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        RowLabel(stringResource(R.string.live_speed_test))
+        Column(Modifier.weight(1f)) {
+            when (test) {
+                null -> Text(stringResource(R.string.live_speed_not_run), style = MaterialTheme.typography.bodyMedium)
+                is SpeedTestState.Running -> {
+                    val p = test.progress
+                    Text(
+                        listOfNotNull(
+                            p?.phase?.name?.lowercase() ?: stringResource(R.string.live_speed_starting),
+                            p?.mbps?.let { "%.1f Mbps".format(Locale.ROOT, it) } ?: p?.rttMs?.let { "%.0f ms".format(Locale.ROOT, it) },
+                        ).joinToString(" "),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                is SpeedTestState.Refused -> Text(test.reason, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                is SpeedTestState.Done -> {
+                    Text(speedTestSummary(test.results), style = MaterialTheme.typography.bodyMedium, fontFamily = FontFamily.Monospace)
+                    test.results.mapNotNull { r -> r.error?.let { "${r.type.name.lowercase()}: $it" } }.forEach {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            if (publicTarget) {
+                // Secondary, opt-in (Settings): a public server, not the reference measurement.
+                Text(
+                    stringResource(R.string.live_speed_public),
+                    Modifier.clickable(enabled = !running) { LoggingService.speedTest(context, SpeedTestTarget.PUBLIC) }.padding(vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (running) Color.Gray else MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+        OutlinedButton(onClick = { LoggingService.speedTest(context) }, enabled = !running) { Text(stringResource(R.string.live_speed_run)) }
     }
 }
 
@@ -401,47 +452,7 @@ private fun routeText(route: NetworkRoute?, operator: String?): String {
     return if (route?.vpn == true) stringResource(R.string.live_route_vpn, base) else base
 }
 
-private val LABEL_WIDTH = 56.dp
-
-@Composable
-private fun SpeedTestCard(test: SpeedTestState?, publicTarget: Boolean) {
-    val context = LocalContext.current
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("Speed test", style = MaterialTheme.typography.titleSmall)
-            when (test) {
-                null -> Text("Ping, download and upload over mobile data; results are stored in this session.", style = MaterialTheme.typography.bodySmall)
-                is SpeedTestState.Running -> {
-                    val p = test.progress
-                    Field(
-                        p?.phase?.name?.lowercase() ?: "starting",
-                        p?.mbps?.let { "%.1f Mbps".format(Locale.ROOT, it) } ?: p?.rttMs?.let { "%.0f ms".format(Locale.ROOT, it) } ?: "…",
-                    )
-                }
-                is SpeedTestState.Refused -> Text(test.reason, color = MaterialTheme.colorScheme.error)
-                is SpeedTestState.Done -> test.results.forEach { r ->
-                    val value = when {
-                        r.error != null -> r.error.orEmpty()
-                        r.type == ThroughputType.PING ->
-                            "%.0f ms avg · %.0f ms jitter · %.0f %% loss".format(Locale.ROOT, r.rttAvgMs ?: 0.0, r.jitterMs ?: 0.0, r.lossPct ?: 0.0)
-                        else -> "%.1f Mbps · %.1f MB".format(Locale.ROOT, r.mbps ?: 0.0, (r.bytes ?: 0) / 1e6)
-                    }
-                    Field(r.type.name.lowercase(), value)
-                }
-            }
-            OutlinedButton(onClick = { LoggingService.speedTest(context) }, enabled = test !is SpeedTestState.Running) {
-                Text("Run speed test (my server)")
-            }
-            if (publicTarget) {
-                // Secondary, opt-in (Settings): a public server, not the reference measurement.
-                TextButton(
-                    onClick = { LoggingService.speedTest(context, SpeedTestTarget.PUBLIC) },
-                    enabled = test !is SpeedTestState.Running,
-                ) { Text("Run on Cloudflare (public, secondary)") }
-            }
-        }
-    }
-}
+private val LABEL_WIDTH = 80.dp
 
 @Composable
 private fun LocationCard(fix: LocationFix?, status: LocationStatus?, ageMs: Long?, error: String?) {

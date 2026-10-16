@@ -10,6 +10,8 @@ import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.Rat
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
+import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import java.util.Locale
 
 // Pure formatting for the Live dashboard (decision 004), unit-tested.
@@ -184,3 +186,13 @@ internal fun fixLine(fix: LocationFix, ageMs: Long?): String = listOfNotNull(
     fix.altitudeM?.let { "alt %.0f m".format(Locale.ROOT, it) },
     ageMs?.let { "%d s ago".format(Locale.ROOT, it / 1000) },
 ).joinToString(" · ")
+
+/** "↓ 42.1  ↑ 11.3 Mbps · 31 ms" from a finished test; phases that failed or did not run are left out. */
+internal fun speedTestSummary(results: List<ThroughputResult>): String {
+    fun mbps(type: ThroughputType) = results.firstOrNull { it.type == type && it.error == null }?.mbps
+    val down = mbps(ThroughputType.DOWNLOAD)?.let { "↓ %.1f".format(Locale.ROOT, it) }
+    val up = mbps(ThroughputType.UPLOAD)?.let { "↑ %.1f".format(Locale.ROOT, it) }
+    val rates = listOfNotNull(down, up).joinToString("  ").takeIf { it.isNotEmpty() }?.let { "$it Mbps" }
+    val ping = results.firstOrNull { it.type == ThroughputType.PING && it.error == null }?.rttAvgMs?.let { "%.0f ms".format(Locale.ROOT, it) }
+    return listOfNotNull(rates, ping).joinToString(" · ").ifEmpty { "–" }
+}
