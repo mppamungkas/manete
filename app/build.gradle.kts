@@ -15,6 +15,34 @@ val buildCommit: String = runCatching {
     }.standardOutput.asText.get().trim()
 }.getOrNull()?.takeIf { it.isNotEmpty() } ?: "unknown"
 
+/** local.properties (gitignored): machine-specific settings, read by the blocks below. */
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.reader()?.use { load(it) }
+}
+
+/** A machine setting: Gradle property, else environment variable, else local.properties; null if unset. */
+fun machineSetting(name: String, env: String): String? =
+    (providers.gradleProperty(name).orNull ?: providers.environmentVariable(env).orNull ?: localProperties.getProperty(name))
+        ?.trim()?.takeIf { it.isNotEmpty() }
+
+/**
+ * Release signing key, never in the repo (CLAUDE.md): `netlogger.signing.storeFile`, `.storePassword`, `.keyAlias`,
+ * `.keyPassword` in local.properties, as Gradle properties or as NETLOGGER_SIGNING_STORE_FILE, …_STORE_PASSWORD,
+ * …_KEY_ALIAS, …_KEY_PASSWORD. Without all four (e.g. CI) the release build stays unsigned.
+ */
+val releaseSigning: Map<String, String>? = run {
+    val values = mapOf(
+        "storeFile" to machineSetting("netlogger.signing.storeFile", "NETLOGGER_SIGNING_STORE_FILE"),
+        "storePassword" to machineSetting("netlogger.signing.storePassword", "NETLOGGER_SIGNING_STORE_PASSWORD"),
+        "keyAlias" to machineSetting("netlogger.signing.keyAlias", "NETLOGGER_SIGNING_KEY_ALIAS"),
+        "keyPassword" to machineSetting("netlogger.signing.keyPassword", "NETLOGGER_SIGNING_KEY_PASSWORD"),
+    )
+    if (values.values.any { it == null }) return@run null
+    val complete = values.mapValues { it.value.orEmpty() }
+    require(file(complete.getValue("storeFile")).isFile) { "netlogger.signing.storeFile: no file at ${complete.getValue("storeFile")}" }
+    complete
+}
+
 android {
     namespace = "id.my.pamslab.netlogger"
 
@@ -24,16 +52,32 @@ android {
 
     defaultConfig {
         applicationId = "id.my.pamslab.netlogger"
-        versionCode = 1
-        versionName = "0.1.0"
+        // Raise versionCode with every APK given to users: Android installs an update only over a lower one.
+        versionCode = 2
+        versionName = "0.2.0"
         // Settings › About shows the commit the APK was built from (manifest meta-data, readable by every module).
         manifestPlaceholders["buildCommit"] = buildCommit
     }
 
+    signingConfigs {
+        releaseSigning?.let { key ->
+            create("release") {
+                storeFile = file(key.getValue("storeFile"))
+                storePassword = key.getValue("storePassword")
+                keyAlias = key.getValue("keyAlias")
+                keyPassword = key.getValue("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Not yet: R8 needs keep rules checked on both phones (Room, Hilt, JNI of libnetcapture).
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
+            // Phones only: 64- and 32-bit ARM. The emulator ABIs (x86, x86_64) would add ~27 MB of native libraries.
+            ndk.abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 }
@@ -45,12 +89,7 @@ android {
  * IPv4 addresses. Unset (e.g. CI): no cleartext at all.
  */
 val cleartextHosts: List<String> = run {
-    val local = Properties()
-    rootProject.file("local.properties").takeIf { it.isFile }?.reader()?.use { local.load(it) }
-    val raw = providers.gradleProperty("netlogger.cleartextHosts").orNull
-        ?: providers.environmentVariable("NETLOGGER_CLEARTEXT_HOSTS").orNull
-        ?: local.getProperty("netlogger.cleartextHosts")
-        ?: ""
+    val raw = machineSetting("netlogger.cleartextHosts", "NETLOGGER_CLEARTEXT_HOSTS") ?: ""
     raw.split(',').map(String::trim).filter(String::isNotEmpty).onEach {
         require(Regex("^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$").matches(it)) {
             "netlogger.cleartextHosts: \"$it\" is not a host name or IPv4 address"
