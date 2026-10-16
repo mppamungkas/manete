@@ -129,6 +129,30 @@ class SessionExporterTest {
     }
 
     @Test
+    fun `progress goes through every file and ends at 1`() = runTest {
+        val dir = Files.createTempDirectory("captures").toFile()
+        val store = object : CaptureFileStore {
+            override fun pcap(sessionUuid: String) = File(dir, "$sessionUuid.pcap")
+            override fun sync(sessionUuid: String) = File(dir, "${sessionUuid}_sync.csv")
+            override fun connections(sessionUuid: String) = File(dir, "${sessionUuid}_connections.csv")
+        }
+        store.pcap(session().uuid).writeBytes(ByteArray(200_000))
+        val dao = FakeExportDao(measurements = (0L until 1_201).map { measurement(it) })
+        val seen = mutableListOf<ExportProgress>()
+        SessionExporter(dao, store).export(1, ByteArrayOutputStream(), zone, onProgress = { seen += it })
+        dir.deleteRecursively()
+
+        assertEquals(listOf("measurements.csv", "cells.csv", "flat.csv", "track.geojson", "capture.pcap"), seen.map { it.file }.distinct())
+        assertTrue("never goes back", seen.zipWithNext().all { (a, b) -> b.fraction >= a.fraction })
+        assertEquals(1.0, seen.last().fraction, 1e-9)
+        // The four tick passes and the capture each take a fifth; every pass ends at its share.
+        listOf("measurements.csv" to 0.2, "cells.csv" to 0.4, "flat.csv" to 0.6, "track.geojson" to 0.8).forEach { (file, end) ->
+            assertEquals(file, end, seen.last { it.file == file }.fraction, 1e-9)
+        }
+        assertEquals("1201 ticks in pages of 500", 3, seen.count { it.file == "measurements.csv" })
+    }
+
+    @Test
     fun `a recording session is not exported`() = runTest {
         try {
             exportZip(FakeExportDao(session = session(endedAt = null)))

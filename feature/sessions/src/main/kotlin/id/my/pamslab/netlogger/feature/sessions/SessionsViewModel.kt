@@ -1,10 +1,8 @@
 package id.my.pamslab.netlogger.feature.sessions
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,7 +12,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
-import id.my.pamslab.netlogger.core.export.ExportResult
 import id.my.pamslab.netlogger.core.export.SessionExporter
 import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
@@ -23,7 +20,6 @@ import id.my.pamslab.netlogger.feature.sessions.charts.ChartData
 import id.my.pamslab.netlogger.feature.sessions.charts.ChartLoader
 import id.my.pamslab.netlogger.feature.sessions.navigation.SessionDetailRoute
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,12 +27,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -85,9 +79,9 @@ class SessionDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: SessionRepository,
     private val exporter: SessionExporter,
+    private val exportRunner: ExportRunner,
     private val chartLoader: ChartLoader,
     private val captureFiles: CaptureFileStore,
-    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val id: Long = savedStateHandle.toRoute<SessionDetailRoute>().id
@@ -147,13 +141,15 @@ class SessionDetailViewModel @Inject constructor(
         }
     }
 
-    private val _exporting = MutableStateFlow(false)
-    val exporting: StateFlow<Boolean> = _exporting.asStateFlow()
+    /** This session's export, running or finished (it runs in [ExportRunner], so it survives leaving the screen). */
+    val export: StateFlow<ExportJob?> = exportRunner.job
+        .map { it?.takeIf { job -> job.sessionId == id } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private val _shareIntents = Channel<Intent>(Channel.BUFFERED)
-
-    /** Chooser intents for the screen to start; one per Share click. */
-    val shareIntents: Flow<Intent> = _shareIntents.receiveAsFlow()
+    /** Some export (this or another session) is running; only one at a time. */
+    val exporting: StateFlow<Boolean> = exportRunner.job
+        .map { it?.running == true }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Suggested file name for "Save to…"; null on failure. */
     suspend fun exportFileName(): String? = try {
@@ -164,54 +160,21 @@ class SessionDetailViewModel @Inject constructor(
     }
 
     /** Writes the ZIP to a document the user picked (Storage Access Framework). */
-    fun saveTo(uri: Uri) = runExport {
-        val out = context.contentResolver.openOutputStream(uri) ?: throw IOException("cannot open $uri")
-        out.use { exporter.export(id, it) }
+    fun saveTo(uri: Uri) {
+        if (!exportRunner.save(id, uri)) _message.value = "Another export is still running."
     }
 
-    /**
-     * Writes the ZIP to cache/exports and hands a read-only content URI to the app the user picks. Older exports are
-     * deleted first: the receiving app may still read the previous file after we return, so it is kept until the next one.
-     */
-    fun share() = runExport {
-        val dir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
-        dir.listFiles()?.forEach { it.delete() }
-        val file = File(dir, exporter.fileName(id))
-        val result = file.outputStream().use { exporter.export(id, it) }
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", file)
-        val send = Intent(Intent.ACTION_SEND)
-            .setType("application/zip")
-            .putExtra(Intent.EXTRA_STREAM, uri)
-            .putExtra(Intent.EXTRA_SUBJECT, file.name)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        _shareIntents.send(Intent.createChooser(send, "Share ${file.name}"))
-        result
+    fun share() {
+        if (!exportRunner.share(id)) _message.value = "Another export is still running."
     }
 
-    private fun runExport(block: suspend () -> ExportResult) {
-        if (_exporting.value) return
-        _exporting.value = true
-        _message.value = "Exporting…"
-        viewModelScope.launch {
-            _message.value = try {
-                val r = withContext(Dispatchers.IO) { block() }
-                "Exported ${r.counts.measurements} ticks, ${r.counts.cells} cells, ${r.counts.events} events: ${r.fileName}"
-            } catch (e: IllegalArgumentException) {
-                e.message
-            } catch (e: IOException) {
-                Log.w(TAG, "export failed", e)
-                "Export failed: ${e.message}"
-            } catch (e: SecurityException) {
-                Log.w(TAG, "export failed", e)
-                "Export failed: ${e.message}"
-            } finally {
-                _exporting.value = false
-            }
-        }
-    }
+    /** The screen started the share chooser of a finished export. */
+    fun shareStarted() = exportRunner.shareStarted()
+
+    /** The screen showed a finished export's result. */
+    fun dismissExport() = exportRunner.dismiss(id)
 
     private companion object {
         const val TAG = "NetLogger"
-        const val EXPORT_DIR = "exports"
     }
 }
