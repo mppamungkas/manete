@@ -26,6 +26,7 @@ include(":core:device")
 include(":core:data")
 include(":core:export")
 include(":core:ui")
+include(":core:diagnostics")
 
 include(":feature:logger")
 include(":feature:map")

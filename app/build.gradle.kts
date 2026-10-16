@@ -95,6 +95,8 @@ androidComponents {
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:ui"))
+    implementation(project(":core:diagnostics"))
+    implementation(project(":core:data"))
     implementation(project(":feature:logger"))
     implementation(project(":feature:map"))
     implementation(project(":feature:sessions"))

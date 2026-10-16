@@ -1,6 +1,6 @@
 # 005: Crash and problem reports without the Play Store: plan
 
-- **Status:** Proposed, 2026-10-16. Waiting for approval of D1–D8.
+- **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16.
 - **Date:** 2026-10-16
 - **Users:** teachers and students who install the APK directly, and the developer who has to fix what they hit.
 - **Language:** English only, texts in `strings.xml`.

@@ -55,7 +55,11 @@ private enum class TopLevelDestination(val route: Any, val routeClass: KClass<*>
 }
 
 @Composable
-fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
+fun NetLoggerApp(
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
+    /** The open screen's route name, for problem reports (decision 005). */
+    onScreen: (String?) -> Unit = {},
+) {
     val navController = rememberNavController()
     val permissionState by permissionViewModel.state.collectAsStateWithLifecycle()
     // Show the rationale once per launch, on top of Live, if logging permissions are missing.
@@ -69,6 +73,10 @@ fun NetLoggerApp(permissionViewModel: PermissionViewModel = hiltViewModel()) {
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+    LaunchedEffect(currentDestination) {
+        // "id.my…MapRoute?sessionId={sessionId}" -> "MapRoute"
+        onScreen(currentDestination?.route?.substringBefore('?')?.substringAfterLast('.'))
+    }
     val showBottomBar = currentDestination?.hasRoute(PermissionsRoute::class) == false
 
     Scaffold(

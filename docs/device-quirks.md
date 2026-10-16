@@ -673,6 +673,25 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
   unknown: Android drops it e.g. when another app's VPN was used). Cancelled: the capture row showed "VPN consent
   denied", logging continued.
 
+### moto g45, problem reports (decision 005, step 1), 2026-10-16 12:11–12:18
+- `ApplicationExitInfo` keeps the last 16 exits of the package. On first read: this morning's Map crash as one
+  CRASH_NATIVE with a 466 KB tombstone (protobuf, libmaplibre.so frames named) and three CRASH (the Java exception
+  ended those processes first), plus 12 normal exits (PACKAGE_UPDATED, USER_REQUESTED), correctly skipped.
+- Debug crash tests (`CrashTestReceiver`): Java crash in the main process (stack trace + 55 log lines), native
+  SIGSEGV (tombstone + 35 log lines), Java and native crash in `:vpn` (report appears when the app comes to the front,
+  without restarting the main process).
+- The ended process' own log lines are still readable with `logcat -d --pid` after the restart. They include every
+  tag of the process, also MapLibre's tile requests (`tile.openstreetmap.org/17/x/y.png` gives away the area viewed),
+  so the filter drops tile URLs as well as coordinate pairs.
+- The tombstone contains memory dumps around the registers and the process' log buffer: it is not filtered, so it is
+  summarised in the report, and the raw file must not be attached without the user seeing that (step 2).
+- A broadcast ANR in the background (75 s blocked) was logged as "ANR in id.my.pamslab.netlogger" but the process
+  was not killed and recovered: no exit record, so no report. Only ANRs that end the process are reported.
+- A second Java crash within a short time: Android keeps the crashing process alive while its "keeps stopping"
+  dialog is up (the crashing thread waits in the crash handler); the logging loop kept recording session 22 for 75 s
+  after the crash, and the exit record's time is when the process finally ended. The report takes the crash time from
+  the Java stack trace (step 2). `setProcessStateSummary` worked: the report has the session id and the open screen.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
