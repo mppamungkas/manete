@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Shares a crash's raw tombstone from cache/problems/ when the user ticks the box (decision 005, D5). -->
+        <provider
+            android:name="id.my.pamslab.netlogger.core.diagnostics.ProblemFileProvider"
+            android:authorities="${applicationId}.problems"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/problem_paths" />
+        </provider>
+    </application>
+</manifest>

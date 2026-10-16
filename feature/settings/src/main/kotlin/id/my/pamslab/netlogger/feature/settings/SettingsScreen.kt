@@ -23,6 +23,7 @@ import id.my.pamslab.netlogger.feature.settings.navigation.AboutRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CapabilitiesRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CaptureSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.HelpRoute
+import id.my.pamslab.netlogger.feature.settings.navigation.ProblemsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.LoggingSettingsRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.SpeedTestSettingsRoute
 import java.net.URI
@@ -72,6 +73,15 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
             onOpen(CapabilitiesRoute)
         }
         SettingsEntry(stringResource(R.string.settings_help), stringResource(R.string.settings_help_summary)) { onOpen(HelpRoute) }
+        val problems by viewModel.problems.collectAsStateWithLifecycle()
+        SettingsEntry(
+            stringResource(R.string.problems_title),
+            when {
+                problems.isEmpty() -> stringResource(R.string.problems_summary_none)
+                problems.unseen() > 0 -> pluralStringResource(R.plurals.problems_summary_new, problems.unseen(), problems.unseen())
+                else -> pluralStringResource(R.plurals.problems_summary, problems.size, problems.size)
+            },
+        ) { onOpen(ProblemsRoute) }
         val context = LocalContext.current
         val version = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?" }
         SettingsEntry(stringResource(R.string.settings_about), stringResource(R.string.settings_about_summary, version)) { onOpen(AboutRoute) }

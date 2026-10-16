@@ -38,6 +38,7 @@ import id.my.pamslab.netlogger.feature.sessions.navigation.SessionsRoute
 import id.my.pamslab.netlogger.feature.sessions.navigation.navigateToSessionDetail
 import id.my.pamslab.netlogger.feature.sessions.navigation.sessionsScreen
 import id.my.pamslab.netlogger.feature.settings.navigation.SettingsGraph
+import id.my.pamslab.netlogger.feature.settings.navigation.navigateToProblem
 import id.my.pamslab.netlogger.feature.settings.navigation.settingsGraph
 import id.my.pamslab.netlogger.permissions.PermissionScreen
 import id.my.pamslab.netlogger.permissions.PermissionViewModel
@@ -127,6 +128,7 @@ fun NetLoggerApp(
                 loggingPermissionsMissing = { !permissionState.canLog },
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
                 captureRow = { label -> CaptureRow(label) },
+                onOpenProblem = { navController.navigateToProblem(it) },
             )
             mapScreen()
             sessionsScreen(

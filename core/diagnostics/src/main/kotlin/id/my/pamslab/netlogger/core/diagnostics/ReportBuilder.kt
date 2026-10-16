@@ -26,6 +26,8 @@ data class ReportInput(
     /** log.txt: the ended process' lines read at the next start; used when java.txt has none. */
     val logLines: List<String> = emptyList(),
     val userNote: String? = null,
+    /** When the user made the report ("Report a problem"); a problem has its own time. */
+    val reportedAtMs: Long? = null,
 )
 
 /**
@@ -42,7 +44,7 @@ object ReportBuilder {
         val p = input.problem
         val java = input.javaText?.let(::parseJava)
         val tombstone = input.trace?.takeIf { p?.kind == ProblemKind.CRASH_NATIVE }?.let(TombstoneSummary::parse)
-        val time = java?.timeMs ?: p?.timeMs
+        val time = java?.timeMs ?: p?.timeMs ?: input.reportedAtMs
         return buildString {
             appendLine(if (p == null) "NetLogger problem report (reported by the user)" else "NetLogger problem report")
             line("App", "${ctx.appVersion} (build ${ctx.buildCommit ?: "unknown"})")
@@ -83,6 +85,9 @@ object ReportBuilder {
             }
         }
     }
+
+    /** The crash time written by [CrashRecorder] into java.txt, if any. */
+    fun crashTimeMs(javaText: String?): Long? = javaText?.let { parseJava(it).timeMs }
 
     /** One line for a list, a notification or an issue title: "Crash (native): SIGSEGV in libmaplibre.so …". */
     fun title(problem: Problem, javaText: String? = null, trace: ByteArray? = null): String {

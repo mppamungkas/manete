@@ -13,6 +13,9 @@ import id.my.pamslab.netlogger.feature.settings.HelpScreen
 import id.my.pamslab.netlogger.feature.settings.Licence
 import id.my.pamslab.netlogger.feature.settings.LicenceScreen
 import id.my.pamslab.netlogger.feature.settings.LoggingSettingsScreen
+import id.my.pamslab.netlogger.feature.settings.DescribeProblemScreen
+import id.my.pamslab.netlogger.feature.settings.ProblemScreen
+import id.my.pamslab.netlogger.feature.settings.ProblemsScreen
 import id.my.pamslab.netlogger.feature.settings.SettingsScreen
 import id.my.pamslab.netlogger.feature.settings.SpeedTestSettingsScreen
 import kotlinx.serialization.Serializable
@@ -42,11 +45,24 @@ data object HelpRoute
 @Serializable
 data object AboutRoute
 
+@Serializable
+data object ProblemsRoute
+
+/** One kept problem report (decision 005); also opened from the Live card. */
+@Serializable
+data class ProblemRoute(val id: String)
+
+@Serializable
+data object DescribeProblemRoute
+
 /** [licence]: a [Licence] name. */
 @Serializable
 data class LicenceRoute(val licence: String)
 
 fun NavController.navigateToSettings(navOptions: NavOptions? = null) = navigate(SettingsGraph, navOptions)
+
+/** The problem report [id] inside the Settings tab (from the Live card). */
+fun NavController.navigateToProblem(id: String, navOptions: NavOptions? = null) = navigate(ProblemRoute(id), navOptions)
 
 fun NavGraphBuilder.settingsGraph(navController: NavController) {
     navigation<SettingsGraph>(startDestination = SettingsRoute) {
@@ -59,6 +75,16 @@ fun NavGraphBuilder.settingsGraph(navController: NavController) {
         composable<AboutRoute> {
             AboutScreen(onBack = { navController.popBackStack() }, onLicence = { navController.navigate(LicenceRoute(it.name)) })
         }
+        composable<ProblemsRoute> {
+            ProblemsScreen(
+                onBack = { navController.popBackStack() },
+                // Single top: a double tap opens one page, not two.
+                onOpen = { navController.navigate(ProblemRoute(it)) { launchSingleTop = true } },
+                onDescribe = { navController.navigate(DescribeProblemRoute) { launchSingleTop = true } },
+            )
+        }
+        composable<ProblemRoute> { entry -> ProblemScreen(entry.toRoute<ProblemRoute>().id, onBack = { navController.popBackStack() }) }
+        composable<DescribeProblemRoute> { DescribeProblemScreen(onBack = { navController.popBackStack() }) }
         composable<LicenceRoute> { entry ->
             val name = entry.toRoute<LicenceRoute>().licence
             LicenceScreen(Licence.entries.firstOrNull { it.name == name }, onBack = { navController.popBackStack() })

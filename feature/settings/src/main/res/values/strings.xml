@@ -274,6 +274,44 @@
         <item>Cell change: the serving cell\'s PCI or channel changed. It may be a handover (during a connection) or a reselection (while idle); Android\'s public interfaces do not tell which, so NetLogger does not label it.</item>
     </string-array>
 
+    <!-- Problem reports (decision 005) -->
+    <string name="problems_title">Problem reports</string>
+    <string name="problems_back">← Problem reports</string>
+    <string name="problems_summary_none">No problems recorded · describe a problem</string>
+    <plurals name="problems_summary">
+        <item quantity="one">%1$d report kept on this phone</item>
+        <item quantity="other">%1$d reports kept on this phone</item>
+    </plurals>
+    <plurals name="problems_summary_new">
+        <item quantity="one">%1$d new report</item>
+        <item quantity="other">%1$d new reports</item>
+    </plurals>
+    <string name="problems_info">When NetLogger crashes, freezes, or Android ends it during a recording, a report is kept here. Reports stay on this phone until you send one; nothing is sent automatically. A report contains the app and phone model, what happened and NetLogger\'s own log lines, but no location, cell identities, Wi-Fi names or captured traffic.</string>
+    <string name="problems_describe">Describe a problem</string>
+    <string name="problems_none">No problems recorded.</string>
+    <string name="problems_new">New</string>
+    <string name="problems_report_title">Problem report</string>
+    <string name="problems_gone">This report was deleted.</string>
+    <string name="problems_check_before_sending">This is exactly what will be sent. Check it first.</string>
+    <string name="problems_attach_raw">Also attach the raw crash dump</string>
+    <string name="problems_attach_raw_info">Helps the developer with native crashes. It is Android\'s full dump of the crash: besides the trace above it can contain parts of NetLogger\'s memory and its recent log, unfiltered, which may include location or network data.</string>
+    <string name="problems_share">Share</string>
+    <string name="problems_github">GitHub issue</string>
+    <string name="problems_github_title">Open a public GitHub issue?</string>
+    <string name="problems_github_info">Issues on github.com/mppamungkas/netlogger are public: anyone can read the report. You need a GitHub account. The browser opens a new issue with the report filled in; the full report is also copied to the clipboard, in case it had to be shortened.</string>
+    <string name="problems_github_continue">Open GitHub</string>
+    <string name="problems_delete">Delete</string>
+    <string name="problems_delete_title">Delete this report?</string>
+    <string name="problems_cancel">Cancel</string>
+    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines are added; you see the whole report before sending it.</string>
+    <string name="problems_describe_hint">What happened?</string>
+    <string name="problems_preview">Show report</string>
+    <string name="problems_user_title">Problem reported by a user</string>
+    <string name="problems_kind_crash">Crash</string>
+    <string name="problems_kind_native">Crash (native)</string>
+    <string name="problems_kind_anr">Not responding</string>
+    <string name="problems_kind_killed">Ended by Android during a recording</string>
+
     <!-- About -->
     <string name="about_tagline">LTE and 5G NSA drive-test logger with its own traffic capture, for research and teaching.</string>
     <string name="about_version">Version %1$s · build %2$s</string>

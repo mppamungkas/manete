@@ -46,7 +46,14 @@ data class Problem(
     val hasLog: Boolean,
     /** The user has seen it on Live (or dismissed it). */
     val seen: Boolean = false,
-)
+    /** One line, [ReportBuilder.title]; set when the report is kept. */
+    val title: String? = null,
+    /** When the crash happened, from the Java stack trace; can be well before [timeMs] (crash dialog left open). */
+    val crashTimeMs: Long? = null,
+) {
+    /** The time to show: the crash, else the end of the process. */
+    val shownTimeMs: Long get() = crashTimeMs ?: timeMs
+}
 
 /**
  * What was running in a process, kept by Android with its next exit record (ActivityManager.setProcessStateSummary,

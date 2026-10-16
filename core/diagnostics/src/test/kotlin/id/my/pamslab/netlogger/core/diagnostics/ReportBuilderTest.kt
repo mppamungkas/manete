@@ -100,9 +100,10 @@ class ReportBuilderTest {
 
         assertEquals("Crash (no stack trace kept)", ReportBuilder.title(problem(ProblemKind.CRASH, ExitReason.CRASH)))
 
-        val user = ReportBuilder.build(ReportInput(null, logLines = listOf("a line"), userNote = "  Map stays grey on the A56.  "), ctx)
+        val user = ReportBuilder.build(ReportInput(null, logLines = listOf("a line"), userNote = "  Map stays grey on the A56.  ", reportedAtMs = t0), ctx)
         assertTrue(user, user.startsWith("NetLogger problem report (reported by the user)"))
         assertTrue(user.contains("Your note\nMap stays grey on the A56.\n"))
+        assertTrue(user.contains("Time       2026-10-16 05:51:08 +07:00"))
         assertFalse(user.contains("What "))
     }
 

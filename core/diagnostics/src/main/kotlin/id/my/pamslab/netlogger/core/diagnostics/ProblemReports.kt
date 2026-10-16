@@ -54,6 +54,13 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
         }
         pendingJavaFiles().forEach { if (it.lastModified() < System.currentTimeMillis() - PENDING_MAX_AGE_MS) it.delete() }
         prune()
+        load().filter { it.title == null }.forEach { p ->
+            try {
+                File(File(root, p.id), PROBLEM).writeText(json.encodeToString(Problem.serializer(), complete(p)))
+            } catch (e: Exception) {
+                Log.w(TAG, "problem report ${p.id} not completed", e)
+            }
+        }
         _reports.value = load()
     }
 
@@ -89,8 +96,33 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
             importance = exit.importance, description = exit.description, pssKb = exit.pss, rssKb = exit.rss,
             state = state, hasTrace = trace != null, hasJavaStack = hasJava, hasLog = log.isNotEmpty(),
         )
-        File(dir, PROBLEM).writeText(json.encodeToString(Problem.serializer(), problem))
+        File(dir, PROBLEM).writeText(json.encodeToString(Problem.serializer(), complete(problem)))
     }
+
+    /** Adds the title and crash time read from the report's files (also for reports kept before they existed). */
+    private fun complete(problem: Problem): Problem {
+        val input = input(problem)
+        return problem.copy(
+            title = ReportBuilder.title(problem, input.javaText, input.trace),
+            crashTimeMs = ReportBuilder.crashTimeMs(input.javaText),
+        )
+    }
+
+    /** What [ReportBuilder] needs for [problem], read from its files. Blocking. */
+    fun input(problem: Problem, userNote: String? = null): ReportInput = ReportInput(
+        problem = problem,
+        javaText = file(problem.id, JAVA)?.readText(),
+        trace = file(problem.id, TRACE)?.readBytes(),
+        logLines = file(problem.id, LOG)?.readLines().orEmpty(),
+        userNote = userNote,
+    )
+
+    /** The full report text of [problem]. Blocking. */
+    fun report(problem: Problem, userNote: String? = null): String = ReportBuilder.build(input(problem, userNote), ProblemSharing.reportContext(context))
+
+    /** A report without a crash ("Report a problem"): the user's note and this process' last log lines. Blocking. */
+    fun userReport(note: String): String =
+        ReportBuilder.build(ReportInput(problem = null, logLines = OwnLog.linesOf(android.os.Process.myPid()), userNote = note, reportedAtMs = System.currentTimeMillis()), ProblemSharing.reportContext(context))
 
     private fun load(): List<Problem> = root.listFiles().orEmpty()
         .mapNotNull { dir ->
@@ -103,7 +135,7 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
                 null
             }
         }
-        .sortedByDescending { it.timeMs }
+        .sortedByDescending { it.shownTimeMs }
 
     /** At most [MAX_REPORTS] reports (decision 005, D7); the oldest go first. */
     private fun prune() {

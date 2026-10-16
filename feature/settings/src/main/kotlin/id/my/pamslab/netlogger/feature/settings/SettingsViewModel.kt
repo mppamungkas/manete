@@ -10,6 +10,8 @@ import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
+import id.my.pamslab.netlogger.core.diagnostics.Problem
+import id.my.pamslab.netlogger.core.diagnostics.ProblemReports
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,7 +19,9 @@ class SettingsViewModel @Inject constructor(
     private val settings: SpeedTestSettings,
     logging: LoggingSettings,
     capture: CaptureSettings,
+    problemReports: ProblemReports,
 ) : ViewModel() {
+    val problems: StateFlow<List<Problem>> = problemReports.reports
     val captureAllApps: StateFlow<Boolean> = capture.allApps
     val captureSelectedApps: StateFlow<List<String>> = capture.selectedApps
     val captureMtu: StateFlow<Int> = capture.nativeMtu

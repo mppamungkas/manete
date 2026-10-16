@@ -8,6 +8,8 @@ import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
+import id.my.pamslab.netlogger.core.diagnostics.Problem
+import id.my.pamslab.netlogger.core.diagnostics.ProblemReports
 import id.my.pamslab.netlogger.core.device.NetworkRouteSource
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.device.LinkCounters
@@ -21,6 +23,7 @@ import id.my.pamslab.netlogger.core.telephony.EventDetector
 import id.my.pamslab.netlogger.core.telephony.RadioSampler
 import id.my.pamslab.netlogger.feature.logger.service.LoggingEngine
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -87,7 +90,17 @@ class LiveViewModel @Inject constructor(
     private val livePrefs: LivePrefs,
     private val routeSource: NetworkRouteSource,
     private val device: DeviceContextSource,
+    private val problemReports: ProblemReports,
 ) : ViewModel() {
+
+    /** The newest report the user has not seen yet, for the card on Live (decision 005). */
+    val newProblem: StateFlow<Problem?> = problemReports.reports
+        .map { list -> list.firstOrNull { !it.seen } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun dismissProblem(id: String) {
+        viewModelScope.launch(Dispatchers.IO) { problemReports.markSeen(id) }
+    }
 
     /** The public secondary speed test target is offered (Settings). */
     val publicSpeedTest: StateFlow<Boolean> = speedTestSettings.publicTargetEnabled
