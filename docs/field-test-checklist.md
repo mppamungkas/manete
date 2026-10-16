@@ -222,8 +222,9 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       installed on the A56 after uninstalling the debug build (data backed up): permissions flow, Live, a 25-tick
       session with a capture, Sessions, Map (tiles after a few seconds on the empty cache), About, Problem reports;
       no crash; the debug-only CrashTestReceiver and IconPreviewActivity are not in the APK (2026-10-16)
-- [ ] The moto g45 still runs the debug build: switching it needs one uninstall (its sessions are lost unless
-      exported or backed up)
+- [x] Debug builds as `id.my.pamslab.netlogger.debug` next to the release app on both phones; the moto's data (23
+      sessions, 3 captures, 11 problem reports) copied from the old debug install with run-as and checked row by row,
+      then the old app replaced by release 0.2.0 (2026-10-16)
 
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
       2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
