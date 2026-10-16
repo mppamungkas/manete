@@ -1,5 +1,9 @@
 package id.my.pamslab.netlogger.feature.logger
 
+import id.my.pamslab.netlogger.core.model.device.LinkCounters
+import id.my.pamslab.netlogger.core.model.device.NetworkRoute
+import id.my.pamslab.netlogger.core.model.location.LocationFix
+import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.radio.CellSample
 import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
@@ -106,3 +110,77 @@ internal fun ServingColumn.title(): String {
 
 /** Values older than this are grayed out. */
 internal const val STALE_AGE_MS = 5_000L
+
+/** Download and upload rate of the route's network between two counter readings, in bits per second. */
+internal data class LinkRates(val downBps: Double, val upBps: Double)
+
+/**
+ * Cellular uses the mobile counters (they leave out a VPN's tun interface, so a running capture is not counted twice);
+ * Wi-Fi and other networks use the total minus the mobile counters. Null without a previous reading, a route, or when a
+ * counter went backwards.
+ */
+internal fun linkRates(prev: LinkCounters?, cur: LinkCounters, transport: NetworkRoute.Transport?): LinkRates? {
+    prev ?: return null
+    val dtNs = cur.elapsedRealtimeNs - prev.elapsedRealtimeNs
+    if (dtNs <= 0) return null
+    fun bytes(c: LinkCounters, rx: Boolean): Long? {
+        val mobile = if (rx) c.mobileRxBytes else c.mobileTxBytes
+        val total = if (rx) c.totalRxBytes else c.totalTxBytes
+        return when (transport) {
+            NetworkRoute.Transport.CELLULAR -> mobile
+            NetworkRoute.Transport.WIFI, NetworkRoute.Transport.ETHERNET, NetworkRoute.Transport.OTHER ->
+                total?.let { it - (mobile ?: 0) }
+            NetworkRoute.Transport.NONE, null -> null
+        }
+    }
+    fun rate(rx: Boolean): Double? {
+        val delta = (bytes(cur, rx) ?: return null) - (bytes(prev, rx) ?: return null)
+        return if (delta < 0) null else delta * 8 * 1e9 / dtNs
+    }
+    return LinkRates(rate(rx = true) ?: return null, rate(rx = false) ?: return null)
+}
+
+/**
+ * Android updates the traffic counters only every few seconds (moto g45: flat for ~3 s, then a jump), so a rate
+ * between two consecutive readings swings between 0 and many times the real rate. Live averages over at least
+ * [RATE_WINDOW_NS]: the base is the newest reading at least that old, else the oldest one kept.
+ */
+internal fun rateBase(readings: List<LinkCounters>): LinkCounters? {
+    val last = readings.lastOrNull() ?: return null
+    return readings.lastOrNull { last.elapsedRealtimeNs - it.elapsedRealtimeNs >= RATE_WINDOW_NS }
+        ?: readings.firstOrNull()?.takeIf { it !== last }
+}
+
+/** The readings [rateBase] can still need. */
+internal fun keepRecent(readings: List<LinkCounters>): List<LinkCounters> {
+    val last = readings.lastOrNull() ?: return readings
+    val base = readings.indexOfLast { last.elapsedRealtimeNs - it.elapsedRealtimeNs >= RATE_WINDOW_NS }
+    return if (base > 0) readings.drop(base) else readings
+}
+
+internal const val RATE_WINDOW_NS = 5_000_000_000L
+
+/** "0 kbps", "85 kbps", "1.24 Mbps", "312 Mbps". */
+internal fun formatRate(bps: Double): String = when {
+    bps < 1e6 -> "%.0f kbps".format(Locale.ROOT, bps / 1e3)
+    bps < 1e8 -> "%.2f Mbps".format(Locale.ROOT, bps / 1e6)
+    else -> "%.0f Mbps".format(Locale.ROOT, bps / 1e6)
+}
+
+internal fun LocationStatus.label(): String = when (this) {
+    LocationStatus.OK -> "Fixed"
+    LocationStatus.WAITING -> "Searching"
+    LocationStatus.NO_PERMISSION -> "No permission"
+    LocationStatus.DISABLED -> "Location off"
+    LocationStatus.UNAVAILABLE -> "Unavailable"
+    LocationStatus.ERROR -> "Error"
+}
+
+/** "±10 m · 0.3 m/s · 30° · alt 28 m · 2 s ago"; missing parts are left out. */
+internal fun fixLine(fix: LocationFix, ageMs: Long?): String = listOfNotNull(
+    fix.accuracyM?.let { "±%.0f m".format(Locale.ROOT, it) },
+    fix.speedMps?.let { "%.1f m/s".format(Locale.ROOT, it) },
+    fix.bearingDeg?.let { "%.0f°".format(Locale.ROOT, it) },
+    fix.altitudeM?.let { "alt %.0f m".format(Locale.ROOT, it) },
+    ageMs?.let { "%d s ago".format(Locale.ROOT, it / 1000) },
+).joinToString(" · ")

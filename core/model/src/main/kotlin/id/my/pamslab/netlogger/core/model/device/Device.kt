@@ -36,3 +36,23 @@ data class DeviceInfo(
     val basebandVersion: String?,
     val appVersion: String?,
 )
+
+/** Which network carries the phone's traffic now (the default network). Shown on Live only, not stored (decision 004). */
+data class NetworkRoute(
+    val transport: Transport,
+    /** Wi-Fi network name without quotes; null when not Wi-Fi, hidden or not readable (location off). */
+    val ssid: String? = null,
+    /** The default network is a VPN (e.g. NetLogger's own capture); [transport] is then its underlying network. */
+    val vpn: Boolean = false,
+) {
+    enum class Transport { CELLULAR, WIFI, ETHERNET, OTHER, NONE }
+}
+
+/** Byte counters since boot, read together; null where the phone does not report them. */
+data class LinkCounters(
+    val elapsedRealtimeNs: Long,
+    val mobileRxBytes: Long?,
+    val mobileTxBytes: Long?,
+    val totalRxBytes: Long?,
+    val totalTxBytes: Long?,
+)

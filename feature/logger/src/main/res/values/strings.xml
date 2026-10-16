@@ -23,4 +23,15 @@
     <string name="live_ss_hint">SS: from SignalStrength (the phone did not report it with the cell).</string>
     <string name="live_neighbours">Neighbours (%1$d)</string>
     <string name="live_no_neighbours">No neighbour cells reported.</string>
+    <string name="live_gps">GPS</string>
+    <string name="live_data">Data</string>
+    <string name="live_route_cellular">Cellular</string>
+    <string name="live_route_cellular_operator">Cellular (%1$s)</string>
+    <string name="live_route_wifi">Wi-Fi</string>
+    <string name="live_route_wifi_ssid">Wi-Fi \"%1$s\"</string>
+    <string name="live_route_ethernet">Ethernet</string>
+    <string name="live_route_other">Other network</string>
+    <string name="live_route_none">No connection</string>
+    <string name="live_route_vpn">%1$s · via VPN</string>
+    <string name="live_rate_window">5 s average</string>
 </resources>

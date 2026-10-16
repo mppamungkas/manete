@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
+import id.my.pamslab.netlogger.core.model.device.NetworkRoute
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.radio.CellSample
@@ -130,6 +132,7 @@ private fun SnapshotView(
             }
         }
         if (LiveSection.NEIGHBOURS in open) item { NeighborRows(neighbors) }
+        item { GpsAndDataSection(ui) }
         (ui.logging as? LoggingState.Running)?.let { item { SpeedTestCard(it.speedTest, publicSpeedTest) } }
         item { captureCard() } // shows itself only while a session records or a capture is ending
         item {
@@ -333,6 +336,72 @@ private fun NeighborRows(neighbors: List<CellSample>) {
         }
     }
 }
+
+/** GPS in two lines and the data route with its rates (decision 004). */
+@Composable
+private fun GpsAndDataSection(ui: LiveUiState.Ready) {
+    val fix = ui.tick?.location ?: ui.location?.fix
+    val status = ui.tick?.locationStatus ?: ui.location?.status
+    val stale = (ui.locationAgeMs ?: 0) > STALE_AGE_MS
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row {
+                Text(stringResource(R.string.live_gps), Modifier.width(LABEL_WIDTH), style = MaterialTheme.typography.titleSmall)
+                Column {
+                    Text(
+                        listOfNotNull(status?.label(), fix?.let { fixLine(it, ui.locationAgeMs) }).joinToString(" · ").ifEmpty { "–" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (stale) Color.Gray else Color.Unspecified,
+                    )
+                    fix?.let {
+                        Text(
+                            "%.6f, %.6f".format(Locale.ROOT, it.latitude, it.longitude),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (stale) Color.Gray else Color.Unspecified,
+                        )
+                    }
+                    ui.location?.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                }
+            }
+            Row {
+                Text(stringResource(R.string.live_data), Modifier.width(LABEL_WIDTH), style = MaterialTheme.typography.titleSmall)
+                Column {
+                    Text(routeText(ui.route, ui.snapshot.operatorName), style = MaterialTheme.typography.bodyMedium)
+                    ui.rates?.let { r ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "↓ ${formatRate(r.downBps)}   ↑ ${formatRate(r.upBps)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Monospace,
+                            )
+                            Text(
+                                "  " + stringResource(R.string.live_rate_window),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun routeText(route: NetworkRoute?, operator: String?): String {
+    val base = when (route?.transport) {
+        null -> "–"
+        NetworkRoute.Transport.CELLULAR -> operator?.let { stringResource(R.string.live_route_cellular_operator, it) } ?: stringResource(R.string.live_route_cellular)
+        NetworkRoute.Transport.WIFI -> route.ssid?.let { stringResource(R.string.live_route_wifi_ssid, it) } ?: stringResource(R.string.live_route_wifi)
+        NetworkRoute.Transport.ETHERNET -> stringResource(R.string.live_route_ethernet)
+        NetworkRoute.Transport.OTHER -> stringResource(R.string.live_route_other)
+        NetworkRoute.Transport.NONE -> stringResource(R.string.live_route_none)
+    }
+    return if (route?.vpn == true) stringResource(R.string.live_route_vpn, base) else base
+}
+
+private val LABEL_WIDTH = 56.dp
 
 @Composable
 private fun SpeedTestCard(test: SpeedTestState?, publicTarget: Boolean) {

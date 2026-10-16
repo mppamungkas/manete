@@ -7,7 +7,10 @@ import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.location.LocationProvider
+import id.my.pamslab.netlogger.core.device.NetworkRouteSource
 import id.my.pamslab.netlogger.core.model.Clock
+import id.my.pamslab.netlogger.core.model.device.LinkCounters
+import id.my.pamslab.netlogger.core.model.device.NetworkRoute
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -43,7 +47,13 @@ sealed interface LiveUiState {
         /** Set while logging: the full tick (GPS match, device context). */
         val tick: Tick?,
         val logging: LoggingState,
-    ) : LiveUiState
+        /** The default network (Wi-Fi with SSID, cellular, …); null until known. */
+        val route: NetworkRoute? = null,
+        /** Byte counters read with this sample, and the recent readings the data rates are averaged over. */
+        val counters: List<LinkCounters> = emptyList(),
+    ) : LiveUiState {
+        internal val rates: LinkRates? get() = counters.lastOrNull()?.let { linkRates(rateBase(counters), it, route?.transport) }
+    }
 
     data class Failed(val message: String) : LiveUiState
 }
@@ -58,6 +68,7 @@ class LiveViewModel @Inject constructor(
     speedTestSettings: SpeedTestSettings,
     loggingSettings: LoggingSettings,
     private val livePrefs: LivePrefs,
+    private val routeSource: NetworkRouteSource,
 ) : ViewModel() {
 
     /** The public secondary speed test target is offered (Settings). */
@@ -109,6 +120,12 @@ class LiveViewModel @Inject constructor(
             }
         }
         .filterNotNull()
+        // One counter reading per radio sample; the rates are averaged over the recent readings (see rateBase).
+        .scan<LiveUiState.Ready, LiveUiState.Ready?>(null) { prev, ready ->
+            ready.copy(counters = keepRecent(prev?.counters.orEmpty() + routeSource.counters()))
+        }
+        .filterNotNull()
+        .combine(routeSource.route) { ready, route -> ready.copy(route = route) }
         .map<LiveUiState.Ready, LiveUiState> { it }
         .catch { emit(LiveUiState.Failed(it.toString())) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LiveUiState.Waiting)
