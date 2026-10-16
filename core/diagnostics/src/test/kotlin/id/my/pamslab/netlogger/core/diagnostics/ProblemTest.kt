@@ -49,5 +49,9 @@ class ProblemTest {
             "10-16 08:57:39.988 D/Mbgl-HttpRequest( 8739): [HTTP] This request was cancelled (https://tile.openstreetmap.org/17/102092/65867.png).",
         )
         assertEquals(listOf(lines[1]), OwnLog.filter(lines))
+        assertEquals(
+            listOf("D nativeloader: Load /data/app/…/base.apk!/lib/arm64-v8a/libnetcapture.so"),
+            OwnLog.filter(listOf("D nativeloader: Load /data/app/~~91wTqvsK==/id.my.pamslab.netlogger-oCSJ==/base.apk!/lib/arm64-v8a/libnetcapture.so")),
+        )
     }
 }

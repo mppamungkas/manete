@@ -30,8 +30,15 @@ object OwnLog {
     /** Map tile requests ("…/17/102092/65867.png", MapLibre logs them) give away the area viewed. */
     private val TILE = Regex("""/\d{1,2}/\d+/\d+\.(png|pbf|jpg|webp)""")
 
-    /** Drops logcat's "--------- beginning of" separators and any line with a coordinate-like pair or a map tile. */
+    /** The app's install directory has random names per install: shortened, it says nothing useful. */
+    private val INSTALL_PATH = Regex("""/data/app/[^\s!]*?/base\.apk""")
+
+    /**
+     * Drops logcat's "--------- beginning of" separators and any line with a coordinate-like pair or a map tile, and
+     * shortens the install path.
+     */
     fun filter(lines: List<String>): List<String> =
         lines.filterNot { it.startsWith("--------- beginning of") || COORDINATES.containsMatchIn(it) || TILE.containsMatchIn(it) }
+            .map { it.replace(INSTALL_PATH, "/data/app/…/base.apk") }
             .takeLast(MAX_LINES)
 }

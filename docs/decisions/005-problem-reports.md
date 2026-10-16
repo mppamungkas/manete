@@ -1,6 +1,8 @@
 # 005: Crash and problem reports without the Play Store: plan
 
-- **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16.
+- **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16. Step 1 finding (moto g45): a tombstone also holds memory dumps and the process' log buffer, unfiltered, so the
+  report shows only its summary; the raw file is attached only when the user ticks a box that says what it may
+  contain (changes D5's "attach the raw tombstone"; step 3).
 - **Date:** 2026-10-16
 - **Users:** teachers and students who install the APK directly, and the developer who has to fix what they hit.
 - **Language:** English only, texts in `strings.xml`.
