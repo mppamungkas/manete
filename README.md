@@ -37,8 +37,13 @@ only** (no root, no vendor diagnostic interfaces), and it never crashes on missi
 - A session killed by the system is closed cleanly on the next app start.
 
 **Screens**
-- **Live:** network type, operator, serving LTE and NR values, neighbour table, GPS status. Values older than 5 s are
-  greyed out.
+- **Live:** one dashboard, in the spirit of G-NetTrack's:
+  - a status bar with the recording time, Marker and Stop;
+  - the operator and network type in words ("5G NSA · 3 carriers");
+  - one serving-cell table with LTE and NR side by side, coloured like the map; neighbours collapsed;
+  - GPS, the data route (mobile network, or Wi-Fi with its name) with download and upload rates;
+  - the speed test and capture as one row each, and the last events ("LTE cell change PCI 123 → 211, -104 → -93 dBm").
+  Raw values, battery and parse warnings are under Details. Values older than 5 s are greyed out.
 - **Map** (MapLibre with OpenStreetMap tiles):
   - The recording session, or a live preview while not logging (in memory only, never stored), or any recorded session.
   - The track is coloured by LTE RSRP, NR SS-RSRP, SINR or network type; the legend counts the ticks per colour.

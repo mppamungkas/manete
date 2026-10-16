@@ -1,6 +1,10 @@
 # 004: Live tab as a dashboard (UI/UX): plan
 
-- **Status:** Accepted (D1–D7 as recommended; D3 = no hint), 2026-10-16.
+- **Status:** Accepted (D1–D7 as recommended; D3 = no hint), 2026-10-16. Implemented (steps 1–5), checked on the
+  moto g45 2026-10-16; open: the A56, Wi-Fi SSID, a running capture and a speed test result on Live
+  (`docs/field-test-checklist.md`). Differences from the plan: the data rates are a 5 s average (the phone updates
+  its traffic counters only every few seconds); cellular rates use the mobile counters, so a capture's tun interface
+  is not counted twice.
 - **Date:** 2026-10-16
 - **Users:** teachers and students during a walk or drive, and researchers who still need the raw values.
 - **Language:** English only. Live's texts move to `strings.xml`, as Settings' did in 003.
