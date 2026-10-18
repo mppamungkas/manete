@@ -98,13 +98,44 @@ class LiveFormatTest {
 
     @Test
     fun `rates are averaged over at least five seconds`() {
-        fun at(s: Long) = LinkCounters(s * 1_000_000_000, 0, 0, 0, 0)
+        fun at(s: Long) = RateReading(LinkCounters(s * 1_000_000_000, 0, 0, 0, 0), Transport.CELLULAR)
         val readings = (0L..12L).map(::at)
         assertEquals(at(7), rateBase(readings))
         assertEquals((7L..12L).map(::at), keepRecent(readings))
         assertEquals(at(0), rateBase(listOf(at(0), at(1), at(2)))) // window not full yet: the oldest
         assertNull(rateBase(listOf(at(0))))
         assertEquals(listOf(at(0), at(1)), keepRecent(listOf(at(0), at(1))))
+    }
+
+    @Test
+    fun `a mobile counter that drops while not on plain cellular is no 20 Gbps jump`() {
+        // A56, 2026-10-19: mobile ~16.8 GB, total ~23 GB above it; a capture's VPN came up.
+        val mobile = 16_830_000_000L
+        val total = 40_044_000_000L
+        fun r(s: Long, mobileRx: Long, totalRx: Long, t: Transport = Transport.OTHER) =
+            RateReading(LinkCounters(s * 1_000_000_000, mobileRx, 1_776_000_000, totalRx, 5_322_000_000), t)
+        var readings = emptyList<RateReading>()
+        (0L..5L).forEach { readings = addReading(readings, r(it, mobile + it * 10_000, total + it * 20_000)) }
+        assertTrue(liveRates(readings)!!.downBps < 1e6)
+        // The mobile counter drops by 12 GB: total - mobile would jump by 12 GB (≈ 19 Gbit/s over 5 s).
+        readings = addReading(readings, r(6, mobile - 12_000_000_000, total + 120_000))
+        assertEquals("a new window starts", 1, readings.size)
+        assertNull("no rate until the window has a second reading", liveRates(readings))
+        readings = addReading(readings, r(7, mobile - 12_000_000_000 + 10_000, total + 140_000))
+        assertTrue(liveRates(readings)!!.downBps < 1e6)
+    }
+
+    @Test
+    fun `a route change starts a new window, and impossible rates are not shown`() {
+        fun r(s: Long, rx: Long, t: Transport) = RateReading(LinkCounters(s * 1_000_000_000, rx, 0, rx * 3, 0), t)
+        val cellular = (0L..6L).fold(emptyList<RateReading>()) { acc, s -> addReading(acc, r(s, s * 100_000, Transport.CELLULAR)) }
+        val wifi = addReading(cellular, r(7, 700_000, Transport.WIFI))
+        assertEquals(listOf(r(7, 700_000, Transport.WIFI)), wifi)
+        assertNull(liveRates(wifi))
+
+        // 10 GB in 5 s without a counter going back: still a glitch, shown as "–".
+        val jump = addReading(addReading(emptyList(), r(0, 0, Transport.CELLULAR)), r(5, 10_000_000_000, Transport.CELLULAR))
+        assertNull(liveRates(jump))
     }
 
     @Test

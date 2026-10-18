@@ -58,7 +58,7 @@ sealed interface LiveUiState {
         /** The default network (Wi-Fi with SSID, cellular, …); null until known. */
         val route: NetworkRoute? = null,
         /** Byte counters read with this sample, and the recent readings the data rates are averaged over. */
-        val counters: List<LinkCounters> = emptyList(),
+        val counters: List<RateReading> = emptyList(),
         /** Not logging: the preview's own recent events (never stored). */
         val previewEvents: List<LiveEvent> = emptyList(),
     ) : LiveUiState {
@@ -71,7 +71,7 @@ sealed interface LiveUiState {
                 is LoggingState.Idle -> previewEvents
             }
 
-        internal val rates: LinkRates? get() = counters.lastOrNull()?.let { linkRates(rateBase(counters), it, route?.transport) }
+        internal val rates: LinkRates? get() = liveRates(counters)
     }
 
     data class Failed(val message: String) : LiveUiState
@@ -153,12 +153,12 @@ class LiveViewModel @Inject constructor(
             }
         }
         .filterNotNull()
-        // One counter reading per radio sample; the rates are averaged over the recent readings (see rateBase).
+        .combine(routeSource.route) { ready, route -> ready.copy(route = route) }
+        // One counter reading per sample, tagged with the route; the rates are averaged over them (see addReading).
         .scan<LiveUiState.Ready, LiveUiState.Ready?>(null) { prev, ready ->
-            ready.copy(counters = keepRecent(prev?.counters.orEmpty() + routeSource.counters()))
+            ready.copy(counters = addReading(prev?.counters.orEmpty(), RateReading(routeSource.counters(), ready.route?.transport)))
         }
         .filterNotNull()
-        .combine(routeSource.route) { ready, route -> ready.copy(route = route) }
         .map<LiveUiState.Ready, LiveUiState> { it }
         .catch { emit(LiveUiState.Failed(it.toString())) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LiveUiState.Waiting)

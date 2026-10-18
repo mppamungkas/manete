@@ -143,19 +143,49 @@ internal fun linkRates(prev: LinkCounters?, cur: LinkCounters, transport: Networ
     return LinkRates(rate(rx = true) ?: return null, rate(rx = false) ?: return null)
 }
 
+/** One counter reading with the route it was taken on: rates are only computed between readings on one route. */
+data class RateReading(val counters: LinkCounters, val transport: NetworkRoute.Transport?) {
+    val elapsedRealtimeNs: Long get() = counters.elapsedRealtimeNs
+}
+
+/**
+ * Adds [next] to the readings Live averages over. A new window starts when the route changes or any counter went
+ * backwards: Wi-Fi and other routes use total minus mobile, so a mobile counter that drops (e.g. while a VPN comes up)
+ * would turn into a jump of gigabytes (A56 with a capture, 2026-10-19: "2xxxx Mbps" on Live).
+ */
+internal fun addReading(readings: List<RateReading>, next: RateReading): List<RateReading> {
+    val last = readings.lastOrNull()
+    if (last != null && (last.transport != next.transport || wentBack(last.counters, next.counters))) return listOf(next)
+    return keepRecent(readings + next)
+}
+
+private fun wentBack(a: LinkCounters, b: LinkCounters): Boolean =
+    listOf(a.mobileRxBytes to b.mobileRxBytes, a.mobileTxBytes to b.mobileTxBytes, a.totalRxBytes to b.totalRxBytes, a.totalTxBytes to b.totalTxBytes)
+        .any { (old, new) -> old != null && new != null && new < old }
+
+/** The rates Live shows: averaged over the readings, on the latest reading's route; "–" (null) when implausible. */
+internal fun liveRates(readings: List<RateReading>): LinkRates? {
+    val last = readings.lastOrNull() ?: return null
+    val base = rateBase(readings) ?: return null
+    return linkRates(base.counters, last.counters, last.transport)?.takeIf { it.downBps <= MAX_PLAUSIBLE_BPS && it.upBps <= MAX_PLAUSIBLE_BPS }
+}
+
+/** Faster than any phone link (5G peaks are a few Gbit/s): such a value is a counter glitch, not traffic. */
+internal const val MAX_PLAUSIBLE_BPS = 10e9
+
 /**
  * Android updates the traffic counters only every few seconds (moto g45: flat for ~3 s, then a jump), so a rate
  * between two consecutive readings swings between 0 and many times the real rate. Live averages over at least
  * [RATE_WINDOW_NS]: the base is the newest reading at least that old, else the oldest one kept.
  */
-internal fun rateBase(readings: List<LinkCounters>): LinkCounters? {
+internal fun rateBase(readings: List<RateReading>): RateReading? {
     val last = readings.lastOrNull() ?: return null
     return readings.lastOrNull { last.elapsedRealtimeNs - it.elapsedRealtimeNs >= RATE_WINDOW_NS }
         ?: readings.firstOrNull()?.takeIf { it !== last }
 }
 
 /** The readings [rateBase] can still need. */
-internal fun keepRecent(readings: List<LinkCounters>): List<LinkCounters> {
+internal fun keepRecent(readings: List<RateReading>): List<RateReading> {
     val last = readings.lastOrNull() ?: return readings
     val base = readings.indexOfLast { last.elapsedRealtimeNs - it.elapsedRealtimeNs >= RATE_WINDOW_NS }
     return if (base > 0) readings.drop(base) else readings
