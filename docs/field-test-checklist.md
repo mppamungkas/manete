@@ -243,6 +243,9 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
       2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
 - [x] The same on the A56 (`RRGYB06DN2T`): DatabaseSmokeTest 2/2 (2026-10-15, build f973dc1)
+- [x] Release 0.3.0 (versionCode 3, build 1db5b7b, 49 MB, SHA-256 9da78c45…2acd22) installed as an update over 0.2.0
+      on both phones: starts without a crash; the A56's release data (6 sessions, 74 MB of captures) migrated to v3 and
+      listed; About shows 0.3.0 (2026-10-19). For a student trial (APK sent by hand, not published)
 - [x] Schema v3 (CLAUDE.md 1.7.7): DatabaseSmokeTest 2/2 on the moto g45 and 2/2 on the A56 (2026-10-19, branch
       feat/speedtest-buttons); both debug installs migrated to v3 with their sessions kept (moto 33, A56 5), the
       release apps untouched
