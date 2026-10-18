@@ -733,6 +733,15 @@ build (`.debug`) recorded the same time in parallel.
   chosen document only when complete (deleting the document on failure); checked on the moto by leaving the screen at
   31 %: an 801 kB ZIP that tests clean, and Share opening its chooser on return.
 
+### Samsung A56, Live data rate during a capture, Telkomsel, 2026-10-19
+- The user saw a Data-row rate of "2xxxx Mbps" on Live after starting a capture (session 6, during a Cloudflare speed
+  test); the stored speed test (↓ 93.3 Mbps, SIN) and the capture (0 dropped) were fine. Not reproduced: with a
+  logging build, a capture and a full Cloudflare test showed plausible rates ("Cellular (Telkomsel) · via VPN",
+  ↓ up to 64 / ↑ 35 Mbps). The A56's counters: mobile ~16.8 GB, total ~23 GB above it, so a single reading where the
+  route is not plain cellular while the mobile counter drops makes "total − mobile" jump by gigabytes (12 GB in 5 s
+  ≈ 19 Gbit/s). Handled since: readings carry their route, the window restarts on a route change or any counter going
+  back, and rates above 10 Gbit/s show "–".
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
