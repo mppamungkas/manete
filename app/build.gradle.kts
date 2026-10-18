@@ -53,8 +53,8 @@ android {
     defaultConfig {
         applicationId = "id.my.pamslab.netlogger"
         // Raise versionCode with every APK given to users: Android installs an update only over a lower one.
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         // Settings › About shows the commit the APK was built from (manifest meta-data, readable by every module).
         manifestPlaceholders["buildCommit"] = buildCommit
     }
