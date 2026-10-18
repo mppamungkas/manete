@@ -243,3 +243,6 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] `ANDROID_SERIAL=ZP22222MQL ./gradlew :core:data:connectedDebugAndroidTest`: DatabaseSmokeTest 2/2 (moto g45,
       2026-10-15, build 2e86d38); also `:feature:capture:connectedDebugAndroidTest` 1/1
 - [x] The same on the A56 (`RRGYB06DN2T`): DatabaseSmokeTest 2/2 (2026-10-15, build f973dc1)
+- [x] Schema v3 (CLAUDE.md 1.7.7): DatabaseSmokeTest 2/2 on the moto g45 and 2/2 on the A56 (2026-10-19, branch
+      feat/speedtest-buttons); both debug installs migrated to v3 with their sessions kept (moto 33, A56 5), the
+      release apps untouched
