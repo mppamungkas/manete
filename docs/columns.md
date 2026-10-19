@@ -243,6 +243,7 @@ server). Align with measurements.csv by `startedElapsedNs`.
 | `type` | | `PING`, `DOWNLOAD` or `UPLOAD` |
 | `serverUrl` | | URL the phase used (each request adds a unique `nl` query parameter against caches): the user's private server set in Settings, or `https://speed.cloudflare.com/…` for the public Cloudflare test |
 | `serverLocation` | | Where the server answered from, when it says so: Cloudflare's location code from the `CF-RAY` response header, an IATA airport code such as `SIN` (Singapore) or `CGK` (Jakarta). Empty for servers that do not report one and for rows recorded before schema v3 |
+| `triggeredBy` | | What started the test: `MANUAL` (Private server or Cloudflare on Live, or the notification) or `PERIODIC` (Settings › Speed test › Repeat during a session; private server only, may use shorter phases and lower caps, see `durationMs` and `bytes`). Rows recorded before schema v4 are `MANUAL` (there was no periodic test then) |
 | `durationMs` | ms | Phase time actually measured |
 | `bytes` | bytes | DOWNLOAD: bytes read; UPLOAD: bytes handed to the socket (the last socket buffer may still be in flight) |
 | `mbps` | Mbit/s | bytes × 8 / phase time / 10^6, whole phase incl. TCP ramp-up; empty when the server refused (HTTP error) or nothing was transferred |

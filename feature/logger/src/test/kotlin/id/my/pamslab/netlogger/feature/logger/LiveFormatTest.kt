@@ -8,8 +8,10 @@ import id.my.pamslab.netlogger.core.model.radio.CellSource
 import id.my.pamslab.netlogger.core.model.radio.ConnectionStatus
 import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.Rat
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTrigger
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
+import id.my.pamslab.netlogger.feature.logger.service.PeriodicStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -189,4 +191,20 @@ class LiveFormatTest {
         rsrpDbm = rsrp, rsrqDb = rsrq, sinrDb = sinr, rssiDbm = null, cqi = null, timingAdvance = null,
         csiRsrpDbm = null, csiRsrqDb = null, csiSinrDb = null, rscpDbm = null, ecNoDb = null, source = source, cellInfoAgeMs = ageMs,
     )
+
+    @Test
+    fun `periodic line counts down to the next test`() {
+        val p = PeriodicStatus(10, nextAtElapsedNs = 1_000_000_000_000)
+        assertEquals("Every 10 min · next in 4:12", periodicLine(p, false, 1_000_000_000_000 - 252_000_000_000))
+        assertEquals("Every 10 min · now", periodicLine(p, true, 1_000_000_000_000 - 252_000_000_000))
+        assertEquals("Every 10 min · now", periodicLine(p, false, 1_000_500_000_000))
+        assertEquals("Every 10 min", periodicLine(p, false, null))
+    }
+
+    @Test
+    fun `a periodic result says so`() {
+        val r = ThroughputResult(ThroughputType.DOWNLOAD, 0, 0, "http://speed.example/garbage", 10_000, 1, 1.0, 4, null, null, null, null, null)
+        assertEquals("Private server", speedTestTarget(listOf(r)))
+        assertEquals("Private server · periodic", speedTestTarget(listOf(r.copy(trigger = SpeedTestTrigger.PERIODIC))))
+    }
 }

@@ -142,6 +142,16 @@ class OkHttpSpeedTestRunnerTest {
     }
 
     @Test
+    fun `only the chosen phases run, in their usual order`() = runBlocking {
+        val pingAndUp = config().copy(phases = setOf(ThroughputType.UPLOAD, ThroughputType.PING))
+        val results = OkHttpSpeedTestRunner(clock) { null }.run(pingAndUp) {}
+        assertEquals(listOf(ThroughputType.PING, ThroughputType.UPLOAD), results.map { it.type })
+        val notCellular = OkHttpSpeedTestRunner(clock) { CellularNetworkGuard.NOT_CELLULAR }
+            .run(config().copy(phases = setOf(ThroughputType.DOWNLOAD))) {}
+        assertEquals("a refused test stores only the chosen phases", listOf(ThroughputType.DOWNLOAD), notCellular.map { it.type })
+    }
+
+    @Test
     fun `not on mobile data - every phase fails without a request`() = runBlocking {
         val results = OkHttpSpeedTestRunner(clock) { CellularNetworkGuard.NOT_CELLULAR }.run(config()) {}
         assertEquals(3, results.size)

@@ -8,6 +8,9 @@ enum class ThroughputType { PING, DOWNLOAD, UPLOAD }
  */
 enum class SpeedTestTarget { PRIMARY, PUBLIC }
 
+/** What started a test: the user (Live or the notification) or the periodic schedule ([PeriodicSpeedTest]). */
+enum class SpeedTestTrigger { MANUAL, PERIODIC }
+
 /**
  * Server endpoints. Works with a LibreSpeed backend ([libreSpeed]) or any web server: [pingUrl] answers small GETs,
  * [downloadUrl] serves a large body, [uploadUrl] accepts a POST and discards it.
@@ -26,6 +29,8 @@ data class SpeedTestConfig(
     val maxDownloadBytes: Long = 200L * 1024 * 1024,
     /** Stops an upload early after this many bytes (all streams). */
     val maxUploadBytes: Long = 50L * 1024 * 1024,
+    /** Phases to run, always in the order ping, download, upload; a periodic test may leave some out. */
+    val phases: Set<ThroughputType> = ThroughputType.entries.toSet(),
 ) {
     val isComplete: Boolean get() = listOf(pingUrl, downloadUrl, uploadUrl).all { it.startsWith("http://") || it.startsWith("https://") }
 
@@ -77,7 +82,50 @@ data class ThroughputResult(
     val error: String? = null,
     /** Where the server answered from, if it says: Cloudflare's location code from CF-RAY (e.g. "SIN"); null otherwise. */
     val serverLocation: String? = null,
+    /** Schema v4: started by the user or by the periodic schedule. */
+    val trigger: SpeedTestTrigger = SpeedTestTrigger.MANUAL,
 )
+
+/**
+ * Speed test repeated during a session (Settings › Speed test), for throughput-vs-radio studies. Runs against the
+ * private server only: Cloudflare answers HTTP 429 to many tests in a row. [intervalMin] 0 = off. The defaults are the
+ * manual test's, so periodic and manual results compare; [phases], [durationMs] and the caps are optional limits.
+ */
+data class PeriodicSpeedTest(
+    val intervalMin: Int = 0,
+    val phases: Set<ThroughputType> = ThroughputType.entries.toSet(),
+    val durationMs: Long = DEFAULT.durationMs,
+    val maxDownloadBytes: Long = DEFAULT.maxDownloadBytes,
+    val maxUploadBytes: Long = DEFAULT.maxUploadBytes,
+) {
+    val enabled: Boolean get() = intervalMin > 0 && phases.isNotEmpty()
+
+    /** True when nothing but the interval differs from the manual test. */
+    val isDefaultTest: Boolean
+        get() = copy(intervalMin = 0) == PeriodicSpeedTest()
+
+    /** [config] (the private server) with this schedule's phases, duration and caps. */
+    fun apply(config: SpeedTestConfig) = config.copy(
+        phases = phases, durationMs = durationMs, maxDownloadBytes = maxDownloadBytes, maxUploadBytes = maxUploadBytes,
+    )
+
+    /** Most mobile data one test can use: the caps of the phases it runs (a ping is a few kB). */
+    val maxBytesPerTest: Long
+        get() = (if (ThroughputType.DOWNLOAD in phases) maxDownloadBytes else 0) +
+            (if (ThroughputType.UPLOAD in phases) maxUploadBytes else 0)
+
+    /** Most mobile data per hour of recording; 0 when off. */
+    val maxBytesPerHour: Long get() = if (enabled) maxBytesPerTest * (60 / intervalMin) else 0
+
+    companion object {
+        private val DEFAULT = SpeedTestConfig("", "", "")
+        const val MB = 1024L * 1024
+        val INTERVALS_MIN = listOf(0, 5, 10, 15, 30)
+        val DURATIONS_MS = listOf(5_000L, 10_000L)
+        val DOWNLOAD_CAPS = listOf(25 * MB, 50 * MB, 100 * MB, 200 * MB)
+        val UPLOAD_CAPS = listOf(10 * MB, 25 * MB, 50 * MB)
+    }
+}
 
 /** Progress for the UI. */
 data class SpeedTestProgress(val phase: ThroughputType, val mbps: Double? = null, val rttMs: Double? = null)

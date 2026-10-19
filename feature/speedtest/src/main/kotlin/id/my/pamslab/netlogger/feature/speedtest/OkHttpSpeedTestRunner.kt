@@ -32,7 +32,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 /**
- * Ping (HTTP round trips), then download and upload with [SpeedTestConfig.streams] parallel connections for
+ * Ping (HTTP round trips), then download and upload ([SpeedTestConfig.phases]; all three by default) with [SpeedTestConfig.streams] parallel connections for
  * [SpeedTestConfig.durationMs] each. Every request carries a unique query parameter so no cache answers it.
  *
  * - Ping RTT: request sent to response body read, on a kept-alive connection; the first request opens the
@@ -63,15 +63,18 @@ class OkHttpSpeedTestRunner @Inject constructor(
         onResult: (ThroughputResult) -> Unit,
         onProgress: (SpeedTestProgress) -> Unit,
     ): List<ThroughputResult> {
+        val phases = ThroughputType.entries.filter { it in config.phases }
         network.problem()?.let { problem ->
-            return ThroughputType.entries.map { failed(it, url(config, it), problem).also(onResult) }
+            return phases.map { failed(it, url(config, it), problem).also(onResult) }
         }
         return withContext(Dispatchers.IO) {
-            listOf(
-                ping(config, onProgress).also(onResult),
-                download(config, onProgress).also(onResult),
-                upload(config, onProgress).also(onResult),
-            )
+            phases.map { phase ->
+                when (phase) {
+                    ThroughputType.PING -> ping(config, onProgress)
+                    ThroughputType.DOWNLOAD -> download(config, onProgress)
+                    ThroughputType.UPLOAD -> upload(config, onProgress)
+                }.also(onResult)
+            }
         }
     }
 

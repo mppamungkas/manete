@@ -27,10 +27,12 @@ import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
+import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTrigger
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,9 +73,11 @@ class LoggingEngineTest {
     }
 
     /** [hangAfterPing]: reports the ping, then waits in the download until cancelled (a test stopped half-way). */
-    private class FakeRunner(private val hangAfterPing: Boolean = false) : SpeedTestRunner {
+    private class FakeRunner(var hangAfterPing: Boolean = false) : SpeedTestRunner {
         var runs = 0
         var lastConfig: SpeedTestConfig? = null
+        val startedAtNs = mutableListOf<Long>()
+        var clock: Clock? = null
         override suspend fun run(
             config: SpeedTestConfig,
             onResult: (ThroughputResult) -> Unit,
@@ -81,7 +85,8 @@ class LoggingEngineTest {
         ): List<ThroughputResult> {
             runs++
             lastConfig = config
-            val results = ThroughputType.entries.map {
+            clock?.let { startedAtNs += it.elapsedRealtimeNs() }
+            val results = ThroughputType.entries.filter { it in config.phases }.map {
                 ThroughputResult(it, 0, 0, config.pingUrl, 10_000, 1_000, 12.0, 4, null, null, null, null, null, serverLocation = "SIN")
             }
             onResult(results[0])
@@ -92,9 +97,14 @@ class LoggingEngineTest {
         }
     }
 
-    private class FakeSettings(config: SpeedTestConfig = SpeedTestConfig.libreSpeed("https://speed.example.org")) : SpeedTestSettings {
+    private class FakeSettings(
+        config: SpeedTestConfig = SpeedTestConfig.libreSpeed("https://speed.example.org"),
+        periodic: PeriodicSpeedTest = PeriodicSpeedTest(),
+    ) : SpeedTestSettings {
         override val config = MutableStateFlow(config)
         override fun save(pingUrl: String, downloadUrl: String, uploadUrl: String) = Unit
+        override val periodic = MutableStateFlow(periodic)
+        override fun savePeriodic(periodic: PeriodicSpeedTest) { this.periodic.value = periodic }
     }
 
     private class FakeRepository : SessionRepository {
@@ -359,6 +369,96 @@ class LoggingEngineTest {
         assertTrue(engine.runSpeedTest())
         assertTrue(repo.throughput.all { it.captureActive })
         job.cancel()
+    }
+
+    @Test
+    fun `periodic speed test - every interval from the start, with its own phases and limits, marked PERIODIC`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val runner = FakeRunner().also { it.clock = clock }
+        val periodic = PeriodicSpeedTest(
+            intervalMin = 5, phases = setOf(ThroughputType.PING, ThroughputType.DOWNLOAD),
+            durationMs = 5_000, maxDownloadBytes = 25 * PeriodicSpeedTest.MB,
+        )
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings(periodic = periodic), CaptureStateHolder())
+        val job = launch { engine.run(1_000, null) }
+        runCurrent()
+        val startNs = (BOOT_MS) * 1_000_000
+        assertEquals(PeriodicStatus(5, nextAtElapsedNs = startNs + 300_000_000_000), (engine.state.value as LoggingState.Running).periodic)
+
+        advanceTimeBy(4 * 60_000)
+        assertEquals("nothing before the first interval", 0, runner.runs)
+        assertTrue("a manual test in between", engine.runSpeedTest())
+        advanceTimeBy(7 * 60_000)
+        runCurrent()
+
+        assertEquals(listOf(startNs + 300_000_000_000, startNs + 600_000_000_000), runner.startedAtNs.drop(1))
+        val config = runner.lastConfig!!
+        assertEquals(setOf(ThroughputType.PING, ThroughputType.DOWNLOAD), config.phases)
+        assertEquals(5_000L, config.durationMs)
+        assertEquals(25 * PeriodicSpeedTest.MB, config.maxDownloadBytes)
+        assertEquals("the private server", "https://speed.example.org/backend/empty.php", config.pingUrl)
+        assertEquals(
+            listOf(SpeedTestTrigger.MANUAL, SpeedTestTrigger.MANUAL, SpeedTestTrigger.MANUAL) + List(4) { SpeedTestTrigger.PERIODIC },
+            repo.throughput.map { it.trigger },
+        )
+        assertEquals(startNs + 900_000_000_000, (engine.state.value as LoggingState.Running).periodic?.nextAtElapsedNs)
+        job.cancel()
+    }
+
+    @Test
+    fun `periodic speed test - Stop ends the running test, not the schedule`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val runner = FakeRunner(hangAfterPing = true)
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, runner, FakeSettings(periodic = PeriodicSpeedTest(intervalMin = 5)), CaptureStateHolder())
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(5 * 60_000 + 500)
+        assertEquals(1, runner.runs)
+        engine.stopSpeedTest()
+        runCurrent()
+        assertEquals(listOf(null, LoggingEngine.STOPPED_BY_USER), repo.throughput.map { it.error })
+        assertTrue(repo.throughput.all { it.trigger == SpeedTestTrigger.PERIODIC })
+
+        runner.hangAfterPing = false
+        advanceTimeBy(5 * 60_000)
+        assertEquals("the next slot still runs", 2, runner.runs)
+        job.cancel()
+    }
+
+    @Test
+    fun `periodic speed test - off without a private server, and off by default`() = runTest {
+        val clock = VirtualClock(this)
+        val runner = FakeRunner()
+        val noServer = LoggingEngine(
+            radio(clock), FakeLocation(), FakeDevice, clock, FakeRepository(), runner,
+            FakeSettings(SpeedTestConfig("", "", ""), PeriodicSpeedTest(intervalMin = 5)), CaptureStateHolder(),
+        )
+        val job = launch { noServer.run(1_000, null) }
+        advanceTimeBy(11 * 60_000)
+        assertEquals(0, runner.runs)
+        assertEquals(LoggingEngine.NO_PRIVATE_SERVER_PERIODIC, (noServer.state.value as LoggingState.Running).periodic?.problem)
+        job.cancel()
+
+        val off = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, FakeRepository(), runner, FakeSettings(), CaptureStateHolder())
+        val job2 = launch { off.run(1_000, null) }
+        advanceTimeBy(31 * 60_000)
+        assertEquals(0, runner.runs)
+        assertNull((off.state.value as LoggingState.Running).periodic)
+        job2.cancel()
+    }
+
+    @Test
+    fun `periodic data estimate counts only the capped phases it runs`() {
+        val all = PeriodicSpeedTest(intervalMin = 10)
+        assertTrue(all.isDefaultTest)
+        assertEquals(250 * PeriodicSpeedTest.MB, all.maxBytesPerTest)
+        assertEquals(6 * 250 * PeriodicSpeedTest.MB, all.maxBytesPerHour)
+        val pingOnly = PeriodicSpeedTest(intervalMin = 5, phases = setOf(ThroughputType.PING))
+        assertFalse(pingOnly.isDefaultTest)
+        assertEquals(0L, pingOnly.maxBytesPerTest)
+        assertEquals(0L, PeriodicSpeedTest(intervalMin = 0).maxBytesPerHour)
+        assertFalse("no phase chosen is off", PeriodicSpeedTest(intervalMin = 5, phases = emptySet()).enabled)
     }
 
     @Test

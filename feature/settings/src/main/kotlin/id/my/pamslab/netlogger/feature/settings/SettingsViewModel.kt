@@ -7,6 +7,7 @@ import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.model.session.Scenario
+import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import kotlinx.coroutines.flow.StateFlow
 import java.net.URI
@@ -29,7 +30,11 @@ class SettingsViewModel @Inject constructor(
     val defaultScenario: StateFlow<Scenario?> = logging.defaultScenario
     val speedTest: StateFlow<SpeedTestConfig> = settings.config
 
+    val periodic: StateFlow<PeriodicSpeedTest> = settings.periodic
+
     fun save(pingUrl: String, downloadUrl: String, uploadUrl: String) = settings.save(pingUrl, downloadUrl, uploadUrl)
+
+    fun savePeriodic(periodic: PeriodicSpeedTest) = settings.savePeriodic(periodic)
 
 
     /** Hosts of plain-HTTP URLs this build does not allow (network security config); empty when all are fine. */

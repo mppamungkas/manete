@@ -22,10 +22,12 @@ import id.my.pamslab.netlogger.core.model.session.EndReason
 import id.my.pamslab.netlogger.core.model.session.EventType
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
+import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestProgress
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestRunner
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTrigger
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.telephony.EventDetector
 import id.my.pamslab.netlogger.feature.logger.LiveEvent
@@ -36,6 +38,7 @@ import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,8 +72,16 @@ sealed interface LoggingState {
         val speedTest: SpeedTestState? = null,
         /** The last detected events, newest first, for Live (decision 004); markers are in [markers]. */
         val recentEvents: List<LiveEvent> = emptyList(),
+        /** The periodic speed test of this session; null when it is off. */
+        val periodic: PeriodicStatus? = null,
     ) : LoggingState
 }
+
+/**
+ * The session's periodic speed test (Settings › Speed test), as set when the session started. [nextAtElapsedNs]: the
+ * next scheduled start; [problem]: why it does not run (no private server), shown on Live.
+ */
+data class PeriodicStatus(val intervalMin: Int, val nextAtElapsedNs: Long? = null, val problem: String? = null)
 
 /** The speed test of the running session, for the Live screen. */
 sealed interface SpeedTestState {
@@ -117,13 +128,17 @@ class LoggingEngine @Inject constructor(
         require(intervalMs > 0)
         val startNs = clock.elapsedRealtimeNs()
         val info = device.deviceInfo()
+        val periodic = speedTestSettings.periodic.value.takeIf { it.enabled }
         val session = repository.startSession(
             SessionStart(UUID.randomUUID().toString(), clock.wallTimeMs(), startNs, intervalMs, scenario, info),
         )
         recorder.set(session)
         locationState.set(LocationState(LocationStatus.WAITING))
         recentFixes.set(emptyList())
-        _state.value = LoggingState.Running(session.sessionId, TickStats(startNs, intervalMs, 0, 0), null, emptyList(), info)
+        _state.value = LoggingState.Running(
+            session.sessionId, TickStats(startNs, intervalMs, 0, 0), null, emptyList(), info,
+            periodic = periodic?.let { PeriodicStatus(it.intervalMin) },
+        )
         var endReason = EndReason.USER_STOP
         try {
             coroutineScope {
@@ -134,6 +149,7 @@ class LoggingEngine @Inject constructor(
                         recentFixes.update { (it + fix).distinctBy(LocationFix::elapsedRealtimeNs).takeLast(FIX_HISTORY) }
                     }
                 }
+                periodic?.let { launch { runPeriodic(it, startNs) } }
                 var seq = 0L
                 val window = TickWindow()
                 val detector = EventDetector()
@@ -220,17 +236,47 @@ class LoggingEngine @Inject constructor(
      * phase used. Returns false when not logging, a test is already running, or no server is set.
      */
     suspend fun runSpeedTest(target: SpeedTestTarget = SpeedTestTarget.PRIMARY): Boolean {
-        val session = recorder.get() ?: return false.also { log("speed test ($target) ignored: not logging") }
-        if (!speedTestBusy.compareAndSet(false, true)) return false.also { log("speed test ($target) ignored: one is running") }
-        speedTestJob.set(currentCoroutineContext()[Job])
-        speedTestStopRequested.set(false)
         val config = when (target) {
             SpeedTestTarget.PRIMARY -> speedTestSettings.config.value
             SpeedTestTarget.PUBLIC -> SpeedTestConfig.cloudflare()
         }
+        return speedTest(target, SpeedTestTrigger.MANUAL, config)
+    }
+
+    /**
+     * The session's periodic speed test: every [PeriodicSpeedTest.intervalMin] from the session start (the first one
+     * an interval after it), against the private server only. A slot that comes while another test runs (a manual
+     * one) is skipped, not queued. Live's Stop ends the running test only; the schedule goes on.
+     */
+    private suspend fun runPeriodic(periodic: PeriodicSpeedTest, startNs: Long) = coroutineScope {
+        val config = periodic.apply(speedTestSettings.config.value)
+        if (!config.isComplete) {
+            setPeriodic(PeriodicStatus(periodic.intervalMin, problem = NO_PRIVATE_SERVER_PERIODIC))
+            log("periodic speed test off: no private server set")
+            return@coroutineScope
+        }
+        log("periodic speed test every ${periodic.intervalMin} min: ${periodic.phases.sorted()} " +
+            "${periodic.durationMs} ms, caps ${periodic.maxDownloadBytes / PeriodicSpeedTest.MB}/${periodic.maxUploadBytes / PeriodicSpeedTest.MB} MB")
+        val intervalNs = periodic.intervalMin * 60_000L * NS_PER_MS
+        var slot = 1L
+        while (true) {
+            val at = startNs + slot * intervalNs
+            setPeriodic(PeriodicStatus(periodic.intervalMin, nextAtElapsedNs = at))
+            delay(((at - clock.elapsedRealtimeNs()) / NS_PER_MS).coerceAtLeast(0))
+            // Its own job, so Live's Stop (which cancels the test's job) does not end the schedule.
+            launch { if (!speedTest(SpeedTestTarget.PRIMARY, SpeedTestTrigger.PERIODIC, config)) log("periodic speed test skipped") }.join()
+            slot = (clock.elapsedRealtimeNs() - startNs) / intervalNs + 1
+        }
+    }
+
+    private suspend fun speedTest(target: SpeedTestTarget, trigger: SpeedTestTrigger, config: SpeedTestConfig): Boolean {
+        val session = recorder.get() ?: return false.also { log("speed test ($target) ignored: not logging") }
+        if (!speedTestBusy.compareAndSet(false, true)) return false.also { log("speed test ($target) ignored: one is running") }
+        speedTestJob.set(currentCoroutineContext()[Job])
+        speedTestStopRequested.set(false)
         val captureBefore = capture.state.value.running
         // Capture overhead (VPN) affects the result: flagged when a capture ran at its start or end.
-        fun flagged(r: ThroughputResult) = r.copy(captureActive = captureBefore || capture.state.value.running)
+        fun flagged(r: ThroughputResult) = r.copy(captureActive = captureBefore || capture.state.value.running, trigger = trigger)
         val finished = mutableListOf<ThroughputResult>()
         var phase = ThroughputType.PING
         try {
@@ -240,7 +286,7 @@ class LoggingEngine @Inject constructor(
                 return false
             }
             setSpeedTest(SpeedTestState.Running(null))
-            log("speed test ($target) started against ${config.downloadUrl}")
+            log("speed test ($target, ${trigger.name.lowercase()}) started against ${config.downloadUrl}")
             val results = speedTestRunner.run(config, onResult = { synchronized(finished) { finished += it } }) {
                 phase = it.phase
                 setSpeedTest(SpeedTestState.Running(it))
@@ -255,7 +301,7 @@ class LoggingEngine @Inject constructor(
             withContext(NonCancellable) {
                 val reason = if (speedTestStopRequested.get()) STOPPED_BY_USER else STOPPED_WITH_SESSION
                 val done = synchronized(finished) { finished.toList() }.map(::flagged)
-                val interrupted = ThroughputType.entries.firstOrNull { t -> done.none { it.type == t } }
+                val interrupted = ThroughputType.entries.filter { it in config.phases }.firstOrNull { t -> done.none { it.type == t } }
                     ?.let { t -> if (t.ordinal < phase.ordinal) phase else t }
                 val stored = done + listOfNotNull(
                     interrupted?.let { t ->
@@ -298,6 +344,9 @@ class LoggingEngine @Inject constructor(
 
     private fun setSpeedTest(value: SpeedTestState) =
         _state.update { s -> if (s is LoggingState.Running) s.copy(speedTest = value) else s }
+
+    private fun setPeriodic(value: PeriodicStatus) =
+        _state.update { s -> if (s is LoggingState.Running) s.copy(periodic = value) else s }
 
     private fun <T> AtomicReference<T>.update(transform: (T) -> T) {
         while (true) {
@@ -359,6 +408,7 @@ class LoggingEngine @Inject constructor(
         const val FIX_HISTORY = 5
         const val NO_SERVER = "No speed test server set (Settings)"
         const val NO_PRIVATE_SERVER = "No private server set: Settings › Speed test"
+        const val NO_PRIVATE_SERVER_PERIODIC = "Periodic test off: no private server set (Settings › Speed test)"
         const val STOPPED_BY_USER = "stopped"
         const val STOPPED_WITH_SESSION = "session stopped"
 

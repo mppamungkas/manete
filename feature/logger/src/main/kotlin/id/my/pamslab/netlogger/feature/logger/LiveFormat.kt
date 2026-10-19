@@ -11,8 +11,10 @@ import id.my.pamslab.netlogger.core.model.radio.NetworkType
 import id.my.pamslab.netlogger.core.model.radio.Rat
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTrigger
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
+import id.my.pamslab.netlogger.feature.logger.service.PeriodicStatus
 import java.util.Locale
 
 // Pure formatting for the Live dashboard (decision 004), unit-tested.
@@ -228,9 +230,24 @@ internal fun speedTestSummary(results: List<ThroughputResult>): String {
     return listOfNotNull(rates, ping).joinToString(" · ").ifEmpty { "–" }
 }
 
-/** "Cloudflare SIN" / "Private server": which server a finished test used, with the location it reported. */
+/**
+ * "Cloudflare SIN" / "Private server" / "Private server · periodic": which server a finished test used, with the
+ * location it reported, and whether the schedule started it.
+ */
 internal fun speedTestTarget(results: List<ThroughputResult>): String {
     val cloudflare = results.any { it.serverUrl.startsWith(SpeedTestConfig.CLOUDFLARE) }
     val location = results.firstNotNullOfOrNull { it.serverLocation }
-    return listOfNotNull(if (cloudflare) "Cloudflare" else "Private server", location).joinToString(" ")
+    val server = listOfNotNull(if (cloudflare) "Cloudflare" else "Private server", location).joinToString(" ")
+    return if (results.any { it.trigger == SpeedTestTrigger.PERIODIC }) "$server · periodic" else server
+}
+
+/** "Every 10 min · next in 4:12" (to the next scheduled start); "… · now" when it is due or a test runs. */
+internal fun periodicLine(p: PeriodicStatus, testRunning: Boolean, nowElapsedNs: Long?): String {
+    val every = "Every ${p.intervalMin} min"
+    val left = p.nextAtElapsedNs?.let { at -> nowElapsedNs?.let { (at - it) / 1_000_000_000 } }
+    return when {
+        testRunning || (left != null && left <= 0) -> "$every · now"
+        left != null -> "$every · next in %d:%02d".format(Locale.ROOT, left / 60, left % 60)
+        else -> every
+    }
 }
