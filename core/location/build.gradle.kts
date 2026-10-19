@@ -4,6 +4,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     api(project(":core:model"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.play.services.location)

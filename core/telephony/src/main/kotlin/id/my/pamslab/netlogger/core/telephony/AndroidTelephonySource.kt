@@ -14,6 +14,7 @@ import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.raw.CellInfoOrigin
 import id.my.pamslab.netlogger.core.model.raw.DeviceTraits
 import id.my.pamslab.netlogger.core.model.raw.RawCellInfoResult
@@ -124,7 +125,7 @@ class AndroidTelephonySource @Inject constructor(
             manager.registerTelephonyCallback(executor, callback)
             true
         } catch (e: SecurityException) {
-            Log.w(TAG, "registerTelephonyCallback failed", e)
+            CaughtErrors.caught("registerTelephonyCallback failed", e)
             trySend(state.copy(registrationError = "SecurityException: ${e.message}"))
             false
         }
@@ -153,6 +154,7 @@ class AndroidTelephonySource @Inject constructor(
                     override fun onError(code: Int, detail: Throwable?) {
                         errorCode = code
                         Log.w(TAG, "requestCellInfoUpdate error $code", detail)
+                        CaughtErrors.record("requestCellInfoUpdate error $code", detail)
                         if (cont.isActive) cont.resume(null)
                     }
                 }

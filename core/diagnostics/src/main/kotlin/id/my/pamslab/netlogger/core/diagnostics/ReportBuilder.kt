@@ -28,6 +28,8 @@ data class ReportInput(
     val userNote: String? = null,
     /** When the user made the report ("Report a problem"); a problem has its own time. */
     val reportedAtMs: Long? = null,
+    /** Errors NetLogger caught and kept running after ([CaughtErrors]); in "Describe a problem" reports. */
+    val caught: List<CaughtError> = emptyList(),
 )
 
 /**
@@ -78,6 +80,11 @@ object ReportBuilder {
                 appendLine()
                 appendLine("Trace")
                 trace.forEach { appendLine("  $it") }
+            }
+            if (input.caught.isNotEmpty()) {
+                appendLine()
+                appendLine("Caught errors (last 7 days, NetLogger kept running; ${input.caught.size} kinds)")
+                CaughtErrorLog.summary(input.caught, ctx.timeZone).forEach { appendLine("  $it") }
             }
             val log = OwnLog.filter(java?.log?.takeIf { it.isNotEmpty() } ?: input.logLines)
             appendLine()

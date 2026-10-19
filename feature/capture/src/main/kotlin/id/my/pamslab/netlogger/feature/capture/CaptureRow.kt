@@ -21,6 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
@@ -89,7 +90,7 @@ fun CaptureRow(label: @Composable () -> Unit, modifier: Modifier = Modifier, vie
                     try {
                         consentLauncher.launch(intent)
                     } catch (e: ActivityNotFoundException) {
-                        Log.w("NetLogger", "VPN consent activity not found", e)
+                        CaughtErrors.caught("VPN consent activity not found", e)
                         controller.onStartResult(false)
                     }
                 }

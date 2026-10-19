@@ -4,5 +4,6 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     api(project(":core:model"))
 }

@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.feature.logger.R
@@ -84,7 +85,7 @@ class LoggingService : Service() {
         } catch (e: RuntimeException) {
             // ForegroundServiceStartNotAllowedException / SecurityException: started from the background or
             // permission revoked between the check and here.
-            Log.w(TAG, "startForeground failed", e)
+            CaughtErrors.caught("startForeground failed", e)
             stopSelf()
             return
         }
@@ -95,6 +96,7 @@ class LoggingService : Service() {
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "logging session failed", e)
+                CaughtErrors.record("logging session failed", e)
                 stop()
             }
         }

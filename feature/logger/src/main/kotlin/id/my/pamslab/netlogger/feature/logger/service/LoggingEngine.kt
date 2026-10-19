@@ -5,6 +5,7 @@ import id.my.pamslab.netlogger.core.data.SessionRecorder
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.location.LocationProvider
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
@@ -174,6 +175,7 @@ class LoggingEngine @Inject constructor(
                         throw e
                     } catch (e: Exception) {
                         log("tick ${tick.seq} not stored: $e")
+                        CaughtErrors.record("tick not stored", e)
                         true
                     }
                     val expected = (snapshot.elapsedRealtimeNs - startNs) / (intervalMs * NS_PER_MS) + 1
@@ -204,6 +206,7 @@ class LoggingEngine @Inject constructor(
                     session.close(endReason, clock.wallTimeMs(), clock.elapsedRealtimeNs())
                 } catch (e: Exception) {
                     log("session ${session.sessionId} not closed: $e (closed on next start)")
+                    CaughtErrors.record("session not closed at stop", e)
                 }
             }
             _state.update { s -> LoggingState.Idle((s as? LoggingState.Running)?.stats) }
@@ -318,6 +321,7 @@ class LoggingEngine @Inject constructor(
                     stored.forEach { session.addThroughput(it) }
                 } catch (store: Exception) {
                     log("speed test results not stored: $store")
+                    CaughtErrors.record("speed test results not stored", store)
                 }
                 log("speed test $reason: kept ${done.size} finished phase(s)")
                 setSpeedTest(SpeedTestState.Done(stored))

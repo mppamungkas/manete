@@ -1,6 +1,7 @@
 package id.my.pamslab.netlogger.feature.capture.vpn
 
 import android.util.Log
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 
 /**
  * libnetcapture, the native part of the VpnService capture (Phase 3b, docs/decisions/002-native-capture.md).
@@ -17,7 +18,7 @@ object NativeCapture {
             System.loadLibrary("netcapture")
             null
         } catch (e: UnsatisfiedLinkError) {
-            Log.w("NetLogger", "libnetcapture not loaded", e)
+            CaughtErrors.caught("libnetcapture not loaded", e)
             e.message ?: "libnetcapture not loaded"
         }
     }

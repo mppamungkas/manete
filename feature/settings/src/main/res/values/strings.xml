@@ -339,7 +339,7 @@
     <string name="problems_sent_keep">Keep it</string>
     <string name="problems_delete_title">Delete this report?</string>
     <string name="problems_cancel">Cancel</string>
-    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines are added; you see the whole report before sending it.</string>
+    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines and a list of the errors it caught and kept running after in the last 7 days (where, how often, when; no messages, locations or addresses) are added; you see the whole report before sending it.</string>
     <string name="problems_describe_hint">What happened?</string>
     <string name="problems_preview">Show report</string>
     <string name="problems_user_title">Problem reported by a user</string>

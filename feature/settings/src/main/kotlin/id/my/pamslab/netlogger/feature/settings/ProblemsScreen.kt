@@ -44,6 +44,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.diagnostics.Problem
 import id.my.pamslab.netlogger.core.diagnostics.ProblemKind
 import id.my.pamslab.netlogger.core.diagnostics.ProblemReports
@@ -251,10 +252,10 @@ private fun start(context: Context, intent: () -> android.content.Intent): Boole
     context.startActivity(intent())
     true
 } catch (e: ActivityNotFoundException) {
-    Log.w("NetLogger", "no app to send the report", e)
+    CaughtErrors.caught("no app to send the report", e)
     false
 } catch (e: IllegalArgumentException) { // FileProvider path
-    Log.w("NetLogger", "report attachment not shared", e)
+    CaughtErrors.caught("report attachment not shared", e)
     false
 }
 

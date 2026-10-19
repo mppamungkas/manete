@@ -9,6 +9,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.PowerManager
 import android.util.Log
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import java.net.Inet4Address
 import java.net.Inet6Address
 
@@ -73,6 +74,6 @@ internal fun overrideName(override: Int?): String? = when (override) {
 private inline fun <T> safe(block: () -> T): T? = try {
     block()
 } catch (e: Exception) {
-    Log.w("NetLogger", "capabilities: reading phone state failed", e)
+    CaughtErrors.caught("capabilities: reading phone state failed", e)
     null
 }

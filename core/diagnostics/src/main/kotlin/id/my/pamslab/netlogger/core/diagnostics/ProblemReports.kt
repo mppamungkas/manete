@@ -122,9 +122,17 @@ class ProblemReports @Inject constructor(@ApplicationContext private val context
     /** The full report text of [problem]. Blocking. */
     fun report(problem: Problem, userNote: String? = null): String = ReportBuilder.build(input(problem, userNote), ProblemSharing.reportContext(context))
 
-    /** A report without a crash ("Report a problem"): the user's note and this process' last log lines. Blocking. */
-    fun userReport(note: String): String =
-        ReportBuilder.build(ReportInput(problem = null, logLines = OwnLog.linesOf(android.os.Process.myPid()), userNote = note, reportedAtMs = System.currentTimeMillis()), ProblemSharing.reportContext(context))
+    /**
+     * A report without a crash ("Report a problem"): the user's note, the errors caught in the last 7 days and this
+     * process' last log lines. Blocking.
+     */
+    fun userReport(note: String): String = ReportBuilder.build(
+        ReportInput(
+            problem = null, logLines = OwnLog.linesOf(android.os.Process.myPid()), userNote = note,
+            reportedAtMs = System.currentTimeMillis(), caught = CaughtErrors.all(context),
+        ),
+        ProblemSharing.reportContext(context),
+    )
 
     private fun load(): List<Problem> = root.listFiles().orEmpty()
         .mapNotNull { dir ->
