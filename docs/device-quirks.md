@@ -742,6 +742,22 @@ build (`.debug`) recorded the same time in parallel.
   ≈ 19 Gbit/s). Handled since: readings carry their route, the window restarts on a route change or any counter going
   back, and rates above 10 Gbit/s show "–".
 
+### Xiaomi 24094RAD4G (MediaTek modem), Android 16, Telkomsel (510-10), student drive, 2026-10-19 16:49–17:15
+First session from a student's phone (release 0.3.0, schema v3), 26 min, screen on, mostly walking speed.
+- **Ticks:** 1578 / 1578 (100 %), max spacing 1.02 s; no crash.
+- **CellInfo alternates between LTE-only and NR-only lists.** 28 % of the ticks (156 short stretches of 1–5 s)
+  contain only NR cells, the serving one labelled PRIMARY_SERVING and registered, and no LTE cell at all; the other
+  ticks contain only LTE cells. Never both, although the phone was 5G NSA (override NR_NSA) the whole time. In the
+  NR-only ticks the serving LTE row comes from SignalStrength (RSRP, RSRQ, SINR marked SS; no PCI / EARFCN). Unlike
+  the moto, the NR cell's own PCI is reported (n40, NR-ARFCN 466850; 11 NR cell changes).
+- **LTE values:** RSRP median -90 dBm, RSRQ median -15 dB, SINR median 1 dB (from CellInfo in 72 % of ticks; LTE
+  CQI and SINR are reported, unlike the moto). Carrier aggregation `[20000,20000,30000]` most of the time.
+  `getBands()` says B1 for three B3 cells (EARFCN 1850): `API_BAND_CONFLICT`, mapped to B3.
+- **Speed tests (Cloudflare, site CGK = Jakarta; the moto on Tri gets SIN):** 68.3 ↓ / 59.4 ↑ Mbps, ping 68 ms
+  (standing, NR SS-RSRP -75 dBm, SS-SINR 12 dB; the upload reached the 50 MB cap after 7 s) and 26.2 ↓ / 25.9 ↑ Mbps,
+  ping 70 ms (moving up to 20 km/h, NR -82 dBm / 7 dB, LTE SINR -1 dB).
+- Battery 90 → 84 % in 26 min (13.7 %/h, screen on, two speed tests); thermal status 2 (MODERATE) throughout.
+
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
 | Quirk | Devices | Handling | Warning code | Confirmed on |
