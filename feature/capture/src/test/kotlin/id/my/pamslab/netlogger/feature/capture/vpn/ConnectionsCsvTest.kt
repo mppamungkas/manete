@@ -47,13 +47,20 @@ class ConnectionsCsvTest {
     }
 
     @Test
-    fun `unknown uid and app are empty, ICMP has no destination port, socket error kept`() {
+    fun `ICMP has no uid or destination port, app labelled unknown, socket error kept`() {
         val row = csv(record(ConnectionRecord.PROTO_ICMP, null, dstPort = 0, error = 113))[1].split(',')
         assertEquals("ICMP", row[0])
         assertEquals("", row[5])
         assertEquals("", row[6])
-        assertEquals("", row[7])
+        assertEquals("ICMP (app unknown)", row[7])
         assertEquals("113", row[18])
+    }
+
+    @Test
+    fun `TCP or UDP without a uid has an empty app`() {
+        val row = csv(record(ConnectionRecord.PROTO_UDP, null))[1].split(',')
+        assertEquals("", row[6])
+        assertEquals("", row[7])
     }
 
     @Test

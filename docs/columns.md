@@ -292,7 +292,7 @@ timestamps exactly. Not checked by ColumnsDocTest.
 | `srcIp`, `srcPort` | | The app's side: NetLogger's tun address and the app's port (ICMP: the echo id) |
 | `dstIp`, `dstPort` | | The remote side (ICMP: no port) |
 | `uid` | | Owning app's Linux uid from `ConnectivityManager.getConnectionOwnerUid()`; empty when unknown (always for ICMP) |
-| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from NetLogger; `uid` is still filled) |
+| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); `ICMP (app unknown)` for every ICMP row (Android can only name the app of TCP and UDP connections; empty in captures made before this label was added); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from NetLogger; `uid` is still filled) |
 | `firstSeen`, `lastSeen` | ISO-8601 | First and last packet of the connection |
 | `firstSeenElapsedNs`, `lastSeenElapsedNs` | ns | The same in elapsedRealtimeNs (the radio log's axis) |
 | `durationMs` | ms | `lastSeen - firstSeen` |
