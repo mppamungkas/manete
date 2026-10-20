@@ -4,6 +4,7 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.VpnService
 import android.util.Log
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import java.io.Writer
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -37,6 +38,7 @@ class NativeCaptureCallbacks(
         } catch (e: Exception) {
             // SecurityException if we are not the active VPN any more; IllegalArgumentException for other protocols.
             Log.w(TAG, "getConnectionOwnerUid failed: ${e.message}")
+            CaughtErrors.record("getConnectionOwnerUid failed", e)
             -1
         }
     }
@@ -64,7 +66,7 @@ class NativeCaptureCallbacks(
                 lastFlushNs = now
             }
         } catch (e: Exception) {
-            Log.w(TAG, "connections.csv row failed", e)
+            CaughtErrors.caught("connections.csv row failed", e)
         }
     }
 
@@ -73,7 +75,7 @@ class NativeCaptureCallbacks(
         try {
             connectionsOut?.close()
         } catch (e: Exception) {
-            Log.w(TAG, "closing connections.csv failed", e)
+            CaughtErrors.caught("closing connections.csv failed", e)
         }
     }
 

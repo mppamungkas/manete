@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.os.Process
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.device.BatterySample
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
 import id.my.pamslab.netlogger.core.model.device.DeviceInfo
@@ -79,7 +80,7 @@ class AndroidDeviceContextSource @Inject constructor(
     private inline fun <T> safe(field: String, block: () -> T): T? = try {
         block()
     } catch (e: RuntimeException) {
-        Log.w(TAG, "device context: $field failed", e)
+        CaughtErrors.caught("device context: $field failed", e)
         null
     }
 

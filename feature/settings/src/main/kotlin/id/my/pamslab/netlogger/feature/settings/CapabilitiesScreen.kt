@@ -32,6 +32,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.FieldCoverage
 import id.my.pamslab.netlogger.core.data.RecordedCoverage
 import id.my.pamslab.netlogger.core.device.DeviceContextSource
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.device.DeviceInfo
 import id.my.pamslab.netlogger.core.model.radio.RadioSnapshot
 import id.my.pamslab.netlogger.core.model.raw.RawSubscription
@@ -90,7 +91,7 @@ class CapabilitiesViewModel @Inject constructor(
             val snapshots = try {
                 withTimeoutOrNull(CHECK_TIMEOUT_MS) { sampler.samples(1_000).take(SAMPLES).toList() }.orEmpty()
             } catch (e: Exception) {
-                Log.w("NetLogger", "capabilities: radio check failed", e)
+                CaughtErrors.caught("capabilities: radio check failed", e)
                 emptyList()
             }
             _state.value = _state.value.copy(
@@ -100,7 +101,7 @@ class CapabilitiesViewModel @Inject constructor(
             val coverage = try {
                 withContext(Dispatchers.IO) { recorded.coverage() }
             } catch (e: Exception) {
-                Log.w("NetLogger", "capabilities: counting recorded sessions failed", e)
+                CaughtErrors.caught("capabilities: counting recorded sessions failed", e)
                 null
             }
             _state.value = _state.value.copy(coverage = coverage, coverageFailed = coverage == null)
@@ -113,7 +114,7 @@ class CapabilitiesViewModel @Inject constructor(
         try {
             context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("NetLogger phone capabilities", text))
         } catch (e: Exception) {
-            Log.w("NetLogger", "capabilities: copy failed", e)
+            CaughtErrors.caught("capabilities: copy failed", e)
         }
     }
 

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import java.util.Locale
 
 /** One row of the capture app picker. [label] null: a selected package that is not (or no longer) visible. */
@@ -31,7 +32,7 @@ internal fun launcherApps(context: Context, iconPx: Int): List<InstalledApp> = t
             )
         }
 } catch (e: Exception) {
-    Log.w("NetLogger", "settings: listing launcher apps failed", e)
+    CaughtErrors.caught("settings: listing launcher apps failed", e)
     emptyList()
 }
 

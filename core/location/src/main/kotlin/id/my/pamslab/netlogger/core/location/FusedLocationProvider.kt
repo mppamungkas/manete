@@ -17,6 +17,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
@@ -79,10 +80,10 @@ class FusedLocationProvider @Inject constructor(
         try {
             requestLocationUpdates(client, request, callback)
         } catch (e: SecurityException) {
-            Log.w(TAG, "location permission revoked", e)
+            CaughtErrors.caught("location permission revoked", e)
             trySend(LocationState(LocationStatus.NO_PERMISSION))
         } catch (e: RuntimeException) {
-            Log.w(TAG, "location request failed", e)
+            CaughtErrors.caught("location request failed", e)
             trySend(LocationState(LocationStatus.ERROR, error = e.toString()))
         }
         awaitClose { client.removeLocationUpdates(callback) }
@@ -96,7 +97,7 @@ class FusedLocationProvider @Inject constructor(
         callback: LocationCallback,
     ) {
         client.requestLocationUpdates(request, callback, Looper.getMainLooper())
-            .addOnFailureListener { Log.w(TAG, "requestLocationUpdates failed", it) }
+            .addOnFailureListener { CaughtErrors.caught("requestLocationUpdates failed", it) }
     }
 
     private fun locationEnabled(): Boolean =

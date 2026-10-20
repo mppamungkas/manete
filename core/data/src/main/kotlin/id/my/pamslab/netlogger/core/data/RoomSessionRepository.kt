@@ -159,6 +159,7 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
                     captureActive = result.captureActive,
                     error = result.error,
                     serverLocation = result.serverLocation,
+                    triggeredBy = result.trigger.name,
                 ),
             )
         }

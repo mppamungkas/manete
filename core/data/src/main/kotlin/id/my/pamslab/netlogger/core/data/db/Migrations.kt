@@ -25,5 +25,16 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+/**
+ * v3 → v4: throughput_test.triggeredBy (MANUAL / PERIODIC). Every test before v4 was started by the user (the periodic
+ * test came with v4), so existing rows get MANUAL.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `throughput_test` ADD COLUMN `triggeredBy` TEXT")
+        db.execSQL("UPDATE `throughput_test` SET `triggeredBy` = 'MANUAL'")
+    }
+}
+
 /** Every migration, in order; registered with the database builder. */
-val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

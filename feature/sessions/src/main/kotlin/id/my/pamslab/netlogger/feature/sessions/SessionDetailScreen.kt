@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
@@ -70,7 +71,7 @@ internal fun SessionDetailScreen(
             try {
                 context.startActivity(shareIntent)
             } catch (e: ActivityNotFoundException) {
-                Log.w("NetLogger", "no app to share with", e)
+                CaughtErrors.caught("no app to share with", e)
             }
         }
     }

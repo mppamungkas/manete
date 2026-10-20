@@ -5,6 +5,7 @@ import android.util.Log
 import dagger.Lazy
 import dagger.hilt.android.HiltAndroidApp
 import id.my.pamslab.netlogger.core.data.CaptureStateHolder
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.diagnostics.CrashRecorder
 import id.my.pamslab.netlogger.core.diagnostics.ProblemReports
 import id.my.pamslab.netlogger.core.diagnostics.ProcessState
@@ -35,6 +36,8 @@ class NetLoggerApplication : Application() {
     override fun onCreate() {
         // First, in every process (main and :vpn): a crash from here on leaves its stack trace (decision 005).
         CrashRecorder.install(this)
+        // Errors NetLogger catches and survives, for "Describe a problem" (kept 7 days per process).
+        CaughtErrors.install(this, getProcessName())
         super.onCreate()
         // Only the main process: the native capture runs in ":vpn" while a session may be recording here, and this
         // recovery would close that live session.
@@ -54,7 +57,7 @@ class NetLoggerApplication : Application() {
                 val closed = loggingEngine.get().recoverAbandonedSessions()
                 if (closed > 0) Log.i("NetLogger", "recovered $closed abandoned session(s)")
             } catch (e: Exception) {
-                Log.w("NetLogger", "session recovery failed", e)
+                CaughtErrors.caught("session recovery failed", e)
             }
         }
     }

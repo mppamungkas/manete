@@ -55,6 +55,7 @@ import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
+import id.my.pamslab.netlogger.feature.logger.service.PeriodicStatus
 import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -411,7 +412,7 @@ private fun GpsAndDataSection(ui: LiveUiState.Ready, captureRow: CaptureRowSlot)
                     }
                 }
             }
-            (ui.logging as? LoggingState.Running)?.let { SpeedTestRow(it.speedTest) }
+            (ui.logging as? LoggingState.Running)?.let { SpeedTestRow(it.speedTest, it.periodic, it.latest?.radio?.elapsedRealtimeNs) }
             // Shows itself only while a session records or a capture is ending.
             captureRow { RowLabel(stringResource(R.string.live_capture)) }
         }
@@ -428,7 +429,7 @@ private fun RowLabel(text: String) {
  * server (the user's, Settings), Cloudflare (public comparison, always offered) and Stop (keeps the finished phases).
  */
 @Composable
-private fun SpeedTestRow(test: SpeedTestState?) {
+private fun SpeedTestRow(test: SpeedTestState?, periodic: PeriodicStatus?, nowElapsedNs: Long?) {
     val context = LocalContext.current
     val running = test is SpeedTestState.Running
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -454,6 +455,16 @@ private fun SpeedTestRow(test: SpeedTestState?) {
                         test.results.mapNotNull { r -> r.error?.let { "${r.type.name.lowercase()}: $it" } }.forEach {
                             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
+                    }
+                }
+                periodic?.let { p ->
+                    when {
+                        p.problem != null -> Text(p.problem, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        else -> Text(
+                            periodicLine(p, running, nowElapsedNs),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }

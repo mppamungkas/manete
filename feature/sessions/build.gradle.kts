@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     implementation(project(":core:data"))
     implementation(project(":core:export"))
     // FileProvider for sharing the export ZIP (already used by :app).

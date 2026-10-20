@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.export.SessionExporter
 import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
@@ -111,7 +112,7 @@ class SessionDetailViewModel @Inject constructor(
                 if (data == null || data.ticks.isEmpty()) ChartState.Empty else ChartState.Ready(data)
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                Log.w(TAG, "charts not loaded", e)
+                CaughtErrors.caught("charts not loaded", e)
                 ChartState.Failed(e.message ?: e.javaClass.simpleName)
             }
         }

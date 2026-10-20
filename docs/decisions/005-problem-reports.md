@@ -142,6 +142,20 @@ app. The About › Privacy text gets one line: "Problem reports stay on the phon
 - **D8** New module `core:diagnostics`; the crash handler also runs in the `:vpn` process (app-level code; the capture
   itself is not touched). *Recommendation: yes.*
 
+## Addendum 2026-10-19: caught errors in "Describe a problem"
+
+Errors NetLogger catches and keeps running after (a getter that throws on one phone, a failed export, a refused VPN)
+left only a log line, gone from the buffer within minutes on a busy phone. Accepted by the user 2026-10-19:
+
+- `CaughtErrors` (`core:diagnostics`): catch blocks call `CaughtErrors.caught(where, e)` (same log line as `Log.w`)
+  or `record(where, e)` where the log line stays as it was. Kept per process (main, `:vpn`) in
+  `files/problems/caught/<process>.json`: one entry per (where, exception class, first NetLogger frame) with count,
+  first and last time; 7 days, at most 50 kinds. Saved at once for a new kind, otherwise at most every 30 s.
+- Never the exception message (it can carry hosts, IP addresses, file names): only NetLogger's own `where` text,
+  which follows the log rules, the class name(s) and the frame (`Extract.get:44`).
+- "Describe a problem" adds a "Caught errors" section (newest first, at most 30 lines) above the log lines. Crash
+  reports are unchanged.
+
 ## Out of scope
 
 Automatic upload or a report server, symbolising native frames that have no names (stripped libraries keep only

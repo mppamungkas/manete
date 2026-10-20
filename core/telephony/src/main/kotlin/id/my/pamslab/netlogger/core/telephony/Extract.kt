@@ -14,6 +14,7 @@ import android.telephony.CellSignalStrengthWcdma
 import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.util.Log
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.raw.RawCell
 import id.my.pamslab.netlogger.core.model.raw.RawGsmCell
 import id.my.pamslab.netlogger.core.model.raw.RawGsmSignal
@@ -44,6 +45,7 @@ internal class Extractor {
     } catch (e: Throwable) {
         failures++
         Log.w(TAG, "extract $field failed: $e")
+        CaughtErrors.record("extract $field failed", e)
         null
     }
 

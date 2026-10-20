@@ -107,6 +107,7 @@ class Columns(time: IsoTime) {
         col("type") { it.type },
         col("serverUrl") { it.serverUrl },
         col("serverLocation") { it.serverLocation },
+        col("triggeredBy") { it.triggeredBy },
         col("durationMs") { it.durationMs },
         col("bytes") { it.bytes },
         col("mbps") { it.mbps },

@@ -9,6 +9,7 @@ import android.net.wifi.WifiInfo
 import android.os.SystemClock
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.device.LinkCounters
 import id.my.pamslab.netlogger.core.model.device.NetworkRoute
 import id.my.pamslab.netlogger.core.model.device.NetworkRoute.Transport
@@ -45,7 +46,7 @@ class AndroidNetworkRouteSource @Inject constructor(
         try {
             cm.registerDefaultNetworkCallback(callback)
         } catch (e: RuntimeException) { // SecurityException, or too many callbacks
-            Log.w(TAG, "default network callback not registered", e)
+            CaughtErrors.caught("default network callback not registered", e)
             close()
             return@callbackFlow
         }

@@ -11,6 +11,9 @@
     <string name="settings_speed_test_summary_server">Private server: %1$s</string>
     <string name="settings_speed_test_summary_none">No private server set</string>
     <string name="settings_speed_test_summary_public">%1$s · Cloudflare always on Live</string>
+    <string name="settings_speed_test_summary_periodic">%1$s · repeats every %2$d min</string>
+    <string name="settings_speed_test_summary_periodic_cloudflare">%1$s · repeats every %2$d min on Cloudflare</string>
+    <string name="settings_speed_test_summary_periodic_no_server">%1$s · the periodic test cannot run</string>
     <string name="settings_capture">Traffic capture</string>
     <string name="settings_capture_summary_all">All apps · MTU %1$s</string>
     <plurals name="settings_capture_summary_specific">
@@ -89,6 +92,32 @@
     <string name="speed_save">Save</string>
     <string name="speed_saved">Saved. While logging, Private server on the Live screen tests against it.</string>
     <string name="speed_not_saved">No private server saved yet: Private server on Live will say so. Cloudflare works without one.</string>
+    <string name="speed_periodic_title">Repeat during a session</string>
+    <string name="speed_periodic_info">Runs the speed test by itself, at a fixed interval while a session is recording, so you get throughput together with the radio values along the whole route. The first test starts one interval after Start. A change applies to the next session. Results are marked "periodic" in throughput.csv (column triggeredBy).</string>
+    <string name="speed_periodic_off">Off</string>
+    <string name="speed_periodic_off_info">Tests run only when you tap Private server or Cloudflare on Live.</string>
+    <string name="speed_periodic_every">Every %1$d min</string>
+    <string name="speed_periodic_every_info">Up to %1$s of mobile data per hour of recording.</string>
+    <string name="speed_periodic_target">Server</string>
+    <string name="speed_periodic_target_private">Private server</string>
+    <string name="speed_periodic_target_private_info">Your server from above: results stay comparable between tests and days.</string>
+    <string name="speed_periodic_target_cloudflare">Cloudflare</string>
+    <string name="speed_periodic_target_cloudflare_info">Needs no server of your own. Cloudflare blocks many large tests in a row for a while (HTTP 429, stored as the test\'s error): use 15 or 30 min, or the limits below.</string>
+    <string name="speed_periodic_no_server">No private server saved above: the periodic test will not run.</string>
+    <string name="speed_periodic_no_phase">No part chosen below: the periodic test will not run.</string>
+    <string name="speed_periodic_per_test">Each periodic test uses up to %1$s (the caps below; a ping is a few kB). A manual test on Live may still be started in between; a periodic test due while another one runs is skipped.</string>
+    <string name="speed_periodic_limits_show">Limits (optional)</string>
+    <string name="speed_periodic_limits_hide">Hide limits</string>
+    <string name="speed_periodic_limits_info">To use less data: leave parts out, shorten each part, or stop it earlier. These apply to periodic tests only; the manual test on Live stays as described above.</string>
+    <string name="speed_periodic_phases">Parts</string>
+    <string name="speed_phase_ping">Ping</string>
+    <string name="speed_phase_download">Download</string>
+    <string name="speed_phase_upload">Upload</string>
+    <string name="speed_periodic_duration">Time per part</string>
+    <string name="speed_periodic_cap_down">Stop download at</string>
+    <string name="speed_periodic_cap_up">Stop upload at</string>
+    <string name="speed_periodic_not_comparable">Limited tests measure less than the manual test: on a fast link a short or capped test reports a lower speed. Compare periodic results with each other, or reset to get the manual test\'s settings.</string>
+    <string name="speed_periodic_reset">Same as the manual test</string>
     <string name="speed_public_title">Public comparison: Cloudflare</string>
     <string name="speed_public_info">Always available as its own button on the Live screen; nothing to switch on. It tests against %1$s, for comparison only: not your server and never the default. The result depends on Cloudflare\'s nearest site and its route (the site\'s code, e.g. SIN for Singapore, is stored with the result), and many large tests in a row are blocked for a while (HTTP 429).</string>
 
@@ -242,6 +271,7 @@
         <item>While a session is logging, with Wi-Fi off, start it on Live: Private server tests against your own server, set in Settings › Speed test (a LibreSpeed server works); Cloudflare tests against Cloudflare\'s public servers and needs no setting. Stop ends a test early and keeps the parts already finished.</item>
         <item>It measures ping, then download and upload for 10 seconds each. One test can use up to about 250 MB of your data plan.</item>
         <item>The result depends on the radio (signal, 4G or 5G, how busy the cell is) and on the route to the server. Compare tests against the same server; Cloudflare is only for comparison. With Cloudflare, the site that answered is stored with the result (e.g. SIN for Singapore): a far site means a longer route.</item>
+        <item>For throughput along a whole route, turn on Settings › Speed test › Repeat during a session (every 5, 10, 15 or 30 min, against your private server or Cloudflare). Watch the data use shown there: every 5 min can use up to 3 GB per hour unless you set limits. Periodic results are marked PERIODIC in throughput.csv (column triggeredBy).</item>
     </string-array>
     <string name="help_capture_title">4. Traffic capture</string>
     <string-array name="help_capture">
@@ -316,7 +346,7 @@
     <string name="problems_sent_keep">Keep it</string>
     <string name="problems_delete_title">Delete this report?</string>
     <string name="problems_cancel">Cancel</string>
-    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines are added; you see the whole report before sending it.</string>
+    <string name="problems_describe_info">Something wrong without a crash, e.g. values that look wrong or a screen that does not react? Describe what you did, what happened and what you expected. NetLogger\'s last log lines and a list of the errors it caught and kept running after in the last 7 days (where, how often, when; no messages, locations or addresses) are added; you see the whole report before sending it.</string>
     <string name="problems_describe_hint">What happened?</string>
     <string name="problems_preview">Show report</string>
     <string name="problems_user_title">Problem reported by a user</string>

@@ -20,6 +20,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     implementation(project(":core:data"))
     // CsvWriter and IsoTime for connections.csv: the same CSV rules as the session export.
     implementation(project(":core:export"))

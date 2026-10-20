@@ -42,7 +42,7 @@ data class ConnectionRecord(
  * connection still open when the capture stops). Columns are defined in docs/columns.md.
  *
  * [wallMinusElapsedNs] is the capture's clock offset (the one used for the pcap timestamps), so `firstSeen` and the
- * pcap agree exactly. [app] maps a uid to its package name(s).
+ * pcap agree exactly. [app] maps a uid to its package name(s); ICMP rows say [ICMP_APP_UNKNOWN] instead.
  */
 class ConnectionsCsv(
     out: Appendable,
@@ -61,7 +61,7 @@ class ConnectionsCsv(
             listOf(
                 r.protocolName, r.ipVersion,
                 r.srcIp.hostAddress, r.srcPort, r.dstIp.hostAddress, r.dstPort.takeIf { r.protocol != ConnectionRecord.PROTO_ICMP },
-                r.uid, r.uid?.let(app),
+                r.uid, r.uid?.let(app) ?: ICMP_APP_UNKNOWN.takeIf { r.protocol == ConnectionRecord.PROTO_ICMP },
                 time.format(wallMs(r.firstElapsedNs)), time.format(wallMs(r.lastElapsedNs)),
                 r.firstElapsedNs, r.lastElapsedNs, (r.lastElapsedNs - r.firstElapsedNs) / 1_000_000,
                 r.packetsOut, r.bytesOut, r.packetsIn, r.bytesIn,
@@ -71,6 +71,9 @@ class ConnectionsCsv(
     }
 
     companion object {
+        /** `app` of ICMP rows: getConnectionOwnerUid() covers TCP and UDP only, so ICMP never has an owner. */
+        const val ICMP_APP_UNKNOWN = "ICMP (app unknown)"
+
         val COLUMNS = listOf(
             "protocol", "ipVersion", "srcIp", "srcPort", "dstIp", "dstPort", "uid", "app",
             "firstSeen", "lastSeen", "firstSeenElapsedNs", "lastSeenElapsedNs", "durationMs",

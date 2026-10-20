@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import android.util.Log
 import androidx.core.content.FileProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.export.ExportProgress
 import id.my.pamslab.netlogger.core.export.ExportResult
 import id.my.pamslab.netlogger.core.export.SessionExporter
@@ -124,7 +125,7 @@ class ExportRunner @Inject constructor(
             } catch (e: IllegalArgumentException) { // missing or still-recording session
                 ExportJob(sessionId, kind, message = e.message ?: "Export not possible", failed = true)
             } catch (e: Exception) { // IOException, SecurityException, a full disk …
-                Log.w(TAG, "export failed", e)
+                CaughtErrors.caught("export failed", e)
                 ExportJob(sessionId, kind, message = "Export failed: ${e.message ?: e.javaClass.simpleName}. No file was kept.", failed = true)
             }
             _job.value = ended
@@ -142,7 +143,7 @@ class ExportRunner @Inject constructor(
         try {
             if (!DocumentsContract.deleteDocument(context.contentResolver, uri)) Log.w(TAG, "partial export not deleted")
         } catch (e: Exception) { // provider without delete support, or already gone
-            Log.w(TAG, "partial export not deleted", e)
+            CaughtErrors.caught("partial export not deleted", e)
         }
     }
 

@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -44,7 +45,7 @@ internal fun appFacts(context: Context, iconPx: Int): AppFacts {
         version = info?.versionName ?: "?",
         commit = meta?.getString(BUILD_COMMIT_KEY) ?: "unknown",
         icon = runCatching { pm.getApplicationIcon(context.packageName).toBitmap(iconPx, iconPx).asImageBitmap() }
-            .onFailure { Log.w("NetLogger", "about: app icon not loaded", it) }.getOrNull(),
+            .onFailure { CaughtErrors.caught("about: app icon not loaded", it) }.getOrNull(),
     )
 }
 
@@ -105,7 +106,7 @@ internal fun LicenceScreen(licence: Licence?, onBack: () -> Unit) {
         value = licence?.let { l ->
             withContext(Dispatchers.IO) {
                 runCatching { context.resources.openRawResource(l.raw).bufferedReader().use { it.readText() } }
-                    .onFailure { Log.w("NetLogger", "about: licence text not loaded", it) }.getOrNull()
+                    .onFailure { CaughtErrors.caught("about: licence text not loaded", it) }.getOrNull()
             }
         }
     }

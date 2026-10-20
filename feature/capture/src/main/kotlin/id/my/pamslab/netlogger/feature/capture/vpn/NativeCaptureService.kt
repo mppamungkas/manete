@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.export.IsoTime
 import id.my.pamslab.netlogger.feature.capture.R
 import java.io.File
@@ -100,7 +101,7 @@ class NativeCaptureService : VpnService() {
         capture?.let { c ->
             stop(NativeCaptureStatus.Why.DESTROYED)
             c.thread.join(DESTROY_JOIN_MS)
-            c.exit?.let(::onLoopEnded) ?: Log.w(TAG, "native capture loop still running at onDestroy")
+            c.exit?.let(::onLoopEnded) ?: CaughtErrors.caught("native capture loop still running at onDestroy")
         }
         main.removeCallbacksAndMessages(null)
         super.onDestroy()
@@ -115,7 +116,7 @@ class NativeCaptureService : VpnService() {
         }
         true
     } catch (e: Exception) {
-        Log.w(TAG, "native capture: startForeground failed", e)
+        CaughtErrors.caught("native capture: startForeground failed", e)
         false
     }
 
@@ -126,6 +127,7 @@ class NativeCaptureService : VpnService() {
         }
         fun failed(error: String) {
             Log.w(TAG, "native capture: $error")
+            CaughtErrors.record("native capture failed to start: $error")
             NativeCaptureStatus.send(this, NativeCaptureStatus.ENDED, pcapFile.absolutePath, null, null, null, error, standalone)
         }
         if (!NativeCapture.available) return failed("libnetcapture not loaded: ${NativeCapture.loadError}")
@@ -133,7 +135,7 @@ class NativeCaptureService : VpnService() {
         val tun = try {
             builder(plan, allowedApps, mtu).establish()
         } catch (e: Exception) {
-            Log.w(TAG, "native capture: establish failed", e)
+            CaughtErrors.caught("native capture: establish failed", e)
             null
         }
         // Not prepared (no VPN consent), or the system refused.
@@ -193,7 +195,7 @@ class NativeCaptureService : VpnService() {
         try {
             c.tun.close()
         } catch (e: IOException) {
-            Log.w(TAG, "closing the tun failed", e)
+            CaughtErrors.caught("closing the tun failed", e)
         }
         Log.i(
             TAG,
@@ -221,6 +223,7 @@ class NativeCaptureService : VpnService() {
                 file.bufferedWriter(Charsets.UTF_8, CSV_BUFFER)
             } catch (e: IOException) {
                 Log.w(TAG, "native capture: can't open $file", e)
+                CaughtErrors.record("native capture: can't open an output file", e)
                 null
             }
         }
@@ -235,7 +238,7 @@ class NativeCaptureService : VpnService() {
             csv?.header()
             out?.flush() // the file is valid (header only) even if ":vpn" dies before the first connection ends
         } catch (e: IOException) {
-            Log.w(TAG, "native capture: writing the connections.csv header failed", e)
+            CaughtErrors.caught("native capture: writing the connections.csv header failed", e)
         }
         return NativeCaptureCallbacks(this, getSystemService(ConnectivityManager::class.java), csv, out)
     }

@@ -16,6 +16,7 @@ import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.CaptureStateHolder
 import id.my.pamslab.netlogger.core.data.SessionRepository
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.capture.CaptureState
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
@@ -150,6 +151,7 @@ class CaptureController @Inject constructor(
         val consent = try {
             VpnService.prepare(context)
         } catch (e: Exception) {
+            CaughtErrors.record("VPN consent check failed", e)
             return fail("VPN consent check failed: ${e.message}")
         }
         if (consent == null) startNative(session.uuid)
@@ -185,6 +187,7 @@ class CaptureController @Inject constructor(
             NativeCaptureService.start(context, pcap, files.connections(uuid), settings.appFilter, mtu = nativeMtu)
         } catch (e: Exception) {
             nativePcap = null
+            CaughtErrors.record("native capture could not start", e)
             fail("Native capture could not start: ${e.message}")
             return
         }
@@ -203,7 +206,7 @@ class CaptureController @Inject constructor(
             try {
                 NativeCaptureService.stop(context)
             } catch (e: Exception) {
-                Log.w(TAG, "capture: stopping the native capture failed", e)
+                CaughtErrors.caught("capture: stopping the native capture failed", e)
             }
         }
     }

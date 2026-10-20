@@ -243,6 +243,7 @@ server). Align with measurements.csv by `startedElapsedNs`.
 | `type` | | `PING`, `DOWNLOAD` or `UPLOAD` |
 | `serverUrl` | | URL the phase used (each request adds a unique `nl` query parameter against caches): the user's private server set in Settings, or `https://speed.cloudflare.com/…` for the public Cloudflare test |
 | `serverLocation` | | Where the server answered from, when it says so: Cloudflare's location code from the `CF-RAY` response header, an IATA airport code such as `SIN` (Singapore) or `CGK` (Jakarta). Empty for servers that do not report one and for rows recorded before schema v3 |
+| `triggeredBy` | | What started the test: `MANUAL` (Private server or Cloudflare on Live, or the notification) or `PERIODIC` (Settings › Speed test › Repeat during a session; private server or Cloudflare, see `serverUrl`; may use shorter phases and lower caps, see `durationMs` and `bytes`). Rows recorded before schema v4 are `MANUAL` (there was no periodic test then) |
 | `durationMs` | ms | Phase time actually measured |
 | `bytes` | bytes | DOWNLOAD: bytes read; UPLOAD: bytes handed to the socket (the last socket buffer may still be in flight) |
 | `mbps` | Mbit/s | bytes × 8 / phase time / 10^6, whole phase incl. TCP ramp-up; empty when the server refused (HTTP error) or nothing was transferred |
@@ -292,7 +293,7 @@ timestamps exactly. Not checked by ColumnsDocTest.
 | `srcIp`, `srcPort` | | The app's side: NetLogger's tun address and the app's port (ICMP: the echo id) |
 | `dstIp`, `dstPort` | | The remote side (ICMP: no port) |
 | `uid` | | Owning app's Linux uid from `ConnectivityManager.getConnectionOwnerUid()`; empty when unknown (always for ICMP) |
-| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from NetLogger; `uid` is still filled) |
+| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); `ICMP (app unknown)` for every ICMP row (Android can only name the app of TCP and UDP connections; empty in captures made before this label was added); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from NetLogger; `uid` is still filled) |
 | `firstSeen`, `lastSeen` | ISO-8601 | First and last packet of the connection |
 | `firstSeenElapsedNs`, `lastSeenElapsedNs` | ns | The same in elapsedRealtimeNs (the radio log's axis) |
 | `durationMs` | ms | `lastSeen - firstSeen` |
