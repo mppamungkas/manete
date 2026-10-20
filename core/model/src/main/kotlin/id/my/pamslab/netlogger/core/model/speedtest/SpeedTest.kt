@@ -87,12 +87,14 @@ data class ThroughputResult(
 )
 
 /**
- * Speed test repeated during a session (Settings › Speed test), for throughput-vs-radio studies. Runs against the
- * private server only: Cloudflare answers HTTP 429 to many tests in a row. [intervalMin] 0 = off. The defaults are the
- * manual test's, so periodic and manual results compare; [phases], [durationMs] and the caps are optional limits.
+ * Speed test repeated during a session (Settings › Speed test), for throughput-vs-radio studies. [target]: the private
+ * server (default) or Cloudflare, which may answer HTTP 429 to many large tests in a row. [intervalMin] 0 = off. The
+ * defaults are the manual test's, so periodic and manual results compare; [phases], [durationMs] and the caps are
+ * optional limits.
  */
 data class PeriodicSpeedTest(
     val intervalMin: Int = 0,
+    val target: SpeedTestTarget = SpeedTestTarget.PRIMARY,
     val phases: Set<ThroughputType> = ThroughputType.entries.toSet(),
     val durationMs: Long = DEFAULT.durationMs,
     val maxDownloadBytes: Long = DEFAULT.maxDownloadBytes,
@@ -100,11 +102,11 @@ data class PeriodicSpeedTest(
 ) {
     val enabled: Boolean get() = intervalMin > 0 && phases.isNotEmpty()
 
-    /** True when nothing but the interval differs from the manual test. */
+    /** True when the test itself (phases, duration, caps) is the manual test's; interval and target aside. */
     val isDefaultTest: Boolean
-        get() = copy(intervalMin = 0) == PeriodicSpeedTest()
+        get() = copy(intervalMin = 0, target = SpeedTestTarget.PRIMARY) == PeriodicSpeedTest()
 
-    /** [config] (the private server) with this schedule's phases, duration and caps. */
+    /** [config] (the server of [target]) with this schedule's phases, duration and caps. */
     fun apply(config: SpeedTestConfig) = config.copy(
         phases = phases, durationMs = durationMs, maxDownloadBytes = maxDownloadBytes, maxUploadBytes = maxUploadBytes,
     )

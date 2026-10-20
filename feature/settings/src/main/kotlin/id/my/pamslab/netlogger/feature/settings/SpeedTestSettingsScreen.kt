@@ -26,6 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import java.util.Locale
 
@@ -43,8 +44,8 @@ internal fun SpeedTestSettingsScreen(onBack: () -> Unit, viewModel: SettingsView
 }
 
 /**
- * The speed test repeated during a session (2026-10-19): an interval, and optional limits (phases, duration, caps)
- * that lower the data use. Applies to sessions started after a change.
+ * The speed test repeated during a session (2026-10-19): an interval, the server (private or Cloudflare, 2026-10-20),
+ * and optional limits (phases, duration, caps) that lower the data use. Applies to sessions started after a change.
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -59,7 +60,17 @@ private fun PeriodicCard(periodic: PeriodicSpeedTest, hasServer: Boolean, onSave
                 else stringResource(R.string.speed_periodic_every_info, dataSize(periodic.copy(intervalMin = it).maxBytesPerHour))
             },
         ) { onSave(periodic.copy(intervalMin = it)) }
-        if (periodic.intervalMin > 0 && !hasServer) {
+        if (periodic.intervalMin > 0) {
+            Text(stringResource(R.string.speed_periodic_target), style = MaterialTheme.typography.labelLarge)
+            Choices(
+                listOf(SpeedTestTarget.PRIMARY, SpeedTestTarget.PUBLIC), periodic.target,
+                label = { stringResource(if (it == SpeedTestTarget.PRIMARY) R.string.speed_periodic_target_private else R.string.speed_periodic_target_cloudflare) },
+                description = {
+                    stringResource(if (it == SpeedTestTarget.PRIMARY) R.string.speed_periodic_target_private_info else R.string.speed_periodic_target_cloudflare_info)
+                },
+            ) { onSave(periodic.copy(target = it)) }
+        }
+        if (periodic.intervalMin > 0 && periodic.target == SpeedTestTarget.PRIMARY && !hasServer) {
             Text(stringResource(R.string.speed_periodic_no_server), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
         if (periodic.intervalMin > 0 && periodic.phases.isEmpty()) {
@@ -109,7 +120,7 @@ private fun PeriodicCard(periodic: PeriodicSpeedTest, hasServer: Boolean, onSave
             }
             if (!periodic.isDefaultTest) {
                 Text(stringResource(R.string.speed_periodic_not_comparable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedButton(onClick = { onSave(PeriodicSpeedTest(intervalMin = periodic.intervalMin)) }) {
+                OutlinedButton(onClick = { onSave(PeriodicSpeedTest(intervalMin = periodic.intervalMin, target = periodic.target)) }) {
                     Text(stringResource(R.string.speed_periodic_reset))
                 }
             }

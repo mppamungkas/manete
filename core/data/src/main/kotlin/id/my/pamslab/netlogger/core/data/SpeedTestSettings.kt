@@ -5,6 +5,7 @@ import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,6 +55,7 @@ class SharedPreferencesSpeedTestSettings @Inject constructor(
     override fun savePeriodic(periodic: PeriodicSpeedTest) {
         prefs.edit()
             .putInt(KEY_INTERVAL, periodic.intervalMin)
+            .putString(KEY_TARGET, periodic.target.name)
             .putStringSet(KEY_PHASES, periodic.phases.map { it.name }.toSet())
             .putLong(KEY_DURATION, periodic.durationMs)
             .putLong(KEY_MAX_DOWN, periodic.maxDownloadBytes)
@@ -67,6 +69,7 @@ class SharedPreferencesSpeedTestSettings @Inject constructor(
         val default = PeriodicSpeedTest()
         return PeriodicSpeedTest(
             intervalMin = prefs.getInt(KEY_INTERVAL, 0).takeIf { it in PeriodicSpeedTest.INTERVALS_MIN } ?: 0,
+            target = SpeedTestTarget.entries.firstOrNull { it.name == prefs.getString(KEY_TARGET, null) } ?: default.target,
             phases = prefs.getStringSet(KEY_PHASES, null)
                 ?.mapNotNull { name -> ThroughputType.entries.firstOrNull { it.name == name } }?.toSet()
                 ?: default.phases,
@@ -90,6 +93,7 @@ class SharedPreferencesSpeedTestSettings @Inject constructor(
         const val KEY_DOWNLOAD = "downloadUrl"
         const val KEY_UPLOAD = "uploadUrl"
         const val KEY_INTERVAL = "periodicIntervalMin"
+        const val KEY_TARGET = "periodicTarget"
         const val KEY_PHASES = "periodicPhases"
         const val KEY_DURATION = "periodicDurationMs"
         const val KEY_MAX_DOWN = "periodicMaxDownloadBytes"

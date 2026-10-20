@@ -238,27 +238,27 @@ class LoggingEngine @Inject constructor(
      * the user's server from Settings; PUBLIC the secondary public endpoints. Each result's serverUrl is the URL its
      * phase used. Returns false when not logging, a test is already running, or no server is set.
      */
-    suspend fun runSpeedTest(target: SpeedTestTarget = SpeedTestTarget.PRIMARY): Boolean {
-        val config = when (target) {
-            SpeedTestTarget.PRIMARY -> speedTestSettings.config.value
-            SpeedTestTarget.PUBLIC -> SpeedTestConfig.cloudflare()
-        }
-        return speedTest(target, SpeedTestTrigger.MANUAL, config)
+    suspend fun runSpeedTest(target: SpeedTestTarget = SpeedTestTarget.PRIMARY): Boolean =
+        speedTest(target, SpeedTestTrigger.MANUAL, configOf(target))
+
+    private fun configOf(target: SpeedTestTarget) = when (target) {
+        SpeedTestTarget.PRIMARY -> speedTestSettings.config.value
+        SpeedTestTarget.PUBLIC -> SpeedTestConfig.cloudflare()
     }
 
     /**
      * The session's periodic speed test: every [PeriodicSpeedTest.intervalMin] from the session start (the first one
-     * an interval after it), against the private server only. A slot that comes while another test runs (a manual
+     * an interval after it), against [PeriodicSpeedTest.target]. A slot that comes while another test runs (a manual
      * one) is skipped, not queued. Live's Stop ends the running test only; the schedule goes on.
      */
     private suspend fun runPeriodic(periodic: PeriodicSpeedTest, startNs: Long) = coroutineScope {
-        val config = periodic.apply(speedTestSettings.config.value)
+        val config = periodic.apply(configOf(periodic.target))
         if (!config.isComplete) {
             setPeriodic(PeriodicStatus(periodic.intervalMin, problem = NO_PRIVATE_SERVER_PERIODIC))
             log("periodic speed test off: no private server set")
             return@coroutineScope
         }
-        log("periodic speed test every ${periodic.intervalMin} min: ${periodic.phases.sorted()} " +
+        log("periodic speed test every ${periodic.intervalMin} min against ${serverName(periodic.target)}: ${periodic.phases.sorted()} " +
             "${periodic.durationMs} ms, caps ${periodic.maxDownloadBytes / PeriodicSpeedTest.MB}/${periodic.maxUploadBytes / PeriodicSpeedTest.MB} MB")
         val intervalNs = periodic.intervalMin * 60_000L * NS_PER_MS
         var slot = 1L
@@ -267,7 +267,7 @@ class LoggingEngine @Inject constructor(
             setPeriodic(PeriodicStatus(periodic.intervalMin, nextAtElapsedNs = at))
             delay(((at - clock.elapsedRealtimeNs()) / NS_PER_MS).coerceAtLeast(0))
             // Its own job, so Live's Stop (which cancels the test's job) does not end the schedule.
-            launch { if (!speedTest(SpeedTestTarget.PRIMARY, SpeedTestTrigger.PERIODIC, config)) log("periodic speed test skipped") }.join()
+            launch { if (!speedTest(periodic.target, SpeedTestTrigger.PERIODIC, config)) log("periodic speed test skipped") }.join()
             slot = (clock.elapsedRealtimeNs() - startNs) / intervalNs + 1
         }
     }
@@ -289,13 +289,14 @@ class LoggingEngine @Inject constructor(
                 return false
             }
             setSpeedTest(SpeedTestState.Running(null))
-            log("speed test ($target, ${trigger.name.lowercase()}) started against ${config.downloadUrl}")
+            // The server's name, never its URL: log lines go into problem reports and must not carry IP addresses.
+            log("speed test (${trigger.name.lowercase()}) started against ${serverName(target)}")
             val results = speedTestRunner.run(config, onResult = { synchronized(finished) { finished += it } }) {
                 phase = it.phase
                 setSpeedTest(SpeedTestState.Running(it))
             }.map(::flagged)
             results.forEach { session.addThroughput(it) }
-            log("speed test: " + results.joinToString { "${it.type} ${it.mbps ?: it.rttAvgMs ?: "–"} ${it.error ?: ""}".trim() } +
+            log("speed test: " + results.joinToString { "${it.type} ${it.mbps ?: it.rttAvgMs ?: "–"} ${it.error?.let(::withoutAddresses) ?: ""}".trim() } +
                 (results.firstNotNullOfOrNull { it.serverLocation }?.let { " · server location $it" } ?: ""))
             setSpeedTest(SpeedTestState.Done(results))
             return true
@@ -338,6 +339,11 @@ class LoggingEngine @Inject constructor(
         val job = speedTestJob.get() ?: return
         speedTestStopRequested.set(true)
         job.cancel()
+    }
+
+    private fun serverName(target: SpeedTestTarget) = when (target) {
+        SpeedTestTarget.PRIMARY -> "Private server"
+        SpeedTestTarget.PUBLIC -> "Cloudflare"
     }
 
     private fun urlOf(config: SpeedTestConfig, type: ThroughputType) = when (type) {
@@ -415,6 +421,12 @@ class LoggingEngine @Inject constructor(
         const val NO_PRIVATE_SERVER_PERIODIC = "Periodic test off: no private server set (Settings › Speed test)"
         const val STOPPED_BY_USER = "stopped"
         const val STOPPED_WITH_SESSION = "session stopped"
+
+        private val IPV4 = Regex("""\b\d{1,3}(\.\d{1,3}){3}\b""")
+        private val IPV6 = Regex("""\b[0-9a-fA-F]{0,4}(:[0-9a-fA-F]{0,4}){3,7}\b""")
+
+        /** An error text for the log, e.g. "failed to connect to /203.0.113.7 (port 8080)", with addresses replaced. */
+        internal fun withoutAddresses(text: String) = text.replace(IPV4, "<ip>").replace(IPV6, "<ip>")
 
         /** Pure: newest fix taken at or before the tick; the oldest one if all are newer. */
         fun buildTick(

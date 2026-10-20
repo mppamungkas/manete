@@ -239,7 +239,8 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       "Private server · periodic"; throughput.csv `triggeredBy` PERIODIC for those, MANUAL for a manual test between
 - [ ] Limits: Ping + Download only, 5 s, 25 MB: rows have only PING and DOWNLOAD, `durationMs` ≈ 5000, `bytes` ≤ ~26 MB
 - [ ] Stop on a periodic test: that test ends (`stopped`), the next slot still runs
-- [ ] No private server + periodic on: red "Periodic test off: no private server set" on Live, nothing runs
+- [ ] Periodic on Cloudflare (no private server needed): "Cloudflare SIN · periodic", `serverUrl` speed.cloudflare.com
+- [ ] No private server + periodic on the private server: red "Periodic test off: no private server set" on Live, nothing runs
 - [ ] Screen off, unplugged: the periodic tests still run on time (logcat "speed test (PRIMARY, periodic) started")
 - [ ] Describe a problem after a test with Wi-Fi on: the report lists the caught errors with count and times, no IP or host
 

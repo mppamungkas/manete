@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.data.CaptureSettings
+import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.feature.settings.navigation.AboutRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CapabilitiesRoute
 import id.my.pamslab.netlogger.feature.settings.navigation.CaptureSettingsRoute
@@ -56,6 +57,8 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
         val server = if (speedTest.isComplete) stringResource(R.string.settings_speed_test_summary_server, host ?: speedTest.downloadUrl)
             else stringResource(R.string.settings_speed_test_summary_none)
         val speedSummary = when {
+            periodic.enabled && periodic.target == SpeedTestTarget.PUBLIC ->
+                stringResource(R.string.settings_speed_test_summary_periodic_cloudflare, server, periodic.intervalMin)
             periodic.enabled && speedTest.isComplete -> stringResource(R.string.settings_speed_test_summary_periodic, server, periodic.intervalMin)
             periodic.enabled -> stringResource(R.string.settings_speed_test_summary_periodic_no_server, server)
             else -> stringResource(R.string.settings_speed_test_summary_public, server)

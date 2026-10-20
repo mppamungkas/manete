@@ -449,6 +449,33 @@ class LoggingEngineTest {
     }
 
     @Test
+    fun `periodic speed test on Cloudflare - runs without a private server, with the periodic limits`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val runner = FakeRunner()
+        val periodic = PeriodicSpeedTest(intervalMin = 15, target = SpeedTestTarget.PUBLIC, durationMs = 5_000)
+        val engine = LoggingEngine(
+            radio(clock), FakeLocation(), FakeDevice, clock, repo, runner,
+            FakeSettings(SpeedTestConfig("", "", ""), periodic), CaptureStateHolder(),
+        )
+        val job = launch { engine.run(1_000, null) }
+        advanceTimeBy(15 * 60_000 + 500)
+        assertEquals(1, runner.runs)
+        assertEquals(SpeedTestConfig.cloudflare().copy(durationMs = 5_000), runner.lastConfig)
+        assertTrue(repo.throughput.all { it.serverUrl.startsWith(SpeedTestConfig.CLOUDFLARE) && it.trigger == SpeedTestTrigger.PERIODIC })
+        assertNull((engine.state.value as LoggingState.Running).periodic?.problem)
+        job.cancel()
+    }
+
+    @Test
+    fun `error texts in the log lose their IP addresses`() {
+        assertEquals("connect: failed to connect to /<ip> (port 8080) from /<ip> (port 41234)",
+            LoggingEngine.withoutAddresses("connect: failed to connect to /203.0.113.7 (port 8080) from /10.0.0.2 (port 41234)"))
+        assertEquals("Unable to resolve host: <ip> unreachable", LoggingEngine.withoutAddresses("Unable to resolve host: 2001:db8::1 unreachable"))
+        assertEquals("HTTP 429", LoggingEngine.withoutAddresses("HTTP 429"))
+    }
+
+    @Test
     fun `periodic data estimate counts only the capped phases it runs`() {
         val all = PeriodicSpeedTest(intervalMin = 10)
         assertTrue(all.isDefaultTest)
@@ -456,6 +483,7 @@ class LoggingEngineTest {
         assertEquals(6 * 250 * PeriodicSpeedTest.MB, all.maxBytesPerHour)
         val pingOnly = PeriodicSpeedTest(intervalMin = 5, phases = setOf(ThroughputType.PING))
         assertFalse(pingOnly.isDefaultTest)
+        assertTrue("the server is not a limit", all.copy(target = SpeedTestTarget.PUBLIC).isDefaultTest)
         assertEquals(0L, pingOnly.maxBytesPerTest)
         assertEquals(0L, PeriodicSpeedTest(intervalMin = 0).maxBytesPerHour)
         assertFalse("no phase chosen is off", PeriodicSpeedTest(intervalMin = 5, phases = emptySet()).enabled)
