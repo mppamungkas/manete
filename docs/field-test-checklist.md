@@ -232,17 +232,21 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 
 ## Periodic speed test and caught errors (CLAUDE.md 1.7.8)
 
-- [ ] Database migrated 3 → 4 on each phone's debug install with its field data (back up first): speed test rows kept,
-      every old row `triggeredBy` = MANUAL
-- [ ] Settings › Speed test › Repeat every 5 min: Settings list says "repeats every 5 min"; data per hour shown
-- [ ] A 12 min session: Live shows "Every 5 min · next in m:ss" counting down; tests at 5:00 and 10:00 after Start,
+- [x] Database migrated 3 → 4 on each phone's debug install with its field data (back up first): speed test rows kept,
+      every old row `triggeredBy` = MANUAL (2026-10-20: moto 33 sessions / 13 675 ticks / 15 tests, A56 7 / 1 343 / 12,
+      integrity ok; backups `~/netlogger-backups/*-debug-before-schema4-20261019-2347`)
+- [x] Settings › Speed test › Repeat every 5 min: Settings list says "repeats every 5 min"; data per hour shown (moto,
+      A56: 2.9 GB/h full test, 2.3 GB/h without upload; limits saved: Ping + Download, 5 s, 25 MB)
+- [ ] A 12 min session (A56 2026-10-20: "Every 5 min · next in 4:48" seen, then the phone dropped off Wi-Fi ADB; stored
+      rows not checked yet): Live shows "Every 5 min · next in m:ss" counting down; tests at 5:00 and 10:00 after Start,
       "Private server · periodic"; throughput.csv `triggeredBy` PERIODIC for those, MANUAL for a manual test between
 - [ ] Limits: Ping + Download only, 5 s, 25 MB: rows have only PING and DOWNLOAD, `durationMs` ≈ 5000, `bytes` ≤ ~26 MB
 - [ ] Stop on a periodic test: that test ends (`stopped`), the next slot still runs
 - [ ] Periodic on Cloudflare (no private server needed): "Cloudflare SIN · periodic", `serverUrl` speed.cloudflare.com
-- [ ] No private server + periodic on the private server: red "Periodic test off: no private server set" on Live, nothing runs
-- [ ] Screen off, unplugged: the periodic tests still run on time (logcat "speed test (PRIMARY, periodic) started")
-- [ ] Describe a problem after a test with Wi-Fi on: the report lists the caught errors with count and times, no IP or host
+- [x] No private server + periodic on the private server: red "Periodic test off: no private server set" on Live, nothing runs (moto)
+- [ ] Screen off, unplugged: the periodic tests still run on time (logcat "speed test (periodic) started against Private server")
+- [x] Describe a problem lists the caught errors with count and times, no message, IP or host (moto 2026-10-20, from
+      `CrashTestReceiver --es kind caught` in main and :vpn: "4× … · main", "1× … · vpn"; a burst within 30 s is saved)
 
 ## Before a release
 
