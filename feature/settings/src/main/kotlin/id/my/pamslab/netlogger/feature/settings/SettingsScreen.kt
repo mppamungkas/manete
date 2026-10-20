@@ -55,8 +55,11 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
         val host = remember(speedTest) { runCatching { URI(speedTest.downloadUrl.trim()).host }.getOrNull() }
         val server = if (speedTest.isComplete) stringResource(R.string.settings_speed_test_summary_server, host ?: speedTest.downloadUrl)
             else stringResource(R.string.settings_speed_test_summary_none)
-        val speedSummary = if (periodic.enabled) stringResource(R.string.settings_speed_test_summary_periodic, server, periodic.intervalMin)
-            else stringResource(R.string.settings_speed_test_summary_public, server)
+        val speedSummary = when {
+            periodic.enabled && speedTest.isComplete -> stringResource(R.string.settings_speed_test_summary_periodic, server, periodic.intervalMin)
+            periodic.enabled -> stringResource(R.string.settings_speed_test_summary_periodic_no_server, server)
+            else -> stringResource(R.string.settings_speed_test_summary_public, server)
+        }
         SettingsEntry(stringResource(R.string.settings_speed_test), speedSummary) {
             onOpen(SpeedTestSettingsRoute)
         }

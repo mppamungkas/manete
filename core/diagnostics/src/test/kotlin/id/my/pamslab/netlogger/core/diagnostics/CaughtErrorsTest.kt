@@ -53,6 +53,17 @@ class CaughtErrorsTest {
     }
 
     @Test
+    fun `an error recorded before the saved file is read is merged with it`() {
+        val log = CaughtErrorLog("main")
+        log.record("export failed", null, t0)
+        log.restore(listOf(CaughtError("export failed", null, null, "main", 4, t0 - 3_600_000, t0 - 60_000)), t0)
+        val merged = log.snapshot(t0).single()
+        assertEquals(5L, merged.count)
+        assertEquals(t0 - 3_600_000, merged.firstMs)
+        assertEquals(t0, merged.lastMs)
+    }
+
+    @Test
     fun `at most 50 kinds, the oldest goes`() {
         val log = CaughtErrorLog("vpn")
         repeat(CaughtErrorLog.MAX_ENTRIES + 1) { log.record("error $it", null, t0 + it) }

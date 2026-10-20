@@ -12,6 +12,7 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -58,9 +59,16 @@ class CaughtErrorLog(private val process: String) {
         return added
     }
 
-    /** Adds what an earlier process saved (same counts, not doubled). */
+    /**
+     * Adds what an earlier process saved, once at start. Merged with anything this process recorded before the file was
+     * read, so neither count is lost.
+     */
     fun restore(saved: List<CaughtError>, nowMs: Long) {
-        saved.filter { nowMs - it.lastMs < KEEP_MS }.forEach { entries.putIfAbsent(key(it.where, it.exception, it.frame), it) }
+        saved.filter { nowMs - it.lastMs < KEEP_MS }.forEach { old ->
+            entries.merge(key(old.where, old.exception, old.frame), old) { current, _ ->
+                current.copy(count = current.count + old.count, firstMs = minOf(current.firstMs, old.firstMs))
+            }
+        }
     }
 
     fun snapshot(nowMs: Long): List<CaughtError> = entries.values.filter { nowMs - it.lastMs < KEEP_MS }.sortedByDescending { it.lastMs }
@@ -114,7 +122,8 @@ class CaughtErrorLog(private val process: String) {
 /**
  * Errors NetLogger caught and kept running after (2026-10-19), for "Describe a problem": kept in
  * files/problems/caught/<process>.json for 7 days, per process (main and :vpn), so they survive a restart. Saved at
- * once for a new kind of error, otherwise at most every 30 s. Nothing leaves the phone unless the user sends a report.
+ * once for a new kind of error; a repeat is saved at most 30 s later. Nothing leaves the phone unless the user sends a
+ * report.
  *
  * Call [caught] in a catch block instead of `Log.w`: it writes the same log line and records the error.
  */
@@ -127,7 +136,7 @@ object CaughtErrors {
     private val json = Json { ignoreUnknownKeys = true }
     private val lastSaveMs = AtomicLong(0)
     private val saveQueued = AtomicBoolean(false)
-    private val io = Executors.newSingleThreadExecutor { r -> Thread(r, "NetLogger-caught").apply { isDaemon = true } }
+    private val io = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "NetLogger-caught").apply { isDaemon = true } }
 
     /** Once per process, early (next to [CrashRecorder.install]). */
     fun install(context: Context, processName: String) {
@@ -157,7 +166,7 @@ object CaughtErrors {
         val target = log ?: return // not installed (unit tests, or before Application.onCreate)
         val now = System.currentTimeMillis()
         val added = target.record(where, error, now)
-        if (added || now - lastSaveMs.get() >= SAVE_EVERY_MS) save()
+        save(if (added) 0 else (lastSaveMs.get() + SAVE_EVERY_MS - now).coerceAtLeast(0))
     }
 
     /** Every process' caught errors of the last 7 days, newest first. Blocking (file I/O). */
@@ -176,13 +185,17 @@ object CaughtErrors {
         return (own + others).filter { now - it.lastMs < CaughtErrorLog.KEEP_MS }.sortedByDescending { it.lastMs }
     }
 
-    private fun save() {
-        if (!saveQueued.compareAndSet(false, true)) return
-        io.execute {
+    /**
+     * Saves after [delayMs]. A repeat joins a save that is already waiting; a new kind ([delayMs] 0) is saved at once
+     * even then (the later save writes the same entries again).
+     */
+    private fun save(delayMs: Long) {
+        if (!saveQueued.compareAndSet(false, true) && delayMs > 0) return
+        io.schedule(Runnable {
             saveQueued.set(false)
             lastSaveMs.set(System.currentTimeMillis())
-            val target = file ?: return@execute
-            val entries = log?.snapshot(System.currentTimeMillis()) ?: return@execute
+            val target = file ?: return@Runnable
+            val entries = log?.snapshot(System.currentTimeMillis()) ?: return@Runnable
             try {
                 target.parentFile?.mkdirs()
                 val tmp = File(target.parentFile, target.name + ".tmp")
@@ -191,7 +204,7 @@ object CaughtErrors {
             } catch (e: Exception) {
                 Log.w(TAG, "caught errors not saved", e)
             }
-        }
+        }, delayMs, TimeUnit.MILLISECONDS)
     }
 
     private fun dir(context: Context) = File(context.filesDir, "problems/caught")

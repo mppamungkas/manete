@@ -12,6 +12,7 @@
     <string name="settings_speed_test_summary_none">No private server set</string>
     <string name="settings_speed_test_summary_public">%1$s · Cloudflare always on Live</string>
     <string name="settings_speed_test_summary_periodic">%1$s · repeats every %2$d min</string>
+    <string name="settings_speed_test_summary_periodic_no_server">%1$s · the periodic test cannot run</string>
     <string name="settings_capture">Traffic capture</string>
     <string name="settings_capture_summary_all">All apps · MTU %1$s</string>
     <plurals name="settings_capture_summary_specific">
