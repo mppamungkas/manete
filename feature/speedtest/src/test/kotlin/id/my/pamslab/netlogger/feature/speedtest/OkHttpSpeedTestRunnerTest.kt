@@ -93,6 +93,8 @@ class OkHttpSpeedTestRunnerTest {
         assertTrue(up.bytes!! > 0)
         assertTrue(up.mbps!! > 0)
         assertTrue(uploaded.get() > 0)
+        assertTrue("only what the server received counts: ${up.bytes} vs ${uploaded.get()}", up.bytes!! <= uploaded.get())
+        assertTrue("timed to the last confirmed piece: ${up.durationMs}", up.durationMs!! <= 1_000)
         assertTrue(progress.any { it.phase == ThroughputType.DOWNLOAD && it.mbps != null })
     }
 
@@ -131,6 +133,17 @@ class OkHttpSpeedTestRunnerTest {
         assertNull(cloudflareLocation("8d1f0c2b3a4d5e6f"))
         assertNull(cloudflareLocation("8d1f-sin"))
         assertNull(cloudflareLocation("8d1f-SING"))
+    }
+
+    @Test
+    fun `upload stops near the byte cap and counts whole confirmed pieces only`() = runBlocking {
+        val capped = config().copy(maxUploadBytes = 3L * 1024 * 1024, durationMs = 10_000, phases = setOf(ThroughputType.UPLOAD))
+        val up = OkHttpSpeedTestRunner(clock) { null }.run(capped) {}.single()
+        assertNull(up.error)
+        assertTrue("reached the cap: ${up.bytes}", up.bytes!! >= 3L * 1024 * 1024)
+        assertTrue("passed only by the pieces in flight: ${up.bytes}", up.bytes!! <= 2 * 3L * 1024 * 1024)
+        assertEquals("whole 256 kB pieces only", 0L, up.bytes!! % (64 * 1024))
+        assertTrue("stopped early: ${up.durationMs} ms", up.durationMs!! < 10_000)
     }
 
     @Test

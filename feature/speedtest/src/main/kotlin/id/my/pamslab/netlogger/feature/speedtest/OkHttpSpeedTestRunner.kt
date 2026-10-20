@@ -38,7 +38,8 @@ import kotlin.random.Random
  * - Ping RTT: request sent to response body read, on a kept-alive connection; the first request opens the
  *   connection and is not counted. It includes the server's response time, unlike ICMP.
  * - Download: bytes read from the response bodies until the phase ends.
- * - Upload: bytes handed to the socket until the phase ends (the last socket buffer may not have arrived yet).
+ * - Upload: bytes of the pieces the server confirmed (answered), timed to the last confirmation (since 2026-10-20;
+ *   before, bytes handed to the socket, which the send buffers inflated).
  * - Mbps = bytes × 8 / phase time / 10^6, over the whole phase (TCP ramp-up included, no grace period).
  * - Redirects are never followed: a 3xx (e.g. an operator's captive portal when the data quota is used up) is an
  *   error naming the redirect host, not a measurement of the portal.
@@ -137,7 +138,7 @@ class OkHttpSpeedTestRunner @Inject constructor(
     }
 
     private suspend fun download(config: SpeedTestConfig, onProgress: (SpeedTestProgress) -> Unit) =
-        transfer(ThroughputType.DOWNLOAD, config.downloadUrl, config, config.maxDownloadBytes, onProgress) { url, bytes, limit, location ->
+        transfer(ThroughputType.DOWNLOAD, config.downloadUrl, config, config.maxDownloadBytes, onProgress, confirmedOnly = false) { url, bytes, limit, location, _ ->
             val call = client.newCall(Request.Builder().url(url).header("Cache-Control", "no-cache").build())
             call to {
                 call.execute().use { response ->
@@ -151,22 +152,26 @@ class OkHttpSpeedTestRunner @Inject constructor(
                         if (bytes.addAndGet(n.toLong()) >= limit) break
                     }
                 }
+                0L
             }
         }
 
+    /**
+     * Each request posts one piece of [pieceBytes]; it counts only once the server has answered, i.e. received all of
+     * it. Bytes handed to the socket are not counted: the send buffers (2 MB per connection on the A56) and, during a
+     * capture, the VPN forwarder take several MB at memory speed (a 10 MB upload "took" 0.5 s, 162 Mbps, 2026-10-20).
+     */
     private suspend fun upload(config: SpeedTestConfig, onProgress: (SpeedTestProgress) -> Unit) =
-        transfer(ThroughputType.UPLOAD, config.uploadUrl, config, config.maxUploadBytes, onProgress) { url, bytes, limit, location ->
+        transfer(ThroughputType.UPLOAD, config.uploadUrl, config, config.maxUploadBytes, onProgress, confirmedOnly = true) { url, _, _, location, pieceBytes ->
             val body = object : RequestBody() {
                 override fun contentType() = OCTET_STREAM
-                override fun contentLength() = UPLOAD_REQUEST_BYTES
+                override fun contentLength() = pieceBytes
                 override fun writeTo(sink: BufferedSink) {
-                    var left = UPLOAD_REQUEST_BYTES
+                    var left = pieceBytes
                     while (left > 0) {
                         val n = minOf(left, RANDOM_BLOCK.size.toLong()).toInt()
                         sink.write(RANDOM_BLOCK, 0, n)
-                        sink.flush()
                         left -= n
-                        if (bytes.addAndGet(n.toLong()) >= limit) throw IOException(LIMIT_REACHED)
                     }
                 }
             }
@@ -175,13 +180,22 @@ class OkHttpSpeedTestRunner @Inject constructor(
                 call.execute().use { response ->
                     response.location()?.let { location.compareAndSet(null, it) }
                     if (!response.isSuccessful) throw HttpStatusException(response)
+                    response.body?.bytes()
                 }
+                pieceBytes
             }
         }
 
     /**
      * Runs [streams][SpeedTestConfig.streams] workers that repeat [request] until the phase time is up or [limit] bytes
      * are counted. All calls still open at the end are cancelled.
+     *
+     * [confirmedOnly] (upload): a request counts the bytes it returns once it has finished, and the phase's time ends
+     * at the last such count, so pieces cut off by the end of the phase count neither bytes nor time. Pieces start at
+     * [MIN_PIECE_BYTES] and double per worker while one takes less than [PIECE_GROW_MS] (up to [MAX_PIECE_BYTES]), so
+     * a slow link still finishes pieces and a fast one is not slowed by a wait for each answer. A piece is at most the
+     * bytes left to [limit] divided by the connections, so pieces still in flight pass the cap by about the bytes that
+     * were left when they started (a 3 MB cap ended at 4.1 MB in the unit test).
      */
     private suspend fun transfer(
         type: ThroughputType,
@@ -189,12 +203,14 @@ class OkHttpSpeedTestRunner @Inject constructor(
         config: SpeedTestConfig,
         limit: Long,
         onProgress: (SpeedTestProgress) -> Unit,
-        request: (url: okhttp3.HttpUrl, bytes: AtomicLong, limit: Long, location: AtomicReference<String?>) -> Pair<Call, () -> Unit>,
+        confirmedOnly: Boolean,
+        request: (url: okhttp3.HttpUrl, bytes: AtomicLong, limit: Long, location: AtomicReference<String?>, pieceBytes: Long) -> Pair<Call, () -> Long>,
     ): ThroughputResult {
         if (uncached(base) == null) return failed(type, base, BAD_URL)
         val startMs = clock.wallTimeMs()
         val startNs = clock.elapsedRealtimeNs()
         val bytes = AtomicLong()
+        val lastCountNs = AtomicLong(0)
         val firstError = AtomicReference<String?>(null)
         val rejected = AtomicReference<String?>(null)
         val location = AtomicReference<String?>(null)
@@ -205,19 +221,28 @@ class OkHttpSpeedTestRunner @Inject constructor(
         coroutineScope {
             repeat(config.streams) {
                 launch(Dispatchers.IO) {
+                    var piece = MIN_PIECE_BYTES
                     while (isActive && !done()) {
                         val url = uncached(base) ?: break
-                        val (call, execute) = request(url, bytes, limit, location)
+                        val size = minOf(piece, maxOf(MIN_PIECE_BYTES, (limit - bytes.get()) / config.streams))
+                        val (call, execute) = request(url, bytes, limit, location, size)
                         call.timeout().timeout((deadline - System.nanoTime()).coerceAtLeast(1), TimeUnit.NANOSECONDS)
                         open += call
+                        val sent = System.nanoTime()
                         try {
-                            execute()
+                            val counted = execute()
+                            if (confirmedOnly && counted > 0) {
+                                val now = System.nanoTime()
+                                bytes.addAndGet(counted)
+                                lastCountNs.accumulateAndGet(now, ::maxOf)
+                                if (now - sent < PIECE_GROW_MS * 1_000_000) piece = minOf(piece * 2, MAX_PIECE_BYTES)
+                            }
                         } catch (e: HttpStatusException) {
                             // The server refused the request: the counted bytes do not show the link speed.
                             rejected.compareAndSet(null, e.message)
                             break
                         } catch (e: IOException) {
-                            if (!done() && e.message != LIMIT_REACHED) {
+                            if (!done()) {
                                 firstError.compareAndSet(null, e.message ?: e.javaClass.simpleName)
                                 delay(RETRY_DELAY_MS)
                             }
@@ -240,7 +265,8 @@ class OkHttpSpeedTestRunner @Inject constructor(
                 }
             }
         }
-        val elapsedNs = (minOf(System.nanoTime(), deadline) - t0).coerceAtLeast(1)
+        val endNs = if (confirmedOnly) lastCountNs.get().takeIf { it > 0 } ?: minOf(System.nanoTime(), deadline) else minOf(System.nanoTime(), deadline)
+        val elapsedNs = (endNs - t0).coerceAtLeast(1)
         val total = bytes.get()
         val refusal = rejected.get()
         return ThroughputResult(
@@ -271,9 +297,10 @@ class OkHttpSpeedTestRunner @Inject constructor(
         const val PROGRESS_MS = 500L
         const val RETRY_DELAY_MS = 200L
         const val CHUNK_BYTES = 64 * 1024
-        const val UPLOAD_REQUEST_BYTES = 4L * 1024 * 1024
+        const val MIN_PIECE_BYTES = 256L * 1024
+        const val MAX_PIECE_BYTES = 8L * 1024 * 1024
+        const val PIECE_GROW_MS = 1_000L
         const val BAD_URL = "invalid URL"
-        const val LIMIT_REACHED = "byte limit reached"
         val OCTET_STREAM = "application/octet-stream".toMediaType()
 
         /** Incompressible upload data. */

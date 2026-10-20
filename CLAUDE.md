@@ -1,6 +1,6 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.7.8** · last updated 2026-10-19
+**CLAUDE.md version 1.7.9** · last updated 2026-10-20
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
@@ -8,6 +8,7 @@
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.7.9:** Upload measurement counts only what the server received: pieces of 256 kB doubling up to 8 MB per connection while one takes under 1 s, each counted when the server answers, the phase timed to the last answer. Before, bytes handed to the socket were counted, and the send buffers (2 MB per connection on the A56, more during a capture) inflated every upload rate: a 10 MB periodic upload "took" 0.5 s (162 Mbps vs. 30 Mbps manual, `docs/device-quirks.md` 2026-10-20). Upload rows before 1.7.9 overstate; no schema change.
 - **1.7.8:** Periodic speed test: Settings › Speed test › Repeat during a session (off / 5 / 10 / 15 / 30 min, private server or Cloudflare, the schedule read at session start, slots counted from Start, a slot during another test is skipped, Stop ends only the running test); by default the manual test, optional limits (parts, 5/10 s, download and upload caps) with the data use per test and per hour shown. Schema v4: `throughput_test.triggeredBy` (MANUAL / PERIODIC), migration 3→4 marks earlier rows MANUAL, tested. `connections.csv`: ICMP rows have `app` = `ICMP (app unknown)`. Caught errors (decision 005 addendum): `CaughtErrors.caught/record` in catch blocks, kept 7 days per process, summarised in "Describe a problem" reports (never the exception message). Speed test log lines name the server ("Private server" / "Cloudflare"), never its URL, and error texts lose IP addresses.
 - **1.7.7:** Speed test on Live: three buttons, Private server (the user's server from Settings; a red note when none is set), Cloudflare (public comparison, always offered, never the default; the Settings on/off switch is gone) and Stop (finished phases are kept, the interrupted one is stored with `error` = `stopped`, or `session stopped` when the session ends during a test). Schema v3: `throughput_test.serverLocation`, Cloudflare's site code from the `CF-RAY` header (e.g. `SIN`), migration 2→3 tested.
 - **1.7.6:** Release builds: signed with the release key from `local.properties` (`netlogger.signing.*`, never in the repo; unsigned without it), arm64-v8a + armeabi-v7a only, version 0.2.0. Debug builds have their own app ID `id.my.pamslab.netlogger.debug` ("NetLogger debug"), so debug and release install side by side, each with its own data; adb component names keep the class package (`id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.MainActivity`).

@@ -243,6 +243,8 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [ ] Limits (A56 session 9, all parts, 5 s, 25/10 MB: download stopped at 26.2 MB after 4.5 s; **upload 10.5 MB in
       0.5 s = 162 Mbps, the send buffers, not the link**, see device-quirks): Ping + Download only, 5 s, 25 MB: rows have only PING and DOWNLOAD, `durationMs` ≈ 5000, `bytes` ≤ ~26 MB
 - [ ] Stop on a periodic test: that test ends (`stopped`), the next slot still runs
+- [ ] Upload after the 1.7.9 fix (Wi-Fi off): manual 10 s upload and a periodic 10 MB-capped upload give similar Mbps;
+      both close to another speed test app at the same spot, with and without a capture
 - [ ] Periodic on Cloudflare (no private server needed): "Cloudflare SIN · periodic", `serverUrl` speed.cloudflare.com
 - [x] No private server + periodic on the private server: red "Periodic test off: no private server set" on Live, nothing runs (moto)
 - [ ] Screen off, unplugged: the periodic tests still run on time (logcat "speed test (periodic) started against Private server")

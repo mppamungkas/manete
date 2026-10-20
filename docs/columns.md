@@ -244,8 +244,8 @@ server). Align with measurements.csv by `startedElapsedNs`.
 | `serverUrl` | | URL the phase used (each request adds a unique `nl` query parameter against caches): the user's private server set in Settings, or `https://speed.cloudflare.com/…` for the public Cloudflare test |
 | `serverLocation` | | Where the server answered from, when it says so: Cloudflare's location code from the `CF-RAY` response header, an IATA airport code such as `SIN` (Singapore) or `CGK` (Jakarta). Empty for servers that do not report one and for rows recorded before schema v3 |
 | `triggeredBy` | | What started the test: `MANUAL` (Private server or Cloudflare on Live, or the notification) or `PERIODIC` (Settings › Speed test › Repeat during a session; private server or Cloudflare, see `serverUrl`; may use shorter phases and lower caps, see `durationMs` and `bytes`). Rows recorded before schema v4 are `MANUAL` (there was no periodic test then) |
-| `durationMs` | ms | Phase time actually measured |
-| `bytes` | bytes | DOWNLOAD: bytes read; UPLOAD: bytes handed to the socket (the last socket buffer may still be in flight) |
+| `durationMs` | ms | Phase time actually measured; UPLOAD (2026-10-20 on): from the start to the server's answer to the last counted piece |
+| `bytes` | bytes | DOWNLOAD: bytes read. UPLOAD (2026-10-20 on, CLAUDE.md 1.7.9): bytes of the upload pieces the server confirmed (answered after receiving all of it); pieces cut off at the end are not counted. Before: bytes handed to the socket, which the send buffers inflate (up to ~8 MB on the A56, more during a capture), so older UPLOAD rows overstate `mbps`, by up to ~25 % for a 10 s test at 30 Mbps and grossly for small caps (10 MB in 0.5 s = 162 Mbps, device-quirks 2026-10-20) |
 | `mbps` | Mbit/s | bytes × 8 / phase time / 10^6, whole phase incl. TCP ramp-up; empty when the server refused (HTTP error) or nothing was transferred |
 | `streams` | | Parallel connections (download/upload: 4; ping: 1) |
 | `rttMinMs` | ms | PING: fastest HTTP round trip (request sent to response read, kept-alive connection; includes server time, unlike ICMP) |

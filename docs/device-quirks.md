@@ -796,7 +796,8 @@ half the ticks, native capture all apps (MTU 1500). Analysis in `~/netlogger-ana
   the socket; the phone's TCP send buffer is 2 MB by default per connection (`tcp_wmem` 512000 2097152 8388608), so
   4 connections accept about 8 MB at memory speed, and during a capture the VPN forwarder buffers more. A small upload
   cap measures the buffers, not the link; every upload rate is overstated by the data still in the buffers when the
-  phase ends (up to ~8 MB, i.e. up to ~25 % of a 10 s test at 30 Mbps). Open: count only bytes the server confirmed.
+  phase ends (up to ~8 MB, i.e. up to ~25 % of a 10 s test at 30 Mbps). **Fixed** (CLAUDE.md 1.7.9): the upload now
+  counts only pieces the server confirmed, timed to the last confirmation; upload rows before the fix overstate.
 
 ## Not available by design
 
