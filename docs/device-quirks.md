@@ -776,6 +776,28 @@ First session from a student's phone (release 0.3.0, schema v3), 26 min, screen 
 - **`getBands()` empty**: until `BandMapper` (milestone 7), band stays null. Record how often each phone does this.
 - **Cached cell info with screen off**: check `cellInfoOrigin` and `cellInfoAgeMs` in milestone 3 tests.
 
+### Samsung Galaxy A56, Telkomsel (510-10), periodic speed test with a capture, 2026-10-20
+
+Debug build `4efe672` (schema v4), session 9: 5 min 21 s, mostly still and indoors (average 0.5 km/h), screen off for
+half the ticks, native capture all apps (MTU 1500). Analysis in `~/netlogger-analysis/a56-periodic-20261020/`.
+
+- Ticks 322 of 322 expected. GPS: 127 ticks with a fix older than 2 s and 21 GPS_LOST/GPS_RESTORED pairs (STALE_FIX)
+  indoors, as expected.
+- Every tick NR_NSA (`overrideNetworkType` 3, the 5G icon), but **no NR cell at all**, neither from CellInfo nor from
+  SignalStrength; the earlier Telkomsel sessions on this phone were LTE. Cell bandwidths `[20000,20000,20000,20000]`
+  (4 × 20 MHz LTE CA) in 298 ticks. So the icon alone does not show that NR carried data; the 63.8 Mbps download fits
+  LTE CA. Same pattern as G-NetTrack's "NR_NSA in the header, but no NR values" (moto, above).
+- Warnings as known for Samsung: SAMSUNG_LTE_SNR_ZERO 656, SAMSUNG_NEIGHBOR_PLACEHOLDER 379 per field,
+  SECONDARY_SERVING_WITHOUT_CA 379, LTE_SIGNAL_STRENGTH_STALE 44.
+- Capture: 150 783 packets = expected, 0 dropped, 82 connections, `uid_unknown` 0.
+- Periodic speed test (every 5 min, 5 s per part, caps 25 MB down / 10 MB up): ran exactly 5:00 after Start, stored
+  as PERIODIC. Download stopped at the cap after 4.5 s (26.2 MB, 46.1 Mbps). **Upload: 10.55 MB in 520 ms =
+  162.3 Mbps**, against 30.2 Mbps for the manual 10 s upload in the same session. The upload counts bytes handed to
+  the socket; the phone's TCP send buffer is 2 MB by default per connection (`tcp_wmem` 512000 2097152 8388608), so
+  4 connections accept about 8 MB at memory speed, and during a capture the VPN forwarder buffers more. A small upload
+  cap measures the buffers, not the link; every upload rate is overstated by the data still in the buffers when the
+  phase ends (up to ~8 MB, i.e. up to ~25 % of a 10 s test at 30 Mbps). Open: count only bytes the server confirmed.
+
 ## Not available by design
 
 - Physical channel config (needs privileged `READ_PRECISE_PHONE_STATE`).

@@ -237,10 +237,11 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       integrity ok; backups `~/netlogger-backups/*-debug-before-schema4-20261019-2347`)
 - [x] Settings › Speed test › Repeat every 5 min: Settings list says "repeats every 5 min"; data per hour shown (moto,
       A56: 2.9 GB/h full test, 2.3 GB/h without upload; limits saved: Ping + Download, 5 s, 25 MB)
-- [ ] A 12 min session (A56 2026-10-20: "Every 5 min · next in 4:48" seen, then the phone dropped off Wi-Fi ADB; stored
-      rows not checked yet): Live shows "Every 5 min · next in m:ss" counting down; tests at 5:00 and 10:00 after Start,
+- [ ] A 12 min session (A56 2026-10-20, session 9, 5 min: the first periodic test ran exactly 5:00 after Start,
+      PERIODIC; a second slot still to see): Live shows "Every 5 min · next in m:ss" counting down; tests at 5:00 and 10:00 after Start,
       "Private server · periodic"; throughput.csv `triggeredBy` PERIODIC for those, MANUAL for a manual test between
-- [ ] Limits: Ping + Download only, 5 s, 25 MB: rows have only PING and DOWNLOAD, `durationMs` ≈ 5000, `bytes` ≤ ~26 MB
+- [ ] Limits (A56 session 9, all parts, 5 s, 25/10 MB: download stopped at 26.2 MB after 4.5 s; **upload 10.5 MB in
+      0.5 s = 162 Mbps, the send buffers, not the link**, see device-quirks): Ping + Download only, 5 s, 25 MB: rows have only PING and DOWNLOAD, `durationMs` ≈ 5000, `bytes` ≤ ~26 MB
 - [ ] Stop on a periodic test: that test ends (`stopped`), the next slot still runs
 - [ ] Periodic on Cloudflare (no private server needed): "Cloudflare SIN · periodic", `serverUrl` speed.cloudflare.com
 - [x] No private server + periodic on the private server: red "Periodic test off: no private server set" on Live, nothing runs (moto)
