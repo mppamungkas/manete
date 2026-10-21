@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 private val SECTIONS: List<Pair<Int, Int>> = listOf(
     R.string.help_start_title to R.array.help_start,
     R.string.help_test_title to R.array.help_test,
+    R.string.help_indoor_title to R.array.help_indoor,
     R.string.help_speed_title to R.array.help_speed,
     R.string.help_capture_title to R.array.help_capture,
     R.string.help_results_title to R.array.help_results,

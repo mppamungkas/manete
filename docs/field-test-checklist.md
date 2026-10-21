@@ -269,17 +269,23 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       ticks placed along the path (LTE RSRP yellow, Network blue), last tap ringed; Still here kept the spot (STILL);
       a stray tap undone (stored removed = 1); floor change to Basement: only its taps and ticks shown; Live row
       "Basement · B1 · 2 taps · last 0:15 ago"; two FLOOR_CHANGE events (from empty, then C → Basement) on Live and stored
-- [ ] Live › Plan on the A56; with the screen off between taps; leaving and reopening the app keeps the plan and taps
+- [x] Screen off for 20 s between two taps (moto, session 37): logging went on, the ticks recorded with the screen off are
+      placed between the taps (55 placed); Home and reopening after 8 s keep the plan and both taps
+- [ ] Live › Plan on the A56
 - [x] Map › Recorded session 36 (moto): the OSM track is a GPS scatter around the building; "Map ▾" → "Floor plan" shows
       44 / 139 ticks on Gedung C (5 taps) along the walked path, legend counts; a tapped dot opens tick 48 with "x 1308,
       y 996 px (26.7, 20.3 m) · 2.7 s from a tap" and its GPS fix; the floor menu switches to Basement (6 ticks, 2 taps);
       back to Map works; a session without taps has no Map/Floor plan menu; no crash
-- [ ] Map › Live session while recording with taps: the floor plan view grows with new taps and ticks
+- [x] Map › Live session while recording with taps: "Map ▾" offered; the floor plan view grew from 55 / 123 ticks with
+      2 taps to 109 / 142 with 3 after a tap on Live › Plan (moto, session 37)
 - [x] Export of session 36 (moto, Share ZIP): waypoints.csv 8 taps (metres for the scaled plan only), indoor.csv 50
       rows (44 + 6, as on the Map), plans.json and both plan images byte for byte; recomputed independently from
       waypoints.csv + measurements.csv: the same 50 ticks, positions within 0.1 px; size estimate includes the images
 - [x] "Include floor plan images" unticked (tapping the label; first only the box toggled: fixed): no plans/ files,
       plans.json "image": null, positions unchanged
+- [ ] A real indoor walk over two floors with the building's own plans (photo or PDF): taps at turns and stairs, floor
+      change on arrival; Map › Floor plan and indoor.csv match where you walked; waypointGapS stays small at turns
+- [ ] How to use › 3. Indoor test with a floor plan read by a student: clear without help?
 - [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release

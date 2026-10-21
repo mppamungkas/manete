@@ -31,7 +31,7 @@
     <string name="settings_capabilities">Phone capabilities</string>
     <string name="settings_capabilities_summary">What this phone reports: a live check, plus your recorded sessions</string>
     <string name="settings_help">How to use</string>
-    <string name="settings_help_summary">Preparing a test, drive and walk tests, speed test, capture, export, problems, glossary</string>
+    <string name="settings_help_summary">Preparing a test, drive and walk tests, indoor tests, speed test, capture, export, problems, glossary</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Version %1$s · licence, privacy, credits</string>
     <string name="yes">Yes</string>
@@ -272,14 +272,25 @@
         <item>Stop ends the session. If Android closes the app during a session, the session is closed at the next start and keeps every row recorded until then.</item>
         <item>Sessions lists your recordings: open one to rename it, add notes, see charts, export or delete it.</item>
     </string-array>
-    <string name="help_speed_title">3. Speed test</string>
+    <string name="help_indoor_title">3. Indoor test with a floor plan</string>
+    <string-array name="help_indoor">
+        <item>Indoors GPS is weak or wrong: on the map an indoor walk becomes a cloud of points around the building. With a floor plan you show NetLogger where you are instead.</item>
+        <item>Before: import one plan per floor in Settings › Floor plans (a photo of the fire-escape plan, a screenshot, or a PDF page from the architect). Give each a floor label. Optional: set a scale with two points whose distance you know (a long corridor), so positions are also exported in metres.</item>
+        <item>Start logging on Live (scenario Indoor), open Plan and choose the floor. Tap the plan where you are now, then again at every turn, door, stair and landmark. Zoom in (pinch) to tap precisely; double-tap shows the whole plan.</item>
+        <item>Walk at an even pace between taps: the measurements in between are placed on the straight line between two taps, in proportion to time. Tap often where the path bends; a straight corridor needs a tap only at both ends.</item>
+        <item>Standing still for a while (a speed test, waiting at a door)? Tap Still here when you start to move again, so that time stays at that spot. A wrong tap? Undo last tap.</item>
+        <item>Taking the stairs or the lift: choose the next floor in the plan menu when you arrive, then tap where you are. Measurements on the stairs are not placed on either floor.</item>
+        <item>Afterwards: Map › Floor plan shows the session on its plans, coloured by signal; tap a dot for its values. The export adds waypoints.csv (your taps), indoor.csv (a position per measurement) and the plan images; untick Include floor plan images if the building\'s layout must not be shared.</item>
+        <item>Positions are only as good as your taps: indoor.csv gives for each measurement the seconds to the nearest tap (waypointGapS). Large values mean the position relies on walking at an even pace.</item>
+    </string-array>
+    <string name="help_speed_title">4. Speed test</string>
     <string-array name="help_speed">
         <item>While a session is logging, with Wi-Fi off, start it on Live: Private server tests against your own server, set in Settings › Speed test (a LibreSpeed server works); Cloudflare tests against Cloudflare\'s public servers and needs no setting. Stop ends a test early and keeps the parts already finished.</item>
         <item>It measures ping, then download and upload for 10 seconds each. One test can use up to about 250 MB of your data plan.</item>
         <item>The result depends on the radio (signal, 4G or 5G, how busy the cell is) and on the route to the server. Compare tests against the same server; Cloudflare is only for comparison. With Cloudflare, the site that answered is stored with the result (e.g. SIN for Singapore): a far site means a longer route.</item>
         <item>For throughput along a whole route, turn on Settings › Speed test › Repeat during a session (every 5, 10, 15 or 30 min, against your private server or Cloudflare). Watch the data use shown there: every 5 min can use up to 3 GB per hour unless you set limits. Periodic results are marked PERIODIC in throughput.csv (column triggeredBy).</item>
     </string-array>
-    <string name="help_capture_title">4. Traffic capture</string>
+    <string name="help_capture_title">5. Traffic capture</string>
     <string-array name="help_capture">
         <item>Start it in the Capture row on Live while a session is logging. Android asks once to allow NetLogger\'s VPN. The capture stops with Stop or at the end of the session.</item>
         <item>Only one VPN can run at a time: turn other VPN apps off first. connections.csv lists which app owns each connection.</item>
@@ -287,7 +298,7 @@
         <item>Files grow with the traffic: a speed test during a capture adds about 100 MB.</item>
         <item>It records the apps\' IP traffic, not radio signalling, and packet sizes and timing are rebuilt by the VPN. Speed tests during a capture are flagged because the capture slows them down.</item>
     </string-array>
-    <string name="help_results_title">5. Map, charts and export</string>
+    <string name="help_results_title">6. Map, charts and export</string>
     <string-array name="help_results">
         <item>Map colours a session\'s track by LTE RSRP, NR SS-RSRP, LTE or NR SINR, or network type. Tap a point to see its values.</item>
         <item>Open a session in Sessions for charts of the signal over time and the network type.</item>
@@ -295,7 +306,7 @@
         <item>CSV files use commas and a dot for decimals. If Excel shows everything in one column, open the file with Data › From Text/CSV and choose comma as the delimiter.</item>
         <item>Open capture.pcap in Wireshark. Packet times use the same clock as the radio log; capture_sync.csv shows how they line up.</item>
     </string-array>
-    <string name="help_problems_title">6. When something goes wrong</string>
+    <string name="help_problems_title">7. When something goes wrong</string>
     <string-array name="help_problems">
         <item>If NetLogger crashes, freezes, or Android ends it during a recording, a red card on Live says so the next time you open it. The recording is closed and keeps everything recorded until then.</item>
         <item>Settings › Problem reports keeps these reports on the phone (at most 20). Open one to see exactly what would be sent: the app and phone model, what happened, a technical trace and NetLogger\'s own log lines; no location, cell identities, Wi-Fi names or captured traffic.</item>
@@ -303,7 +314,7 @@
         <item>For a native crash you may also attach the raw crash dump. It helps the developer, but it can contain parts of NetLogger\'s memory, so only attach it when you trust the receiver.</item>
         <item>Something wrong without a crash? Use Describe a problem and say what you did, what happened and what you expected.</item>
     </string-array>
-    <string name="help_glossary_title">7. Glossary</string>
+    <string name="help_glossary_title">8. Glossary</string>
     <string-array name="help_glossary">
         <item>RSRP: received power of a cell\'s reference signal, in dBm. About −80 is strong, below −110 weak.</item>
         <item>RSRQ: signal quality in dB, lower with interference and load. About −10 is good, below −15 poor.</item>
