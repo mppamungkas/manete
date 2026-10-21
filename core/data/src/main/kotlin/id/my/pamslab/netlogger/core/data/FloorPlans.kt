@@ -1,0 +1,317 @@
+package id.my.pamslab.netlogger.core.data
+
+import android.annotation.SuppressLint
+import android.content.ContentResolver
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.ImageDecoder
+import android.graphics.pdf.PdfRenderer
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Log
+import dagger.hilt.android.qualifiers.ApplicationContext
+import id.my.pamslab.netlogger.core.data.db.FloorPlanDao
+import id.my.pamslab.netlogger.core.data.db.FloorPlanEntity
+import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
+import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
+import id.my.pamslab.netlogger.core.model.Clock
+import id.my.pamslab.netlogger.core.model.indoor.FloorPlan
+import id.my.pamslab.netlogger.core.model.indoor.Georeference
+import id.my.pamslab.netlogger.core.model.indoor.GeoPoint
+import id.my.pamslab.netlogger.core.model.indoor.PlanGeometry
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
+import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** A floor plan for the Floor plans page: the plan, its stored image and how many sessions use it. */
+data class FloorPlanSummary(
+    val plan: FloorPlan,
+    val image: File,
+    val createdAt: Long,
+    val sessions: Int,
+    val waypoints: Int,
+)
+
+/** A session's taps (removed ones too, in time order) and the plans they are on. */
+data class SessionIndoor(val plans: List<FloorPlanSummary>, val waypoints: List<Waypoint>) {
+    val active: List<Waypoint> get() = waypoints.filterNot { it.removed }
+}
+
+/** A file the user picked, before importing: its name and, for a PDF, its page count. */
+data class PlanSource(val displayName: String?, val pdfPages: Int?)
+
+sealed interface PlanImportResult {
+    data class Imported(val id: Long) : PlanImportResult
+
+    data class Failed(val reason: PlanImportError) : PlanImportResult
+}
+
+enum class PlanImportError {
+    /** Not an image or PDF Android can read. */
+    UNSUPPORTED,
+
+    /** The file could not be opened or read. */
+    UNREADABLE,
+
+    /** A password-protected PDF. */
+    PDF_PROTECTED,
+
+    /** Not enough memory to decode it. */
+    TOO_LARGE,
+
+    /** The stored copy could not be written (storage full?). */
+    NOT_SAVED,
+}
+
+/**
+ * Floor plans for indoor tests (decision 006): imported images live in files/plans/<uuid>.png, downscaled to at most
+ * [PlanGeometry.MAX_SIDE_PX]. A plan used by a session cannot be deleted.
+ */
+interface FloorPlanRepository {
+    /** Newest first. */
+    val plans: Flow<List<FloorPlanSummary>>
+
+    suspend fun plan(id: Long): FloorPlanSummary?
+
+    /** The taps of [sessionId] and their plans; updates while the session records. */
+    fun sessionIndoor(sessionId: Long): Flow<SessionIndoor>
+
+    /** Plan image files per session id, for sessions with taps. */
+    val planImagesBySession: Flow<Map<Long, List<File>>>
+
+    /** Name and page count of a picked file, or why it cannot be opened ([PlanImageException]). */
+    suspend fun inspect(uri: Uri): Result<PlanSource>
+
+    /** Imports an image, or page [pdfPage] (0-based) of a PDF. */
+    suspend fun import(uri: Uri, pdfPage: Int, name: String, floor: String?): PlanImportResult
+
+    suspend fun rename(id: Long, name: String, floor: String?)
+
+    /** [metresPerPx] null removes the scale. */
+    suspend fun setScale(id: Long, metresPerPx: Double?)
+
+    /** Where the plan lies on the map (decision 006 step 7); null removes it. */
+    suspend fun setGeoreference(id: Long, georef: Georeference?)
+
+    /** False when a session uses the plan (it stays). */
+    suspend fun delete(id: Long): Boolean
+}
+
+/** Where plan images are stored. */
+interface PlanFileStore {
+    val dir: File
+
+    fun image(imageFile: String) = File(dir, imageFile)
+}
+
+@Singleton
+class AppPlanFileStore @Inject constructor(@ApplicationContext context: Context) : PlanFileStore {
+    override val dir = File(context.filesDir, "plans")
+}
+
+/** Decodes a picked file into the bitmap to store; Android-only, so tests replace it. */
+interface PlanImageReader {
+    fun inspect(uri: Uri): Result<PlanSource>
+
+    /** The plan bitmap, already within [PlanGeometry.MAX_SIDE_PX], or the reason it failed. */
+    fun read(uri: Uri, pdfPage: Int): Result<Bitmap>
+}
+
+class PlanImageException(val reason: PlanImportError, cause: Throwable? = null) : Exception(reason.name, cause)
+
+@Singleton
+class AndroidPlanImageReader @Inject constructor(@ApplicationContext context: Context) : PlanImageReader {
+    private val resolver: ContentResolver = context.contentResolver
+
+    override fun inspect(uri: Uri): Result<PlanSource> = try {
+        val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+        val pages = if (isPdf(uri)) pdf(uri) { it.pageCount } else null
+        Result.success(PlanSource(name, pages))
+    } catch (e: SecurityException) {
+        // PdfRenderer: "Password required to access document" (moto g45, 2026-10-21).
+        Result.failure(PlanImageException(if (isPdf(uri)) PlanImportError.PDF_PROTECTED else PlanImportError.UNREADABLE, e))
+    } catch (e: Exception) {
+        CaughtErrors.caught("floor plan: picked file not readable", e)
+        Result.failure(PlanImageException(PlanImportError.UNREADABLE, e))
+    }
+
+    override fun read(uri: Uri, pdfPage: Int): Result<Bitmap> = try {
+        Result.success(if (isPdf(uri)) renderPdf(uri, pdfPage) else decodeImage(uri))
+    } catch (e: PlanImageException) {
+        Result.failure(e)
+    } catch (e: OutOfMemoryError) {
+        Result.failure(PlanImageException(PlanImportError.TOO_LARGE, e))
+    } catch (e: ImageDecoder.DecodeException) {
+        Result.failure(PlanImageException(PlanImportError.UNSUPPORTED, e))
+    } catch (e: SecurityException) {
+        // PdfRenderer: a password-protected PDF.
+        Result.failure(PlanImageException(if (isPdf(uri)) PlanImportError.PDF_PROTECTED else PlanImportError.UNREADABLE, e))
+    } catch (e: Exception) {
+        Result.failure(PlanImageException(PlanImportError.UNREADABLE, e))
+    }
+
+    private fun isPdf(uri: Uri) = resolver.getType(uri) == "application/pdf"
+
+    /** PNG, JPEG, WebP, HEIC …; EXIF rotation applied by ImageDecoder. */
+    private fun decodeImage(uri: Uri): Bitmap =
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
+            val (w, h) = PlanGeometry.storedSize(info.size.width, info.size.height)
+            decoder.setTargetSize(w, h)
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE // compressible
+        }
+
+    @SuppressLint("UseKtx") // core-ktx is not a dependency of core:data; not worth one for createBitmap.
+    private fun renderPdf(uri: Uri, pageIndex: Int): Bitmap = pdf(uri) { renderer ->
+        if (pageIndex !in 0 until renderer.pageCount) throw PlanImageException(PlanImportError.UNREADABLE)
+        renderer.openPage(pageIndex).use { page ->
+            val (w, h) = PlanGeometry.pdfRenderSize(page.width, page.height)
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                it.eraseColor(Color.WHITE) // PDF pages are transparent where nothing is drawn
+                page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            }
+        }
+    }
+
+    private fun <T> pdf(uri: Uri, block: (PdfRenderer) -> T): T {
+        val fd = resolver.openFileDescriptor(uri, "r") ?: throw PlanImageException(PlanImportError.UNREADABLE)
+        return fd.use { PdfRenderer(it).use(block) }
+    }
+}
+
+@Singleton
+class RoomFloorPlanRepository @Inject constructor(
+    db: NetLoggerDatabase,
+    private val files: PlanFileStore,
+    private val reader: PlanImageReader,
+    private val clock: Clock,
+) : FloorPlanRepository {
+
+    private val dao: FloorPlanDao = db.floorPlanDao()
+
+    override val plans: Flow<List<FloorPlanSummary>> = dao.observeWithUsage().map { rows ->
+        rows.map { summary(it.plan, it.sessions, it.waypoints) }
+    }
+
+    override suspend fun plan(id: Long): FloorPlanSummary? {
+        val entity = dao.get(id) ?: return null
+        return summary(entity, sessions = dao.sessionCount(id), waypoints = dao.activeWaypointCount(id))
+    }
+
+    override val planImagesBySession: Flow<Map<Long, List<File>>> = dao.observeSessionPlanFiles().map { rows ->
+        rows.groupBy({ it.sessionId }, { files.image(it.imageFile) })
+    }
+
+    override fun sessionIndoor(sessionId: Long): Flow<SessionIndoor> =
+        combine(dao.observeWaypoints(sessionId), plans) { rows, all ->
+            val waypoints = rows.map {
+                Waypoint(it.planId, it.wallTimeMs, it.elapsedRealtimeNs, it.x, it.y, WaypointKind.entries.firstOrNull { k -> k.name == it.kind } ?: WaypointKind.HERE, it.removed)
+            }
+            val used = waypoints.map { it.planId }.toSet()
+            SessionIndoor(all.filter { it.plan.id in used }, waypoints)
+        }
+
+    override suspend fun inspect(uri: Uri): Result<PlanSource> = withContext(Dispatchers.IO) { reader.inspect(uri) }
+
+    override suspend fun import(uri: Uri, pdfPage: Int, name: String, floor: String?): PlanImportResult = withContext(Dispatchers.IO) {
+        val bitmap = reader.read(uri, pdfPage).getOrElse { e ->
+            val reason = (e as? PlanImageException)?.reason ?: PlanImportError.UNREADABLE
+            CaughtErrors.record("floor plan import failed: $reason", e)
+            return@withContext PlanImportResult.Failed(reason)
+        }
+        val width = bitmap.width
+        val height = bitmap.height
+        val uuid = UUID.randomUUID().toString()
+        val fileName = "$uuid.png"
+        try {
+            files.dir.mkdirs()
+            val tmp = File(files.dir, "$fileName.tmp")
+            tmp.outputStream().use { out -> check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) }
+            check(tmp.renameTo(files.image(fileName)))
+        } catch (e: Exception) {
+            CaughtErrors.caught("floor plan image not saved", e)
+            return@withContext PlanImportResult.Failed(PlanImportError.NOT_SAVED)
+        } finally {
+            bitmap.recycle()
+        }
+        val id = dao.insert(
+            FloorPlanEntity(
+                uuid = uuid, name = name.trim().ifEmpty { "Floor plan" }, floor = floor?.trim()?.ifEmpty { null },
+                imageFile = fileName, widthPx = width, heightPx = height, createdAt = clock.wallTimeMs(),
+            ),
+        )
+        Log.i(TAG, "floor plan imported: $width x $height px" + if (pdfPage > 0) " (PDF page ${pdfPage + 1})" else "")
+        PlanImportResult.Imported(id)
+    }
+
+    override suspend fun rename(id: Long, name: String, floor: String?) =
+        dao.rename(id, name.trim().ifEmpty { "Floor plan" }, floor?.trim()?.ifEmpty { null })
+
+    override suspend fun setScale(id: Long, metresPerPx: Double?) = dao.setScale(id, metresPerPx)
+
+    override suspend fun setGeoreference(id: Long, georef: Georeference?) = dao.setGeoref(id, georef?.let(GeorefJson::encode))
+
+    override suspend fun delete(id: Long): Boolean {
+        val plan = dao.get(id) ?: return true
+        if (dao.waypointCount(id) > 0) return false
+        dao.delete(id)
+        withContext(Dispatchers.IO) { files.image(plan.imageFile).delete() }
+        return true
+    }
+
+    private fun summary(e: FloorPlanEntity, sessions: Int, waypoints: Int) = FloorPlanSummary(
+        plan = FloorPlan(e.id, e.uuid, e.name, e.floor, e.widthPx, e.heightPx, e.metresPerPx, GeorefJson.decode(e.georefJson)),
+        image = files.image(e.imageFile),
+        createdAt = e.createdAt,
+        sessions = sessions,
+        waypoints = waypoints,
+    )
+
+    private companion object {
+        const val TAG = "NetLogger"
+    }
+}
+
+/**
+ * floor_plan.georefJson: `{"points":[{"x":..,"y":..,"lat":..,"lon":..}]}`. Only the placed points are stored; the
+ * transform is fitted from them when used, so a better fit later applies to old plans too.
+ */
+object GeorefJson {
+    @Serializable
+    private data class Point(val x: Double, val y: Double, val lat: Double, val lon: Double)
+
+    @Serializable
+    private data class Stored(val points: List<Point>)
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun encode(georef: Georeference): String =
+        json.encodeToString(Stored.serializer(), Stored(georef.points.map { Point(it.x, it.y, it.lat, it.lon) }))
+
+    /** Null for null, empty or unreadable text (never a crash on a bad row). */
+    fun decode(text: String?): Georeference? {
+        if (text.isNullOrBlank()) return null
+        return try {
+            Georeference(json.decodeFromString(Stored.serializer(), text).points.map { GeoPoint(it.x, it.y, it.lat, it.lon) })
+        } catch (e: SerializationException) {
+            CaughtErrors.record("floor plan georeference unreadable", e)
+            null
+        } catch (e: IllegalArgumentException) {
+            CaughtErrors.record("floor plan georeference unreadable", e)
+            null
+        }
+    }
+}

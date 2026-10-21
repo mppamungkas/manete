@@ -148,6 +148,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":feature:speedtest"))
     implementation(project(":feature:capture"))
+    implementation(project(":feature:indoor"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import id.my.pamslab.netlogger.core.data.FloorPlanRepository
+import id.my.pamslab.netlogger.core.data.SessionIndoor
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.feature.map.navigation.MapRoute
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -35,6 +39,7 @@ class MapViewModel @Inject constructor(
     repository: SessionRepository,
     loader: TrackLoader,
     liveTrail: LiveTrail,
+    floorPlans: FloorPlanRepository,
 ) : ViewModel() {
 
     private val routeSession = savedStateHandle.toRoute<MapRoute>().sessionId
@@ -77,6 +82,27 @@ class MapViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MapContent(null, preview = false))
 
+    /** Taps and plans of the shown session (not of the live preview); empty for sessions without taps. */
+    private val indoor: StateFlow<SessionIndoor?> = content
+        .map { it.track?.sessionId?.takeIf { id -> id != LiveTrail.LIVE_ID } }
+        .distinctUntilChanged()
+        .flatMapLatest { id -> if (id == null) flowOf(null) else floorPlans.sessionIndoor(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _view = MutableStateFlow(MapView.MAP)
+    val view: StateFlow<MapView> = _view.asStateFlow()
+
+    // null = the floor with the most taps.
+    private val pickedPlan = MutableStateFlow<Long?>(null)
+
+    /** The shown session on its floor plan (decision 006, step 4); null when it has no taps. */
+    val planTrack: StateFlow<PlanTrack?> = combine(content, indoor, pickedPlan) { c, i, p ->
+        val track = c.track
+        if (track == null || i == null || c.preview) null else planTrack(track, i, p)
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _metric = MutableStateFlow(Metric.LTE_RSRP)
     val metric: StateFlow<Metric> = _metric.asStateFlow()
 
@@ -86,10 +112,22 @@ class MapViewModel @Inject constructor(
     fun setMode(mode: MapMode) {
         _mode.value = mode
         _selectedSeq.value = null
+        pickedPlan.value = null
     }
 
     fun pickSession(id: Long) {
         picked.value = id
+        _selectedSeq.value = null
+        pickedPlan.value = null
+    }
+
+    fun setView(view: MapView) {
+        _view.value = view
+        _selectedSeq.value = null
+    }
+
+    fun pickPlan(id: Long) {
+        pickedPlan.value = id
         _selectedSeq.value = null
     }
 

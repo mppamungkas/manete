@@ -36,5 +36,26 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/** v4 → v5: floor_plan and plan_waypoint tables for indoor tests (decision 006). Existing tables are unchanged. */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `floor_plan` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `uuid` TEXT NOT NULL, " +
+                "`name` TEXT NOT NULL, `floor` TEXT, `imageFile` TEXT NOT NULL, `widthPx` INTEGER NOT NULL, " +
+                "`heightPx` INTEGER NOT NULL, `metresPerPx` REAL, `georefJson` TEXT, `createdAt` INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_floor_plan_uuid` ON `floor_plan` (`uuid`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `plan_waypoint` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sessionId` INTEGER NOT NULL, `planId` INTEGER NOT NULL, `wallTimeMs` INTEGER NOT NULL, " +
+                "`elapsedRealtimeNs` INTEGER NOT NULL, `x` REAL NOT NULL, `y` REAL NOT NULL, `kind` TEXT NOT NULL, " +
+                "`removed` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) ON UPDATE NO ACTION " +
+                "ON DELETE CASCADE , FOREIGN KEY(`planId`) REFERENCES `floor_plan`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_plan_waypoint_sessionId` ON `plan_waypoint` (`sessionId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_plan_waypoint_planId` ON `plan_waypoint` (`planId`)")
+    }
+}
+
 /** Every migration, in order; registered with the database builder. */
-val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)

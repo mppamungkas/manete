@@ -1,4 +1,5 @@
 plugins {
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.netlogger.android.library)
     alias(libs.plugins.netlogger.hilt)
 }
@@ -18,7 +19,10 @@ ksp {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     implementation(libs.kotlinx.coroutines.core)
+    // floor_plan.georefJson (decision 006 step 7); already used by core:export and core:diagnostics.
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)

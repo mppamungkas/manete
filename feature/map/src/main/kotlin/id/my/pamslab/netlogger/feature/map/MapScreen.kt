@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.data.FloorPlanSummary
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import java.text.SimpleDateFormat
@@ -47,6 +48,8 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
     val content by viewModel.content.collectAsStateWithLifecycle()
     val metric by viewModel.metric.collectAsStateWithLifecycle()
     val selectedSeq by viewModel.selectedSeq.collectAsStateWithLifecycle()
+    val view by viewModel.view.collectAsStateWithLifecycle()
+    val planTrack by viewModel.planTrack.collectAsStateWithLifecycle()
     var follow by rememberSaveable { mutableStateOf(true) }
 
     val live = mode == MapMode.LIVE
@@ -57,6 +60,9 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
     }
     // Only draw a track that belongs to what is selected (avoids a frame of the previous one).
     val shown = content.track?.takeIf { it.sessionId == wantedId }
+    // The floor plan view, when the shown session has taps on a floor plan (decision 006).
+    val onPlan = planTrack?.takeIf { it.sessionId == wantedId }
+    val plan = onPlan?.takeIf { view == MapView.PLAN }
 
     Column(modifier.fillMaxSize()) {
         Row(
@@ -79,8 +85,18 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
                     onPick = viewModel::pickSession,
                 )
             }
+            if (onPlan != null) {
+                Dropdown(
+                    text = if (plan != null) "Floor plan" else "Map",
+                    options = listOf("Map" to MapView.MAP, "Floor plan" to MapView.PLAN),
+                    onPick = viewModel::setView,
+                )
+            }
+            if (plan != null && plan.plans.size > 1) {
+                Dropdown(text = planLabel(plan.plan), options = plan.plans.map { planLabel(it) to it.plan.id }, onPick = viewModel::pickPlan)
+            }
             Dropdown(text = metric.label, options = Metric.entries.map { it.label to it }, onPick = viewModel::setMetric)
-            if (live) FilterChip(selected = follow, onClick = { follow = !follow }, label = { Text("Follow") })
+            if (live && plan == null) FilterChip(selected = follow, onClick = { follow = !follow }, label = { Text("Follow") })
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             TrackMap(
@@ -92,17 +108,29 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
                 onPointClick = viewModel::selectPoint,
                 modifier = Modifier.fillMaxSize(),
             )
-            hint(live, recording != null, content, shown, sessions)?.let { Hint(it) }
+            hint(live, recording != null, content, shown, sessions)?.takeIf { plan == null }?.let { Hint(it) }
+            // Drawn over the map, which stays composed underneath: tearing down a MapView crashes MapLibre (2026-10-16).
+            plan?.let { FloorPlanMap(it, metric, selectedSeq, viewModel::selectPoint, Modifier.fillMaxSize()) }
             Column(Modifier.align(Alignment.BottomStart).padding(6.dp)) {
-                Legend(metric, shown?.points.orEmpty())
+                Legend(metric, plan?.points?.map { it.values } ?: shown?.points.orEmpty().map { it.values })
+                if (plan == null) {
+                    Text(
+                        "© OpenStreetMap contributors",
+                        Modifier.padding(top = 4.dp).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Black,
+                    )
+                }
+            }
+            plan?.let { p ->
                 Text(
-                    "© OpenStreetMap contributors",
-                    Modifier.padding(top = 4.dp).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = 4.dp),
+                    "${p.points.size} / ${p.ticks} ticks on this floor · ${p.path.size} taps" + if (live) " · recording" else "",
+                    Modifier.align(Alignment.TopEnd).padding(6.dp).background(Color.White.copy(alpha = 0.8f)).padding(horizontal = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Black,
                 )
             }
-            shown?.let { t ->
+            shown?.takeIf { plan == null }?.let { t ->
                 Text(
                     "${t.points.size} / ${t.ticks} ticks with GPS · ${t.events.size} events" + when {
                         content.preview -> " · live preview, not recorded"
@@ -115,7 +143,13 @@ internal fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = 
                 )
             }
         }
-        shown?.points?.firstOrNull { it.seq == selectedSeq }?.let { PointCard(it) { viewModel.selectPoint(null) } }
+        if (plan != null) {
+            plan.points.firstOrNull { it.values.seq == selectedSeq }?.let { p ->
+                PointCard(p.values, shown?.points?.firstOrNull { it.seq == selectedSeq }, planLine(plan, p)) { viewModel.selectPoint(null) }
+            }
+        } else {
+            shown?.points?.firstOrNull { it.seq == selectedSeq }?.let { PointCard(it.values, it, null) { viewModel.selectPoint(null) } }
+        }
     }
 }
 
@@ -155,9 +189,19 @@ private fun sessionTitle(s: SessionSummary): String =
     (s.label?.takeIf { it.isNotBlank() } ?: SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ROOT).format(Date(s.startedAtMs))) +
         if (s.endedAtMs == null) " (recording)" else ""
 
+private fun planLabel(s: FloorPlanSummary) = listOfNotNull(s.plan.name, s.plan.floor).joinToString(" · ")
+
+/** "Floor: C · 2 · x 1019, y 996 px (20.4, 19.9 m) · 3.2 s from a tap". */
+private fun planLine(track: PlanTrack, p: PlanPoint): String {
+    val pos = p.position
+    val metres = pos.metres(track.plan.plan)?.let { (x, y) -> " (%.1f, %.1f m)".format(Locale.ROOT, x, y) } ?: ""
+    return "${planLabel(track.plan)} · x %.0f, y %.0f px".format(Locale.ROOT, pos.x, pos.y) + metres +
+        " · %.1f s from a tap".format(Locale.ROOT, pos.waypointGapS)
+}
+
 /** Colour, range and how many shown ticks fall in it. */
 @Composable
-private fun Legend(metric: Metric, points: List<TrackPoint>) {
+private fun Legend(metric: Metric, points: List<TickValues>) {
     Column(Modifier.background(Color.White.copy(alpha = 0.85f)).padding(4.dp)) {
         metric.legendCounts(points).forEach { (argb, text, count) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,8 +218,9 @@ private fun Legend(metric: Metric, points: List<TrackPoint>) {
     }
 }
 
+/** The values of tick [p]; [gps] its fix if it has one; [plan] its floor plan position (plan view). */
 @Composable
-private fun PointCard(p: TrackPoint, onClose: () -> Unit) {
+private fun PointCard(p: TickValues, gps: TrackPoint?, plan: String?, onClose: () -> Unit) {
     Card(Modifier.fillMaxWidth().padding(8.dp)) {
         Column(Modifier.padding(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -190,7 +235,13 @@ private fun PointCard(p: TrackPoint, onClose: () -> Unit) {
             Value("LTE RSRP / SINR", "${dbm(p.lteRsrp, p.lteRsrpSource)} / ${dbm(p.lteSinr, p.lteSinrSource)}")
             Value("NR", "PCI ${p.nrPci ?: "–"} · ARFCN ${p.nrArfcn ?: "–"} · n${p.nrBand ?: "–"}" + (p.nrServingSource?.let { " · $it" } ?: "") + age(p.nrAgeMs))
             Value("NR RSRP / SINR", "${dbm(p.nrRsrp, p.nrRsrpSource)} / ${dbm(p.nrSinr, p.nrSinrSource)}")
-            Value("GPS", "%.6f, %.6f · ±%s m".format(Locale.ROOT, p.lat, p.lon, p.gpsAccuracyM?.let { "%.0f".format(Locale.ROOT, it) } ?: "–") + age(p.locationAgeMs))
+            plan?.let { Value("Floor plan", it) }
+            Value(
+                "GPS",
+                gps?.let { g ->
+                    "%.6f, %.6f · ±%s m".format(Locale.ROOT, g.lat, g.lon, g.gpsAccuracyM?.let { "%.0f".format(Locale.ROOT, it) } ?: "–") + age(g.locationAgeMs)
+                } ?: "no fix",
+            )
         }
     }
 }

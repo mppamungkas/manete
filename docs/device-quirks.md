@@ -799,6 +799,13 @@ half the ticks, native capture all apps (MTU 1500). Analysis in `~/netlogger-ana
   phase ends (up to ~8 MB, i.e. up to ~25 % of a 10 s test at 30 Mbps). **Fixed** (CLAUDE.md 1.7.9): the upload now
   counts only pieces the server confirmed, timed to the last confirmation; upload rows before the fix overstate.
 
+### moto g45, floor plan import (decision 006 step 2), 2026-10-21
+
+- `PdfRenderer` refuses a password-protected PDF already when opening it (to count pages), with
+  `SecurityException: Password required to access document`; NetLogger now reports it as protected.
+- The system file picker's Downloads view lists only files in Android's media index: files pushed with `adb push`
+  appear only under the phone's storage root (side menu › moto g45 5G › Download). Not an issue for files saved by apps.
+
 ## Not available by design
 
 - Physical channel config (needs privileged `READ_PRECISE_PHONE_STATE`).

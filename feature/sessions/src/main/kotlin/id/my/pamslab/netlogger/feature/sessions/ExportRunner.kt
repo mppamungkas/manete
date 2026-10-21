@@ -58,11 +58,11 @@ class ExportRunner @Inject constructor(
     /** The current or last export (any session). */
     val job: StateFlow<ExportJob?> = _job.asStateFlow()
 
-    /** False while another export runs. */
-    fun save(sessionId: Long, uri: Uri): Boolean = start(sessionId, ExportJob.Kind.SAVE) { progress ->
+    /** False while another export runs. [includePlanImages]: decision 006, D8. */
+    fun save(sessionId: Long, uri: Uri, includePlanImages: Boolean = true): Boolean = start(sessionId, ExportJob.Kind.SAVE) { progress ->
         val tmp = tempFile()
         try {
-            val result = tmp.outputStream().use { exporter.export(sessionId, it, onProgress = progress) }
+            val result = tmp.outputStream().use { exporter.export(sessionId, it, includePlanImages = includePlanImages, onProgress = progress) }
             val out = context.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("cannot open the chosen file")
             out.use { o -> tmp.inputStream().use { it.copyTo(o, COPY_BUFFER) } }
             result to null
@@ -78,12 +78,12 @@ class ExportRunner @Inject constructor(
      * Writes the ZIP to cache/exports and offers it to the app the user picks. Older exports are deleted first: the
      * receiving app may still read the previous file after we return, so it is kept until the next one.
      */
-    fun share(sessionId: Long): Boolean = start(sessionId, ExportJob.Kind.SHARE) { progress ->
+    fun share(sessionId: Long, includePlanImages: Boolean = true): Boolean = start(sessionId, ExportJob.Kind.SHARE) { progress ->
         val dir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
         val file = File(dir, exporter.fileName(sessionId))
         val result = try {
-            file.outputStream().use { exporter.export(sessionId, it, onProgress = progress) }
+            file.outputStream().use { exporter.export(sessionId, it, includePlanImages = includePlanImages, onProgress = progress) }
         } catch (e: Throwable) {
             file.delete()
             throw e

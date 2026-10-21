@@ -6,6 +6,7 @@ import id.my.pamslab.netlogger.core.data.db.ALL_MIGRATIONS
 import id.my.pamslab.netlogger.core.data.db.MIGRATION_1_2
 import id.my.pamslab.netlogger.core.data.db.MIGRATION_2_3
 import id.my.pamslab.netlogger.core.data.db.MIGRATION_3_4
+import id.my.pamslab.netlogger.core.data.db.MIGRATION_4_5
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -124,6 +125,34 @@ class SchemaTest {
     }
 
     @Test
+    fun `migration 4 to 5 keeps sessions, adds floor plans and waypoints with their keys`() {
+        helper.createDatabase(DB_MIGRATION_5, 4).use { db ->
+            db.execSQL(
+                "INSERT INTO session (uuid, startedAt, startedElapsedNs, intervalMs, deviceManufacturer, deviceModel, " +
+                    "androidVersion, schemaVersion, scenario) VALUES ('u', 1, 1, 1000, 'm', 'd', '16', 4, 'INDOOR')",
+            )
+        }
+        helper.runMigrationsAndValidate(DB_MIGRATION_5, 5, true, MIGRATION_4_5).use { db ->
+            db.query("SELECT scenario FROM session").use { c -> assertTrue(c.moveToFirst()); assertEquals("INDOOR", c.getString(0)) }
+            db.execSQL("PRAGMA foreign_keys = ON")
+            db.execSQL(
+                "INSERT INTO floor_plan (uuid, name, floor, imageFile, widthPx, heightPx, metresPerPx, createdAt) " +
+                    "VALUES ('p', 'Building C', '2nd floor', 'p.png', 4096, 2304, 0.05, 2)",
+            )
+            db.execSQL(
+                "INSERT INTO plan_waypoint (sessionId, planId, wallTimeMs, elapsedRealtimeNs, x, y, kind, removed) " +
+                    "VALUES (1, 1, 3, 3, 120.5, 300.25, 'HERE', 0)",
+            )
+            val planDeleteRefused = runCatching { db.execSQL("DELETE FROM floor_plan") }.isFailure
+            assertTrue("a plan with waypoints cannot be deleted", planDeleteRefused)
+            db.execSQL("DELETE FROM session")
+            db.query("SELECT COUNT(*) FROM plan_waypoint").use { c -> c.moveToFirst(); assertEquals("deleted with its session", 0, c.getInt(0)) }
+            db.execSQL("DELETE FROM floor_plan")
+            db.query("SELECT COUNT(*) FROM floor_plan").use { c -> c.moveToFirst(); assertEquals("unused plan deletable", 0, c.getInt(0)) }
+        }
+    }
+
+    @Test
     fun `every version has a migration`() {
         assertEquals((1 until NetLoggerDatabase.VERSION).toList(), ALL_MIGRATIONS.map { it.startVersion })
         ALL_MIGRATIONS.forEach { assertEquals(it.startVersion + 1, it.endVersion) }
@@ -133,6 +162,7 @@ class SchemaTest {
         const val DB_MIGRATION = "migration-test.db"
         const val DB_MIGRATION_3 = "migration-test-3.db"
         const val DB_MIGRATION_4 = "migration-test-4.db"
+        const val DB_MIGRATION_5 = "migration-test-5.db"
         const val DB = "schema-test.db"
     }
 }

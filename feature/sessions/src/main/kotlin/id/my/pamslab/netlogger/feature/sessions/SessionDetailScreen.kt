@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,10 +35,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.pamslab.netlogger.core.data.SessionIndoor
 import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.export.SizeEstimate
 import id.my.pamslab.netlogger.core.model.session.Scenario
@@ -58,6 +62,8 @@ internal fun SessionDetailScreen(
     val exporting by viewModel.exporting.collectAsStateWithLifecycle()
     val export by viewModel.export.collectAsStateWithLifecycle()
     val charts by viewModel.charts.collectAsStateWithLifecycle()
+    val indoor by viewModel.indoor.collectAsStateWithLifecycle()
+    val includePlanImages by viewModel.includePlanImages.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -83,6 +89,7 @@ internal fun SessionDetailScreen(
         onSaveZip = { scope.launch { viewModel.exportFileName()?.let(saveLauncher::launch) } },
         onShareZip = viewModel::share,
         onShowOnMap = { onShowOnMap(s.id) },
+        indoor = indoor, includePlanImages = includePlanImages, onIncludePlanImages = viewModel::setIncludePlanImages,
         onBack = onBack, modifier = modifier,
         charts = { ChartsSection(charts, recording = s.endedAtMs == null, onReload = viewModel::reloadCharts) },
     )
@@ -102,8 +109,12 @@ private fun DetailContent(
     onShowOnMap: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    indoor: SessionIndoor? = null,
+    includePlanImages: Boolean = true,
+    onIncludePlanImages: (Boolean) -> Unit = {},
     charts: @Composable () -> Unit = {},
 ) {
+    val plans = indoor?.plans.orEmpty()
     var label by rememberSaveable(s.id) { mutableStateOf(s.label.orEmpty()) }
     var notes by rememberSaveable(s.id) { mutableStateOf(s.notes.orEmpty()) }
     var scenario by rememberSaveable(s.id) { mutableStateOf(s.scenario) }
@@ -125,6 +136,13 @@ private fun DetailContent(
         Info("Ticks / cells", "${s.measurements} / ${s.cells}")
         Info("Markers", s.markers.toString())
         Info("Warnings (distinct)", s.warnings.toString())
+        if (plans.isNotEmpty()) {
+            Info(
+                "Floor plans",
+                plans.joinToString { listOfNotNull(it.plan.name, it.plan.floor).joinToString(" · ") } +
+                    " · ${indoor?.active?.size ?: 0} taps",
+            )
+        }
         size?.let { Info("Size", sizeLine(it)) }
         Info("UUID", s.uuid)
         charts()
@@ -145,6 +163,23 @@ private fun DetailContent(
             OutlinedButton(onClick = { confirmDelete = true }, enabled = s.endedAtMs != null) { Text("Delete") }
         }
         val canExport = s.endedAtMs != null && !exporting
+        if (plans.isNotEmpty()) {
+            // Decision 006, D8: a building's layout can be confidential; positions are exported either way.
+            // The whole row toggles, not only the box (a tap on the text missed it on the moto, 2026-10-21).
+            Row(
+                Modifier.fillMaxWidth().toggleable(includePlanImages, role = Role.Checkbox, onValueChange = onIncludePlanImages),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = includePlanImages, onCheckedChange = null, modifier = Modifier.padding(12.dp))
+                Column {
+                    Text("Include floor plan images", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Untick if the building's layout must not be shared. Positions on the plans are exported either way.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onSaveZip, enabled = canExport) { Text("Save ZIP…") }
             OutlinedButton(onClick = onShareZip, enabled = canExport) { Text("Share ZIP") }

@@ -7,10 +7,15 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import id.my.pamslab.netlogger.feature.logger.LiveScreen
+import id.my.pamslab.netlogger.feature.logger.plan.LivePlanScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
 data object LiveRoute
+
+/** Live › Plan: the floor plan of the running session (decision 006). */
+@Serializable
+data object LivePlanRoute
 
 fun NavController.navigateToLive(navOptions: NavOptions? = null) = navigate(LiveRoute, navOptions)
 
@@ -21,6 +26,8 @@ fun NavGraphBuilder.liveScreen(
     captureRow: CaptureRowSlot = {},
     /** Opens a problem report in Settings (decision 005), passed in by the app. */
     onOpenProblem: (String) -> Unit = {},
+    onOpenPlan: () -> Unit = {},
+    onClosePlan: () -> Unit = {},
 ) {
     composable<LiveRoute> {
         LiveScreen(
@@ -28,6 +35,8 @@ fun NavGraphBuilder.liveScreen(
             onRequestPermissions = onRequestPermissions,
             captureRow = captureRow,
             onOpenProblem = onOpenProblem,
+            onOpenPlan = onOpenPlan,
         )
     }
+    composable<LivePlanRoute> { LivePlanScreen(onBack = onClosePlan) }
 }

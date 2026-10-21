@@ -5,7 +5,8 @@ import androidx.room.RoomDatabase
 
 /** Bump [VERSION] only together with a Migration and a migration test (CLAUDE.md). */
 @Database(
-    entities = [SessionEntity::class, MeasurementEntity::class, CellEntity::class, EventEntity::class, ParseWarningEntity::class, ThroughputTestEntity::class],
+    entities = [SessionEntity::class, MeasurementEntity::class, CellEntity::class, EventEntity::class, ParseWarningEntity::class, ThroughputTestEntity::class,
+        FloorPlanEntity::class, PlanWaypointEntity::class],
     version = NetLoggerDatabase.VERSION,
     exportSchema = true,
 )
@@ -14,9 +15,10 @@ abstract class NetLoggerDatabase : RoomDatabase() {
     abstract fun measurementDao(): MeasurementDao
     abstract fun exportDao(): ExportDao
     abstract fun coverageDao(): CoverageDao
+    abstract fun floorPlanDao(): FloorPlanDao
 
     companion object {
-        const val VERSION = 4
+        const val VERSION = 5
         const val NAME = "netlogger.db"
     }
 }

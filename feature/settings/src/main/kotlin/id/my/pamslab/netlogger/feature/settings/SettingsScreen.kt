@@ -31,7 +31,12 @@ import java.net.URI
 
 /** The Settings list: one entry per page, each with its current value (decision 003). */
 @Composable
-internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier, viewModel: SettingsViewModel = hiltViewModel()) {
+internal fun SettingsScreen(
+    onOpen: (Any) -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenFloorPlans: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
     val speedTest by viewModel.speedTest.collectAsStateWithLifecycle()
     val periodic by viewModel.periodic.collectAsStateWithLifecycle()
     val interval by viewModel.intervalMs.collectAsStateWithLifecycle()
@@ -39,6 +44,7 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
     val captureAll by viewModel.captureAllApps.collectAsStateWithLifecycle()
     val captureApps by viewModel.captureSelectedApps.collectAsStateWithLifecycle()
     val captureMtu by viewModel.captureMtu.collectAsStateWithLifecycle()
+    val floorPlans by viewModel.floorPlanCount.collectAsStateWithLifecycle()
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -75,6 +81,12 @@ internal fun SettingsScreen(onOpen: (Any) -> Unit, modifier: Modifier = Modifier
                 else -> pluralStringResource(R.plurals.settings_capture_summary_specific, captureApps.size, captureApps.size, mtu)
             },
         ) { onOpen(CaptureSettingsRoute) }
+        SettingsEntry(
+            stringResource(R.string.settings_floor_plans),
+            if (floorPlans == 0) stringResource(R.string.settings_floor_plans_none)
+            else pluralStringResource(R.plurals.settings_floor_plans_count, floorPlans, floorPlans),
+            onOpenFloorPlans,
+        )
         Text(stringResource(R.string.settings_section_info), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         SettingsEntry(stringResource(R.string.settings_capabilities), stringResource(R.string.settings_capabilities_summary)) {
             onOpen(CapabilitiesRoute)
