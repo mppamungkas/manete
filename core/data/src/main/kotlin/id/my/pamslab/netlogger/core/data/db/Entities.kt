@@ -219,3 +219,50 @@ data class ParseWarningEntity(
     val firstSeenMs: Long,
     val lastSeenMs: Long,
 )
+
+/**
+ * A floor plan image the user imported (decision 006, schema v5). The image is files/plans/[imageFile], downscaled
+ * to at most 4096 px; [widthPx] / [heightPx] are its size, the unit of every waypoint's x/y.
+ */
+@Entity(tableName = "floor_plan", indices = [Index(value = ["uuid"], unique = true)])
+data class FloorPlanEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val uuid: String,
+    val name: String,
+    /** Floor label as the user wrote it ("2nd floor"); null if not given. */
+    val floor: String? = null,
+    val imageFile: String,
+    val widthPx: Int,
+    val heightPx: Int,
+    /** Set by the scale calibration (two points and their distance); null without one. */
+    val metresPerPx: Double? = null,
+    /** Optional georeference (plan points with lat/lon), decision 006 step 7; null without one. */
+    val georefJson: String? = null,
+    val createdAt: Long,
+)
+
+/**
+ * One tap on a floor plan during a session (decision 006, schema v5): the raw input from which tick positions are
+ * derived. x/y in pixels of the plan's stored image. [removed]: undone, kept for the export. A plan used by a waypoint
+ * cannot be deleted (RESTRICT); deleting the session deletes its waypoints.
+ */
+@Entity(
+    tableName = "plan_waypoint",
+    foreignKeys = [
+        ForeignKey(SessionEntity::class, ["id"], ["sessionId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(FloorPlanEntity::class, ["id"], ["planId"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index("sessionId"), Index("planId")],
+)
+data class PlanWaypointEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val sessionId: Long,
+    val planId: Long,
+    val wallTimeMs: Long,
+    val elapsedRealtimeNs: Long,
+    val x: Double,
+    val y: Double,
+    /** WaypointKind name: HERE / STILL. */
+    val kind: String,
+    val removed: Boolean = false,
+)

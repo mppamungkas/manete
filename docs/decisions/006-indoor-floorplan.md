@@ -1,6 +1,6 @@
 # 006: Floor plans for indoor tests: plan
 
-- **Status:** Proposed, 2026-10-21. Waiting for the decisions below.
+- **Status:** Accepted (D1–D8 as recommended), 2026-10-21. Step 1 done (schema v5, `PlanInterpolator`).
 - **Users:** teachers and students measuring inside buildings (campus, mall, station), and the research that needs
   radio values per room or corridor instead of a GPS track.
 - **Language:** English only, texts in `strings.xml`.
