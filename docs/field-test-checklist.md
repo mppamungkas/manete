@@ -286,6 +286,13 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [ ] A real indoor walk over two floors with the building's own plans (photo or PDF): taps at turns and stairs, floor
       change on arrival; Map › Floor plan and indoor.csv match where you walked; waypointGapS stays small at turns
 - [ ] How to use › 3. Indoor test with a floor plan read by a student: clear without help?
+- [x] On map (moto, Gedung C): map opens at the phone's position; A and B on plan + map → outline drawn, "turned 335°,
+      1 m = 24.9 px (your scale 49.0)"; a deliberately misplaced C → least-squares fit, "off by 11.2 m"; a plan tap just
+      outside the plan ignored; saved: "Placed on the map"
+- [x] Export of session 36 after placing Gedung C: indoor.csv lat/lon for its ticks (empty on the Basement), track.geojson
+      GPS track + one indoor LineString (44 points, FLOOR_PLAN), plans.json georef (330°, rmsM 11.2), heatmaps rendered
+      on the phone: Gedung C LTE RSRP + LTE SINR, Basement LTE RSRP (no SINR values there), legend counts 44
+- [ ] On map with a real building: corners on the OSM map; the indoor line in track.geojson lies inside the building
 - [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release

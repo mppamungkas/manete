@@ -17,8 +17,8 @@ private fun <T> col(name: String, value: (T) -> Any?) = Column(name, value)
 /** One tap for waypoints.csv, with its plan (decision 006). */
 class WaypointRow(val w: PlanWaypointEntity, val plan: FloorPlanEntity?)
 
-/** One tick placed on a floor plan for indoor.csv. */
-class IndoorRow(val m: MeasurementEntity, val position: PlanPosition, val plan: FloorPlanEntity?)
+/** One tick placed on a floor plan for indoor.csv; [latLon] when the plan is placed on the map. */
+class IndoorRow(val m: MeasurementEntity, val position: PlanPosition, val plan: FloorPlanEntity?, val latLon: Pair<Double, Double>? = null)
 
 /** Column sets per file. [time] formats epoch ms as ISO-8601 in the export's time zone. */
 class Columns(time: IsoTime) {
@@ -175,6 +175,8 @@ class Columns(time: IsoTime) {
         col("planXM") { it.plan?.metresPerPx?.let { m -> (it.position.x * m).round(2) } },
         col("planYM") { it.plan?.metresPerPx?.let { m -> (it.position.y * m).round(2) } },
         col("waypointGapS") { it.position.waypointGapS.round(1) },
+        col("lat") { it.latLon?.first?.round(7) },
+        col("lon") { it.latLon?.second?.round(7) },
     )
 }
 

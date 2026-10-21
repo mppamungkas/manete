@@ -70,4 +70,19 @@ data class PlanJson(
     val taps: Int,
     /** plans/<uuid>.png in this ZIP; null when the export left the images out. */
     val image: String?,
-)
+    /** Where the plan lies on the map (step 7); null when not placed. */
+    val georef: Georef? = null,
+) {
+    @Serializable
+    data class Georef(
+        val points: List<GeorefPoint>,
+        /** Degrees clockwise from north of the plan's up direction; null if the points give no placement. */
+        val rotationDeg: Double?,
+        val metresPerPx: Double?,
+        /** Average distance between the fitted and placed map points (0 with two points). */
+        val rmsM: Double?,
+    )
+
+    @Serializable
+    data class GeorefPoint(val x: Double, val y: Double, val lat: Double, val lon: Double)
+}

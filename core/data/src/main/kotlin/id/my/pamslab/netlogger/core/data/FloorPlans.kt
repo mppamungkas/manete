@@ -17,10 +17,15 @@ import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.indoor.FloorPlan
+import id.my.pamslab.netlogger.core.model.indoor.Georeference
+import id.my.pamslab.netlogger.core.model.indoor.GeoPoint
 import id.my.pamslab.netlogger.core.model.indoor.PlanGeometry
 import id.my.pamslab.netlogger.core.model.indoor.Waypoint
 import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -96,6 +101,9 @@ interface FloorPlanRepository {
 
     /** [metresPerPx] null removes the scale. */
     suspend fun setScale(id: Long, metresPerPx: Double?)
+
+    /** Where the plan lies on the map (decision 006 step 7); null removes it. */
+    suspend fun setGeoreference(id: Long, georef: Georeference?)
 
     /** False when a session uses the plan (it stays). */
     suspend fun delete(id: Long): Boolean
@@ -254,6 +262,8 @@ class RoomFloorPlanRepository @Inject constructor(
 
     override suspend fun setScale(id: Long, metresPerPx: Double?) = dao.setScale(id, metresPerPx)
 
+    override suspend fun setGeoreference(id: Long, georef: Georeference?) = dao.setGeoref(id, georef?.let(GeorefJson::encode))
+
     override suspend fun delete(id: Long): Boolean {
         val plan = dao.get(id) ?: return true
         if (dao.waypointCount(id) > 0) return false
@@ -263,7 +273,7 @@ class RoomFloorPlanRepository @Inject constructor(
     }
 
     private fun summary(e: FloorPlanEntity, sessions: Int, waypoints: Int) = FloorPlanSummary(
-        plan = FloorPlan(e.id, e.uuid, e.name, e.floor, e.widthPx, e.heightPx, e.metresPerPx),
+        plan = FloorPlan(e.id, e.uuid, e.name, e.floor, e.widthPx, e.heightPx, e.metresPerPx, GeorefJson.decode(e.georefJson)),
         image = files.image(e.imageFile),
         createdAt = e.createdAt,
         sessions = sessions,
@@ -272,5 +282,36 @@ class RoomFloorPlanRepository @Inject constructor(
 
     private companion object {
         const val TAG = "NetLogger"
+    }
+}
+
+/**
+ * floor_plan.georefJson: `{"points":[{"x":..,"y":..,"lat":..,"lon":..}]}`. Only the placed points are stored; the
+ * transform is fitted from them when used, so a better fit later applies to old plans too.
+ */
+object GeorefJson {
+    @Serializable
+    private data class Point(val x: Double, val y: Double, val lat: Double, val lon: Double)
+
+    @Serializable
+    private data class Stored(val points: List<Point>)
+
+    private val json = Json { ignoreUnknownKeys = true }
+
+    fun encode(georef: Georeference): String =
+        json.encodeToString(Stored.serializer(), Stored(georef.points.map { Point(it.x, it.y, it.lat, it.lon) }))
+
+    /** Null for null, empty or unreadable text (never a crash on a bad row). */
+    fun decode(text: String?): Georeference? {
+        if (text.isNullOrBlank()) return null
+        return try {
+            Georeference(json.decodeFromString(Stored.serializer(), text).points.map { GeoPoint(it.x, it.y, it.lat, it.lon) })
+        } catch (e: SerializationException) {
+            CaughtErrors.record("floor plan georeference unreadable", e)
+            null
+        } catch (e: IllegalArgumentException) {
+            CaughtErrors.record("floor plan georeference unreadable", e)
+            null
+        }
     }
 }

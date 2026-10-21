@@ -13,6 +13,8 @@ data class FloorPlan(
     val widthPx: Int,
     val heightPx: Int,
     val metresPerPx: Double? = null,
+    /** Where the plan lies on the map (decision 006 step 7); null when not placed. */
+    val georef: Georeference? = null,
 )
 
 /** What a tap meant: [HERE] "I am here now", [STILL] "I am still here" (stood at the last spot meanwhile). */
@@ -131,5 +133,100 @@ object PlanGeometry {
         val px = Math.hypot(x2 - x1, y2 - y1)
         if (px < MIN_CALIBRATION_PX || !(metres > 0) || metres.isInfinite()) return null
         return metres / px
+    }
+}
+
+/** One point placed on both the plan ([x]/[y], stored-image pixels) and the map ([lat]/[lon]), decision 006 step 7. */
+data class GeoPoint(val x: Double, val y: Double, val lat: Double, val lon: Double)
+
+/**
+ * Where a plan lies on the map: two or three [points] the user placed on both. Plan pixels map to lat/lon by a
+ * similarity transform (scale, rotation, shift; no shear, plans are not distorted), fitted by least squares; with a
+ * third point the fit has a residual, a check on the placement.
+ */
+data class Georeference(val points: List<GeoPoint>) {
+    /** Null with fewer than two points, or points too close together on the plan or the map. */
+    val transform: GeoTransform? by lazy { GeoTransform.fit(points) }
+}
+
+/**
+ * Plan pixels → lat/lon. Works in a local east/north frame in metres around the points' centre (equirectangular:
+ * well under a centimetre of error across a building). Plan y points down, north up, so the plan is mirrored in y
+ * before the fit; the fit itself never mirrors.
+ */
+class GeoTransform private constructor(
+    private val lat0: Double,
+    private val lon0: Double,
+    private val aRe: Double,
+    private val aIm: Double,
+    private val bRe: Double,
+    private val bIm: Double,
+    /** Distance in metres between each point's fitted and placed map position, in [points] order. */
+    val residualsM: List<Double>,
+) {
+    /** Metres per plan pixel implied by the map placement (compare with a calibrated scale). */
+    val metresPerPx: Double get() = Math.hypot(aRe, aIm)
+
+    /** The plan's rotation: degrees clockwise from north of the plan's up direction. */
+    val rotationDeg: Double get() = (Math.toDegrees(-Math.atan2(aIm, aRe)) + 360) % 360
+
+    /** Root-mean-square of [residualsM]; 0 with two points (an exact fit). */
+    val rmsM: Double get() = Math.sqrt(residualsM.sumOf { it * it } / residualsM.size)
+
+    fun toLatLon(x: Double, y: Double): Pair<Double, Double> {
+        val east = aRe * x - aIm * -y + bRe
+        val north = aRe * -y + aIm * x + bIm
+        return lat0 + north / M_PER_DEG to lon0 + east / (M_PER_DEG * Math.cos(Math.toRadians(lat0)))
+    }
+
+    companion object {
+        /** Metres per degree of latitude (mean Earth radius 6 371 008.8 m). */
+        private const val M_PER_DEG = 6_371_008.8 * Math.PI / 180
+
+        /** Points closer than this on the plan (pixels) or the map (metres) give no usable fit. */
+        private const val MIN_SPREAD_PX = 10.0
+        private const val MIN_SPREAD_M = 1.0
+
+        fun fit(points: List<GeoPoint>): GeoTransform? {
+            if (points.size < 2) return null
+            val lat0 = points.map { it.lat }.average()
+            val lon0 = points.map { it.lon }.average()
+            val cos0 = Math.cos(Math.toRadians(lat0))
+            // Complex numbers: w = plan (x, -y), z = map (east, north) in metres.
+            val wRe = points.map { it.x }
+            val wIm = points.map { -it.y }
+            val zRe = points.map { (it.lon - lon0) * M_PER_DEG * cos0 }
+            val zIm = points.map { (it.lat - lat0) * M_PER_DEG }
+            val wmRe = wRe.average()
+            val wmIm = wIm.average()
+            val zmRe = zRe.average()
+            val zmIm = zIm.average()
+            var num = 0.0
+            var numIm = 0.0
+            var den = 0.0
+            var mapSpread = 0.0
+            for (k in points.indices) {
+                val dwRe = wRe[k] - wmRe
+                val dwIm = wIm[k] - wmIm
+                val dzRe = zRe[k] - zmRe
+                val dzIm = zIm[k] - zmIm
+                // (dz) * conj(dw)
+                num += dzRe * dwRe + dzIm * dwIm
+                numIm += dzIm * dwRe - dzRe * dwIm
+                den += dwRe * dwRe + dwIm * dwIm
+                mapSpread = maxOf(mapSpread, Math.hypot(dzRe, dzIm))
+            }
+            if (Math.sqrt(den / points.size) < MIN_SPREAD_PX / 2 || mapSpread < MIN_SPREAD_M / 2) return null
+            val aRe = num / den
+            val aIm = numIm / den
+            val bRe = zmRe - (aRe * wmRe - aIm * wmIm)
+            val bIm = zmIm - (aRe * wmIm + aIm * wmRe)
+            val residuals = points.indices.map { k ->
+                val fRe = aRe * wRe[k] - aIm * wIm[k] + bRe
+                val fIm = aRe * wIm[k] + aIm * wRe[k] + bIm
+                Math.hypot(fRe - zRe[k], fIm - zIm[k])
+            }
+            return GeoTransform(lat0, lon0, aRe, aIm, bRe, bIm, residuals)
+        }
     }
 }

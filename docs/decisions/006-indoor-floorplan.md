@@ -2,7 +2,9 @@
 
 - **Status:** Accepted (D1–D8 as recommended), 2026-10-21. Step 1 done (schema v5, `PlanInterpolator`); step 2 done (Settings › Floor plans, import, scale; checked on the moto 2026-10-21); step 3 done (Live › Plan, checked
   on the moto); step 4 done (Map › Floor plan); step 5 done (export); step 6 in
-  progress (How to use written; moto checked; A56, a real two-floor walk, pinch zoom and a sideways photo open). Difference from the plan (D6): the shared `PlanView` lives in `core:ui`, and the Live plan view in
+  progress (How to use written; moto checked; A56, a real two-floor walk, pinch zoom and a sideways photo open);
+  step 7 done (Settings › Floor plans › On map: 2–3 points, similarity fit with its error; lat/lon in indoor.csv,
+  indoor lines in track.geojson, placement in plans.json; heatmaps per plan and metric, only with the images). Difference from the plan (D6): the shared `PlanView` lives in `core:ui`, and the Live plan view in
   `feature:logger` next to the logging engine whose state it shows; no slot from :app was needed for Live.
 - **Users:** teachers and students measuring inside buildings (campus, mall, station), and the research that needs
   radio values per room or corridor instead of a GPS track.

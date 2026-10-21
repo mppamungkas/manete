@@ -7,6 +7,8 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.model.Clock
+import id.my.pamslab.netlogger.core.model.indoor.GeoPoint
+import id.my.pamslab.netlogger.core.model.indoor.Georeference
 import id.my.pamslab.netlogger.core.model.indoor.Waypoint
 import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
 import kotlinx.coroutines.flow.first
@@ -90,6 +92,17 @@ class FloorPlanRepositoryTest {
         assertEquals(PlanImportResult.Failed(PlanImportError.PDF_PROTECTED), repo.import(Uri.parse("content://test/x"), 0, "x", null))
         assertEquals(1, repo.plans.first().size)
         assertEquals(1, File(tmp.root, "plans").listFiles()!!.count { it.name.endsWith(".png") })
+    }
+
+    @Test
+    fun `georeference is stored as its points and read back`() = runTest {
+        val id = import()
+        val georef = Georeference(listOf(GeoPoint(100.0, 200.0, -0.906, 100.407), GeoPoint(2900.0, 1800.0, -0.9065, 100.4078)))
+        repo.setGeoreference(id, georef)
+        assertEquals(georef, repo.plan(id)!!.plan.georef)
+        repo.setGeoreference(id, null)
+        assertNull(repo.plan(id)!!.plan.georef)
+        assertNull("a bad row is ignored, not a crash", GeorefJson.decode("{not json"))
     }
 
     @Test

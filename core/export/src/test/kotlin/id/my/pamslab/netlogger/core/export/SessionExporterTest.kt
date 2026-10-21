@@ -1,7 +1,10 @@
 package id.my.pamslab.netlogger.core.export
 
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.GeorefJson
 import id.my.pamslab.netlogger.core.data.PlanFileStore
+import id.my.pamslab.netlogger.core.model.indoor.GeoPoint
+import id.my.pamslab.netlogger.core.model.indoor.Georeference
 import id.my.pamslab.netlogger.core.data.db.FloorPlanEntity
 import id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
@@ -29,9 +32,10 @@ class SessionExporterTest {
         captures: CaptureFileStore? = null,
         plans: PlanFileStore? = null,
         includePlanImages: Boolean = true,
+        heatmaps: HeatmapRenderer? = null,
     ): Pair<ExportResult, Map<String, String>> {
         val out = ByteArrayOutputStream()
-        val result = SessionExporter(dao, captures, plans).export(1, out, zone, nowMs = START_MS + 3_600_000, includePlanImages = includePlanImages)
+        val result = SessionExporter(dao, captures, plans, heatmaps).export(1, out, zone, nowMs = START_MS + 3_600_000, includePlanImages = includePlanImages)
         val entries = linkedMapOf<String, String>()
         ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entries[it.name] = zip.readBytes().toString(Charsets.UTF_8) }
@@ -42,7 +46,7 @@ class SessionExporterTest {
     private fun lines(csv: String) = csv.split("\r\n").dropLast(1)
 
     /** 700 ticks; taps at ticks 10, 20 (removed), 30 on plan 1, then 600 and 610 on plan 2 (another floor). */
-    private fun indoorDao(): FakeExportDao {
+    private fun indoorDao(georefOne: String? = null): FakeExportDao {
         fun tap(seq: Long, plan: Long, x: Double, removed: Boolean = false) = PlanWaypointEntity(
             sessionId = 1, planId = plan, wallTimeMs = START_MS + seq * 1_000, elapsedRealtimeNs = START_NS + seq * 1_000_000_000,
             x = x, y = 100.0, kind = "HERE", removed = removed,
@@ -51,7 +55,7 @@ class SessionExporterTest {
             measurements = (0L until 700).map { measurement(it, lat = null, lon = null) },
             waypoints = listOf(tap(10, 1, 0.0), tap(20, 1, 999.0, removed = true), tap(30, 1, 200.0), tap(600, 2, 0.0), tap(610, 2, 50.0)),
             plans = listOf(
-                FloorPlanEntity(1, "p-one", "Gedung C", "Lantai 2", "p-one.png", 3000, 2000, 0.05, null, 0),
+                FloorPlanEntity(1, "p-one", "Gedung C", "Lantai 2", "p-one.png", 3000, 2000, 0.05, georefOne, 0),
                 FloorPlanEntity(2, "p-two", "Gedung C", null, "p-two.png", 1000, 800, null, null, 0),
             ),
         )
@@ -87,6 +91,61 @@ class SessionExporterTest {
         assertEquals(32L, result.counts.indoorTicks)
         val listed = Json.parseToJsonElement(files.getValue("session.json")).jsonObject.getValue("files").toString()
         listOf("waypoints.csv", "indoor.csv", "plans.json", "plans/p-one.png").forEach { assertTrue(it, listed.contains(it)) }
+        dir.deleteRecursively()
+    }
+
+    /** Plan 1 placed north-up: pixel (0, 0) at -0.9 / 100.4, 0.05 m per pixel. */
+    private val northUp = GeorefJson.encode(
+        Georeference(
+            listOf(
+                GeoPoint(0.0, 0.0, -0.9, 100.4),
+                GeoPoint(2000.0, 0.0, -0.9, 100.4 + 100.0 / (6_371_008.8 * Math.PI / 180 * Math.cos(Math.toRadians(-0.9)))),
+            ),
+        ),
+    )
+
+    @Test
+    fun `a plan placed on the map gives lat and lon, and an indoor line in track geojson`() = runTest {
+        val (_, files) = exportZip(indoorDao(georefOne = northUp))
+        val tick20 = lines(files.getValue("indoor.csv")).first { it.startsWith("20,") }.split(',')
+        // Pixel (100, 100) at 0.05 m per pixel, north up: 5 m east and 5 m south of the anchor.
+        val mPerDeg = 6_371_008.8 * Math.PI / 180
+        assertEquals(-0.9 - 5 / mPerDeg, tick20[11].toDouble(), 1e-7)
+        assertEquals(100.4 + 5 / (mPerDeg * Math.cos(Math.toRadians(-0.9))), tick20[12].toDouble(), 1e-7)
+        val onFloor2 = lines(files.getValue("indoor.csv")).first { it.startsWith("605,") }.split(',')
+        assertEquals("floor 2 is not placed", listOf("", ""), onFloor2.subList(11, 13))
+        val geo = files.getValue("track.geojson")
+        assertTrue(geo, geo.contains("\"kind\":\"indoor\",\"positionSource\":\"FLOOR_PLAN\",\"planUuid\":\"p-one\",\"floor\":\"Lantai 2\",\"points\":21"))
+        assertTrue(files.getValue("plans.json").contains("\"rotationDeg\": 0.0"))
+    }
+
+    @Test
+    fun `heatmaps per plan and metric, only with the images`() = runTest {
+        val dir = Files.createTempDirectory("plans").toFile()
+        File(dir, "p-one.png").writeText("PNG-ONE")
+        File(dir, "p-two.png").writeText("PNG-TWO")
+        val store = object : PlanFileStore { override val dir = dir }
+        val calls = mutableListOf<Pair<String, Int>>()
+        val renderer = object : HeatmapRenderer {
+            override fun render(
+                image: File, widthPx: Int, heightPx: Int, title: String, metric: HeatmapMetric,
+                points: List<HeatmapPoint>, path: List<Pair<Double, Double>>, out: java.io.OutputStream,
+            ): Boolean {
+                calls += title to points.size
+                out.write("HEAT".toByteArray())
+                return metric != HeatmapMetric.NR_SINR || image.name != "p-two.png" // one drawing fails
+            }
+        }
+        val (_, files) = exportZip(indoorDao(), plans = store, heatmaps = renderer)
+        assertTrue(calls.toString(), calls.contains("LTE RSRP · Gedung C · Lantai 2" to 21))
+        assertTrue(calls.toString(), calls.contains("LTE RSRP · Gedung C" to 11))
+        assertEquals("HEAT", files["heatmaps/p-one_lte_rsrp.png"])
+        assertTrue("a failed drawing leaves no entry", "heatmaps/p-two_nr_sinr.png" !in files)
+        assertTrue(files.getValue("session.json").contains("heatmaps/p-one_lte_rsrp.png"))
+
+        calls.clear()
+        val (_, without) = exportZip(indoorDao(), plans = store, heatmaps = renderer, includePlanImages = false)
+        assertTrue("no images, no heatmaps", calls.isEmpty() && without.keys.none { it.startsWith("heatmaps/") })
         dir.deleteRecursively()
     }
 

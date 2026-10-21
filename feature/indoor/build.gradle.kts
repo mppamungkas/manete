@@ -9,6 +9,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     // Import: the system file picker (OpenDocument), as feature:sessions and feature:capture use it.
     implementation(libs.androidx.activity.compose)
+    // Place on map (step 7): the OSM map as on the Map tab (same MapLibre version), started at the phone's position.
+    implementation(libs.maplibre.android)
+    implementation(project(":core:location"))
 
     testImplementation(libs.kotlinx.coroutines.test)
 }

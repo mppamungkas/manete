@@ -43,6 +43,9 @@ interface FloorPlanDao {
     @Query("UPDATE floor_plan SET metresPerPx = :metresPerPx WHERE id = :id")
     suspend fun setScale(id: Long, metresPerPx: Double?)
 
+    @Query("UPDATE floor_plan SET georefJson = :georefJson WHERE id = :id")
+    suspend fun setGeoref(id: Long, georefJson: String?)
+
     /** Every waypoint, removed ones too: any of them keeps the plan (RESTRICT). */
     @Query("SELECT COUNT(*) FROM plan_waypoint WHERE planId = :id")
     suspend fun waypointCount(id: Long): Int

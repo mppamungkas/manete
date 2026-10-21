@@ -39,6 +39,24 @@
     <string name="plans_error_too_large">The image is too large for this phone\'s memory. Make it smaller first (e.g. a screenshot of the floor).</string>
     <string name="plans_error_not_saved">The plan could not be saved. Is the phone\'s storage full?</string>
 
+    <string name="plans_georef">On map</string>
+    <string name="plans_on_map">Placed on the map</string>
+    <string name="plans_not_on_map">Not placed on the map (optional)</string>
+
+    <!-- Place on map (step 7) -->
+    <string name="georef_title">On the map: %1$s</string>
+    <string name="georef_info">Optional: with the plan placed on the map, indoor positions are also exported as latitude/longitude. Tap a point on the plan, then the same point on the map (e.g. a building corner), and repeat for a second point far from the first. A third point checks the placement. Zoom the map in far enough to see the building.</string>
+    <string name="georef_next">Point %1$s: tap it on the plan or on the map.</string>
+    <string name="georef_tap_plan">Point %1$s: now tap it on the plan.</string>
+    <string name="georef_tap_map">Point %1$s: now tap it on the map.</string>
+    <string name="georef_too_close">The points are too close together: choose points far apart.</string>
+    <string name="georef_result">Placed: plan turned %1$s° from north, 1 m = %2$s px</string>
+    <string name="georef_scale_compare">(your scale: 1 m = %1$s px)</string>
+    <string name="georef_error">; the points are off by %1$s m on average (re-place one if this is large).</string>
+    <string name="georef_save">Save</string>
+    <string name="georef_undo">Undo point</string>
+    <string name="georef_remove">Remove</string>
+
     <!-- Scale calibration -->
     <string name="scale_back">← Floor plans</string>
     <string name="scale_title">Scale: %1$s</string>

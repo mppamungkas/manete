@@ -6,6 +6,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,7 +47,12 @@ import java.util.Locale
 
 /** Settings › Floor plans (decision 006, step 2): import, list, rename, scale, delete. */
 @Composable
-internal fun FloorPlansScreen(onBack: () -> Unit, onScale: (Long) -> Unit, viewModel: FloorPlansViewModel = hiltViewModel()) {
+internal fun FloorPlansScreen(
+    onBack: () -> Unit,
+    onScale: (Long) -> Unit,
+    onGeoref: (Long) -> Unit,
+    viewModel: FloorPlansViewModel = hiltViewModel(),
+) {
     val plans by viewModel.plans.collectAsStateWithLifecycle()
     val import by viewModel.import.collectAsStateWithLifecycle()
     val deleteRefused by viewModel.deleteRefused.collectAsStateWithLifecycle()
@@ -70,7 +77,9 @@ internal fun FloorPlansScreen(onBack: () -> Unit, onScale: (Long) -> Unit, viewM
         when {
             list == null -> CircularProgressIndicator()
             list.isEmpty() -> Text(stringResource(R.string.plans_none), style = MaterialTheme.typography.bodyMedium)
-            else -> list.forEach { PlanCard(it, onScale = { onScale(it.plan.id) }, onRename = viewModel::rename, onDelete = viewModel::delete) }
+            else -> list.forEach {
+                PlanCard(it, onScale = { onScale(it.plan.id) }, onGeoref = { onGeoref(it.plan.id) }, onRename = viewModel::rename, onDelete = viewModel::delete)
+            }
         }
     }
 
@@ -103,10 +112,12 @@ internal fun FloorPlansScreen(onBack: () -> Unit, onScale: (Long) -> Unit, viewM
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlanCard(
     summary: FloorPlanSummary,
     onScale: () -> Unit,
+    onGeoref: () -> Unit,
     onRename: (Long, String, String) -> Unit,
     onDelete: (FloorPlanSummary) -> Unit,
 ) {
@@ -126,6 +137,11 @@ private fun PlanCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
+                        stringResource(if (plan.georef?.transform != null) R.string.plans_on_map else R.string.plans_not_on_map),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
                         if (summary.sessions == 0) stringResource(R.string.plans_unused)
                         else pluralStringResource(R.plurals.plans_used, summary.sessions, summary.sessions),
                         style = MaterialTheme.typography.bodySmall,
@@ -133,9 +149,10 @@ private fun PlanCard(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { editing = true }) { Text(stringResource(R.string.plans_edit)) }
                 OutlinedButton(onClick = onScale) { Text(stringResource(R.string.plans_scale)) }
+                OutlinedButton(onClick = onGeoref) { Text(stringResource(R.string.plans_georef)) }
                 OutlinedButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.plans_delete)) }
             }
         }

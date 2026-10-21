@@ -19,6 +19,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `indoor.csv` | With floor plan taps: one row per tick placed on a floor plan, below |
 | `plans.json` | With floor plan taps: the plans used, below |
 | `plans/<uuid>.png` | With floor plan taps: the plan images, unless the export left them out ("Include floor plan images") |
+| `heatmaps/<uuid>_<metric>.png` | With the plan images: each plan with its placed ticks coloured by `lte_rsrp`, `nr_rsrp`, `lte_sinr` or `nr_sinr` (only metrics with values), the walked path and a legend with counts; the Map's colour rules; at most 2048 px |
 
 ## Format rules (all CSV files)
 
@@ -370,20 +371,29 @@ Join with the other files by `seq` or `elapsedRealtimeNs`.
 | `planXM` | m | `planX` in metres, when the plan has a scale; empty without one |
 | `planYM` | m | `planY` in metres, when the plan has a scale; empty without one |
 | `waypointGapS` | s | Seconds to the nearest tap: 0 at a tap; larger values mean the position relies more on the constant-speed assumption |
+| `lat` | ° | WGS 84 latitude of the position, when the plan is placed on the map (Settings › Floor plans › On map); empty otherwise. As exact as the taps and the placement (plans.json `georef.rmsM`) |
+| `lon` | ° | WGS 84 longitude, likewise |
 
 ## plans.json
 
 The floor plans the session's taps are on, as a JSON array. `uuid`, `name`, `floor` (or null), `widthPx` × `heightPx`
 (the stored image, the unit of all plan positions), `metresPerPx` (or null without a scale), `taps` (active taps on it),
 `image` (`plans/<uuid>.png` in this ZIP, or null when the export left the images out: a building's layout can be
-confidential).
+confidential), `georef` (null when the plan is not placed on the map; else `points`: the placed points with plan
+`x`/`y` and `lat`/`lon`, `rotationDeg`: the plan's up direction in degrees clockwise from north, `metresPerPx` implied
+by the placement, `rmsM`: average distance between fitted and placed points, 0 with two points). Plan pixels map to
+lat/lon by a similarity transform (scale, rotation, shift) fitted to the points by least squares.
 
 ## track.geojson
 
 A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 
 - Track: one `LineString` of all ticks with a fix, in order (a `Point` if there is only one fix; nothing if none).
-  Properties: `kind` = `track`, `sessionUuid`, `points`, `start`, `end` (ISO-8601).
+  Properties: `kind` = `track`, `positionSource` = `GPS`, `sessionUuid`, `points`, `start`, `end` (ISO-8601).
+- Indoor (decision 006, step 7): one `LineString` per run of consecutive ticks placed on a floor plan that is placed
+  on the map (a `Point` for a run of one), the same positions as `lat`/`lon` in indoor.csv. Properties: `kind` =
+  `indoor`, `positionSource` = `FLOOR_PLAN`, `planUuid`, `floor`, `points`, `start`, `end`. Not for plans without a
+  placement.
 - Events: one `Point` per event with a location. Properties: `kind` = `event`, `type`, `time`, `wallTimeMs`,
   `elapsedRealtimeNs`, `fromValue`, `toValue`.
 
