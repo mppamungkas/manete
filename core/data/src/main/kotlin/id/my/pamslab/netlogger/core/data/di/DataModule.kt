@@ -9,6 +9,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import id.my.pamslab.netlogger.core.data.AppCaptureFileStore
+import id.my.pamslab.netlogger.core.data.RoomFloorPlanRepository
+import id.my.pamslab.netlogger.core.data.PlanImageReader
+import id.my.pamslab.netlogger.core.data.PlanFileStore
+import id.my.pamslab.netlogger.core.data.FloorPlanRepository
+import id.my.pamslab.netlogger.core.data.AppPlanFileStore
+import id.my.pamslab.netlogger.core.data.AndroidPlanImageReader
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
 import id.my.pamslab.netlogger.core.data.CaptureSettings
 import id.my.pamslab.netlogger.core.data.LoggingSettings
@@ -45,6 +51,15 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindRecordedCoverage(impl: RoomRecordedCoverage): RecordedCoverage
+
+    @Binds
+    abstract fun bindFloorPlanRepository(impl: RoomFloorPlanRepository): FloorPlanRepository
+
+    @Binds
+    abstract fun bindPlanFileStore(impl: AppPlanFileStore): PlanFileStore
+
+    @Binds
+    abstract fun bindPlanImageReader(impl: AndroidPlanImageReader): PlanImageReader
 
     companion object {
         // No fallbackToDestructiveMigration: losing field data silently is worse than a crash that names the

@@ -15,6 +15,7 @@ abstract class NetLoggerDatabase : RoomDatabase() {
     abstract fun measurementDao(): MeasurementDao
     abstract fun exportDao(): ExportDao
     abstract fun coverageDao(): CoverageDao
+    abstract fun floorPlanDao(): FloorPlanDao
 
     companion object {
         const val VERSION = 5

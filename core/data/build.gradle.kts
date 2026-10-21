@@ -18,6 +18,7 @@ ksp {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:diagnostics")) // CaughtErrors: caught errors for "Describe a problem"
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

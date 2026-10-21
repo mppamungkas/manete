@@ -97,3 +97,39 @@ object PlanInterpolator {
         }
     }
 }
+
+/** Sizes and the scale calibration of floor plans (decision 006, step 2). Pure, unit-tested. */
+object PlanGeometry {
+    /** Longest side of a stored plan image: enough for room-level detail, ~45 MB as a bitmap at most. */
+    const val MAX_SIDE_PX = 4096
+
+    /** PDF pages are rendered at this resolution (300 dpi), within [MAX_SIDE_PX]. */
+    private const val PDF_DPI = 300.0
+    private const val PDF_POINTS_PER_INCH = 72.0
+
+    /** Two calibration points closer than this (in stored pixels) give no usable scale. */
+    const val MIN_CALIBRATION_PX = 10.0
+
+    /** The size an image of [width] × [height] is stored at: fits [maxSide], never enlarged, at least 1 px. */
+    fun storedSize(width: Int, height: Int, maxSide: Int = MAX_SIDE_PX): Pair<Int, Int> {
+        require(width > 0 && height > 0)
+        val f = minOf(1.0, maxSide.toDouble() / maxOf(width, height))
+        return maxOf(1, Math.round(width * f).toInt()) to maxOf(1, Math.round(height * f).toInt())
+    }
+
+    /** Render size of a PDF page of [widthPt] × [heightPt] points (1/72 inch): 300 dpi, within [MAX_SIDE_PX]. */
+    fun pdfRenderSize(widthPt: Int, heightPt: Int): Pair<Int, Int> {
+        val f = PDF_DPI / PDF_POINTS_PER_INCH
+        return storedSize(Math.round(widthPt * f).toInt(), Math.round(heightPt * f).toInt())
+    }
+
+    /**
+     * Metres per stored pixel from two points the user tapped and the real distance between them; null when the points
+     * are too close ([MIN_CALIBRATION_PX]) or the distance is not positive.
+     */
+    fun metresPerPx(x1: Double, y1: Double, x2: Double, y2: Double, metres: Double): Double? {
+        val px = Math.hypot(x2 - x1, y2 - y1)
+        if (px < MIN_CALIBRATION_PX || !(metres > 0) || metres.isInfinite()) return null
+        return metres / px
+    }
+}

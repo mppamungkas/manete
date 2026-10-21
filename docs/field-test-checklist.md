@@ -251,6 +251,18 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] Describe a problem lists the caught errors with count and times, no message, IP or host (moto 2026-10-20, from
       `CrashTestReceiver --es kind caught` in main and :vpn: "4× … · main", "1× … · vpn"; a burst within 30 s is saved)
 
+## Floor plans (decision 006, CLAUDE.md 1.8.x)
+
+- [ ] Database migrated 4 → 5 on each phone's debug install (back up first): sessions kept, floor plan tables empty
+- [ ] Settings list shows "Floor plans · None yet"; the page opens inside the Settings tab, "← Settings" and the tab return
+- [ ] Import a photo (JPEG, taken upright and sideways: EXIF rotation applied), a PNG screenshot and a PDF (one page and a
+      several-page PDF: page field 1–n); name prefilled from the file; large images stored at most 4096 px
+- [ ] A password-protected PDF and a non-image file: clear message, nothing stored
+- [ ] Rename and floor label; thumbnails in the list; "Not used in a session yet"
+- [ ] Scale: pinch zoom, drag, double-tap to reset; two taps + distance (with a comma decimal too) → "1 m = … px";
+      points too close refused; Remove the scale
+- [ ] Delete an unused plan: gone with its image (`run-as … ls files/plans`)
+
 ## Before a release
 
 - [x] Release APK 0.2.0 (versionCode 2, build 5349cb9, signed with the release key, arm64-v8a + armeabi-v7a, 49 MB)

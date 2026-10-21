@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Floor plans (decision 006) -->
+    <string name="plans_back">← Settings</string>
+    <string name="plans_title">Floor plans</string>
+    <string name="plans_what_title">Floor plans for indoor tests</string>
+    <string name="plans_what_info">Indoors GPS is weak or wrong. Import a floor plan of the building (a photo, an image or a PDF page from the architect or the fire-escape plan), one per floor. During an indoor session you then tap on the plan where you are at every turn, door or landmark, and NetLogger places the measurements in between along your path. Plans stay on this phone.</string>
+    <string name="plans_import">Import a floor plan…</string>
+    <string name="plans_none">No floor plans yet.</string>
+    <string name="plans_size">%1$d × %2$d px</string>
+    <string name="plans_no_scale">no scale</string>
+    <string name="plans_scale_value">1 m = %1$s px</string>
+    <string name="plans_unused">Not used in a session yet</string>
+    <plurals name="plans_used">
+        <item quantity="one">Used in %d session</item>
+        <item quantity="other">Used in %d sessions</item>
+    </plurals>
+    <string name="plans_edit">Rename</string>
+    <string name="plans_scale">Scale</string>
+    <string name="plans_delete">Delete</string>
+    <string name="plans_edit_title">Name and floor</string>
+    <string name="plans_save">Save</string>
+    <string name="plans_cancel">Cancel</string>
+    <string name="plans_ok">OK</string>
+    <string name="plans_delete_title">Delete %1$s?</string>
+    <string name="plans_delete_info">The plan and its image are removed from this phone. A plan used in a session cannot be deleted: delete those sessions first.</string>
+    <string name="plans_delete_refused">%1$s is used in a session, so it stays: its positions would be lost. Delete those sessions first.</string>
+    <string name="plans_import_title">Import floor plan</string>
+    <string name="plans_import_confirm">Import</string>
+    <string name="plans_importing">Importing…</string>
+    <string name="plans_name">Name</string>
+    <string name="plans_floor">Floor (optional)</string>
+    <string name="plans_floor_info">E.g. "2nd floor" or "B1"; shown when you switch floors.</string>
+    <string name="plans_pdf_page">PDF page (1–%1$d)</string>
+    <string name="plans_import_failed">Not imported</string>
+    <string name="plans_error_unsupported">This file is not an image or PDF that Android can read. Use PNG, JPEG, WebP, HEIC or PDF; export CAD drawings to PDF or PNG first.</string>
+    <string name="plans_error_unreadable">The file could not be read. Try copying it to the phone first.</string>
+    <string name="plans_error_protected">This PDF is password-protected. Save it without a password, or take a screenshot of the plan.</string>
+    <string name="plans_error_too_large">The image is too large for this phone\'s memory. Make it smaller first (e.g. a screenshot of the floor).</string>
+    <string name="plans_error_not_saved">The plan could not be saved. Is the phone\'s storage full?</string>
+    <string name="plan_image_unreadable">The plan image could not be loaded.</string>
+
+    <!-- Scale calibration -->
+    <string name="scale_back">← Floor plans</string>
+    <string name="scale_title">Scale: %1$s</string>
+    <string name="scale_info">Tap two points whose real distance you know, as far apart as possible (a long wall or corridor), then enter that distance. Pinch to zoom, drag to move, double-tap to see the whole plan. The scale is optional: with it, positions are also exported in metres.</string>
+    <string name="scale_tap_a">Tap the first point.</string>
+    <string name="scale_tap_b">Tap the second point.</string>
+    <string name="scale_points_set">Both points set. Tap again to start over.</string>
+    <string name="scale_distance">Distance in metres</string>
+    <string name="scale_save">Save</string>
+    <string name="scale_result">1 m = %1$s px on this plan.</string>
+    <string name="scale_current">Saved scale: 1 m = %1$s px. Set new points to change it.</string>
+    <string name="scale_none">No scale saved yet.</string>
+    <string name="scale_too_close">The points are too close together: choose two points further apart.</string>
+    <string name="scale_remove">Remove the scale</string>
+    <string name="scale_missing">This floor plan no longer exists.</string>
+</resources>

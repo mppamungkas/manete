@@ -11,6 +11,12 @@
     <string name="settings_speed_test_summary_server">Private server: %1$s</string>
     <string name="settings_speed_test_summary_none">No private server set</string>
     <string name="settings_speed_test_summary_public">%1$s · Cloudflare always on Live</string>
+    <string name="settings_floor_plans">Floor plans</string>
+    <string name="settings_floor_plans_none">None yet · for indoor tests</string>
+    <plurals name="settings_floor_plans_count">
+        <item quantity="one">%d plan · for indoor tests</item>
+        <item quantity="other">%d plans · for indoor tests</item>
+    </plurals>
     <string name="settings_speed_test_summary_periodic">%1$s · repeats every %2$d min</string>
     <string name="settings_speed_test_summary_periodic_cloudflare">%1$s · repeats every %2$d min on Cloudflare</string>
     <string name="settings_speed_test_summary_periodic_no_server">%1$s · the periodic test cannot run</string>

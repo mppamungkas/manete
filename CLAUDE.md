@@ -1,13 +1,14 @@
 # NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.8.0** · last updated 2026-10-21
+**CLAUDE.md version 1.8.1** · last updated 2026-10-21
 **License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
-- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Live dashboard (`docs/decisions/004-live-dashboard.md`) implemented and checked on both phones (2026-10-16). Problem reports (`docs/decisions/005-problem-reports.md`) implemented and checked on both phones (2026-10-16). 1-hour screen-off test done: 1.5 h unplugged on the moto with a capture, 100 % ticks (2026-10-16, `docs/device-quirks.md`). Milestone 12 (floor plans for indoor tests, `docs/decisions/006-indoor-floorplan.md`): step 1 of 7 done (schema v5, `PlanInterpolator`).
+- Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Live dashboard (`docs/decisions/004-live-dashboard.md`) implemented and checked on both phones (2026-10-16). Problem reports (`docs/decisions/005-problem-reports.md`) implemented and checked on both phones (2026-10-16). 1-hour screen-off test done: 1.5 h unplugged on the moto with a capture, 100 % ticks (2026-10-16, `docs/device-quirks.md`). Milestone 12 (floor plans for indoor tests, `docs/decisions/006-indoor-floorplan.md`): steps 1–2 of 7 done (schema v5, `PlanInterpolator`; Settings › Floor plans with import and scale; not yet on a phone).
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.8.1:** Milestone 12 step 2: new module `feature:indoor` (Settings › Floor plans: import PNG/JPEG/WebP/HEIC or a PDF page, stored as PNG ≤ 4096 px in `files/plans/`; rename, floor label, delete unless used by a session; scale calibration with two points and a distance). The pages sit inside the Settings tab through `settingsGraph(otherPages = …)` from :app. `PlanView` (zoom, pan, tap in stored-image pixels, `PlanViewport` unit-tested) is shared with the later Live and Map plan views.
 - **1.8.0:** Milestone 12, floor plans for indoor tests (`docs/decisions/006-indoor-floorplan.md`, D1–D8 accepted as recommended). Step 1: schema v5 (`floor_plan`, `plan_waypoint`, migration 4→5 tested), `core:model` `FloorPlan` / `Waypoint` / `PlanInterpolator` (positions derived from taps by time, never guessed across floors or outside the taps). `./gradlew testDebugUnitTest` now also runs the JVM modules' tests (alias of `test`).
 - **1.7.9:** Upload measurement counts only what the server received: pieces of 256 kB doubling up to 8 MB per connection while one takes under 1 s, each counted when the server answers, the phase timed to the last answer. Before, bytes handed to the socket were counted, and the send buffers (2 MB per connection on the A56, more during a capture) inflated every upload rate: a 10 MB periodic upload "took" 0.5 s (162 Mbps vs. 30 Mbps manual, `docs/device-quirks.md` 2026-10-20). Upload rows before 1.7.9 overstate; no schema change.
 - **1.7.8:** Periodic speed test: Settings › Speed test › Repeat during a session (off / 5 / 10 / 15 / 30 min, private server or Cloudflare, the schedule read at session start, slots counted from Start, a slot during another test is skipped, Stop ends only the running test); by default the manual test, optional limits (parts, 5/10 s, download and upload caps) with the data use per test and per hour shown. Schema v4: `throughput_test.triggeredBy` (MANUAL / PERIODIC), migration 3→4 marks earlier rows MANUAL, tested. `connections.csv`: ICMP rows have `app` = `ICMP (app unknown)`. Caught errors (decision 005 addendum): `CaughtErrors.caught/record` in catch blocks, kept 7 days per process, summarised in "Describe a problem" reports (never the exception message). Speed test log lines name the server ("Private server" / "Cloudflare"), never its URL, and error texts lose IP addresses.
@@ -145,7 +146,8 @@ netlogger/
 │   ├── sessions/                # Sessions list, detail, export, delete
 │   ├── speedtest/               # ping + HTTP download/upload against own server (Phase 2)
 │   ├── settings/                # Settings pages, phone capabilities, how to use, about + licences
-│   └── capture/                 # Phase 3: native VpnService capture (libnetcapture + zdtun, :vpn process)
+│   ├── capture/                 # Phase 3: native VpnService capture (libnetcapture + zdtun, :vpn process)
+│   └── indoor/                  # Phase 4: floor plans, plan view, scale (decision 006)
 └── docs/
     ├── device-quirks.md         # update after every real-device test
     ├── field-test-checklist.md
@@ -291,7 +293,7 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
   RSRP colors: > -80 green, -80 to -95 yellow, -95 to -110 orange, < -110 red, null gray (integer dBm: -80 … -95 yellow, -96 … -110 orange).
   SINR colors (LTE RSSNR and NR SS-SINR): >= 20 green, 13 to < 20 yellow, 0 to < 13 orange, < 0 red, null gray.
 - **Sessions:** list with estimated size on the phone and of the export, rename/label, notes, export, delete (with confirmation).
-- **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Speed test (private server URLs, periodic test on either server with optional limits; Cloudflare needs no setting), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, Problem reports (decision 005), About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
+- **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Floor plans (decision 006), Speed test (private server URLs, periodic test on either server with optional limits; Cloudflare needs no setting), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, Problem reports (decision 005), About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
 
 ## Phase 3: Traffic capture
 NetLogger's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):
@@ -347,8 +349,8 @@ without loss but was removed in 1.7.0 in favour of the native capture; old sessi
 11. Native `VpnService` capture (3b) — done (`docs/decisions/002-native-capture.md`).
 
 **Phase 4 — Indoor**
-12. Floor plans for indoor tests (`docs/decisions/006-indoor-floorplan.md`): step 1 (schema v5, interpolation) done;
-    steps 2–7: plan import, Live plan view, Map plan view, export, device checks, optional georeference.
+12. Floor plans for indoor tests (`docs/decisions/006-indoor-floorplan.md`): steps 1–2 (schema v5, interpolation, plan
+    import and scale) done; steps 3–7: plan import, Live plan view, Map plan view, export, device checks, optional georeference.
 
 **Always**
 13. Keep `docs/device-quirks.md` and `docs/field-test-checklist.md` updated.

@@ -64,9 +64,18 @@ fun NavController.navigateToSettings(navOptions: NavOptions? = null) = navigate(
 /** The problem report [id] inside the Settings tab (from the Live card). */
 fun NavController.navigateToProblem(id: String, navOptions: NavOptions? = null) = navigate(ProblemRoute(id), navOptions)
 
-fun NavGraphBuilder.settingsGraph(navController: NavController) {
+/**
+ * [onOpenFloorPlans] and [otherPages]: pages of other features shown inside the Settings tab (the floor plans of
+ * feature:indoor), passed in by :app because features don't depend on each other.
+ */
+fun NavGraphBuilder.settingsGraph(
+    navController: NavController,
+    onOpenFloorPlans: () -> Unit = {},
+    otherPages: NavGraphBuilder.() -> Unit = {},
+) {
     navigation<SettingsGraph>(startDestination = SettingsRoute) {
-        composable<SettingsRoute> { SettingsScreen(onOpen = { navController.navigate(it) }) }
+        composable<SettingsRoute> { SettingsScreen(onOpen = { navController.navigate(it) }, onOpenFloorPlans = onOpenFloorPlans) }
+        otherPages()
         composable<LoggingSettingsRoute> { LoggingSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<SpeedTestSettingsRoute> { SpeedTestSettingsScreen(onBack = { navController.popBackStack() }) }
         composable<CaptureSettingsRoute> { CaptureSettingsScreen(onBack = { navController.popBackStack() }) }

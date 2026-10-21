@@ -3,13 +3,18 @@ package id.my.pamslab.netlogger.feature.settings
 import android.security.NetworkSecurityPolicy
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.lifecycle.viewModelScope
 import id.my.pamslab.netlogger.core.data.CaptureSettings
+import id.my.pamslab.netlogger.core.data.FloorPlanRepository
 import id.my.pamslab.netlogger.core.data.LoggingSettings
 import id.my.pamslab.netlogger.core.data.SpeedTestSettings
 import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.speedtest.PeriodicSpeedTest
 import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestConfig
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import java.net.URI
 import id.my.pamslab.netlogger.core.diagnostics.Problem
 import id.my.pamslab.netlogger.core.diagnostics.ProblemReports
@@ -21,7 +26,10 @@ class SettingsViewModel @Inject constructor(
     logging: LoggingSettings,
     capture: CaptureSettings,
     problemReports: ProblemReports,
+    floorPlans: FloorPlanRepository,
 ) : ViewModel() {
+    val floorPlanCount: StateFlow<Int> =
+        floorPlans.plans.map { it.size }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val problems: StateFlow<List<Problem>> = problemReports.reports
     val captureAllApps: StateFlow<Boolean> = capture.allApps
     val captureSelectedApps: StateFlow<List<String>> = capture.selectedApps

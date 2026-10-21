@@ -1,6 +1,6 @@
 # 006: Floor plans for indoor tests: plan
 
-- **Status:** Accepted (D1–D8 as recommended), 2026-10-21. Step 1 done (schema v5, `PlanInterpolator`).
+- **Status:** Accepted (D1–D8 as recommended), 2026-10-21. Step 1 done (schema v5, `PlanInterpolator`); step 2 done (Settings › Floor plans, import, scale; not yet on a phone).
 - **Users:** teachers and students measuring inside buildings (campus, mall, station), and the research that needs
   radio values per room or corridor instead of a GPS track.
 - **Language:** English only, texts in `strings.xml`.
