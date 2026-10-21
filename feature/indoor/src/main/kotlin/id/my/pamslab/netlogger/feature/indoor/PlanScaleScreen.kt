@@ -107,7 +107,8 @@ private fun ColumnScope.ScaleContent(summary: FloorPlanSummary, onSave: (Double?
     } else {
         null
     }
-    val pointColor = MaterialTheme.colorScheme.primary
+    // Fixed, not the theme's: plans are mostly white, and the dark theme's primary is a pale lavender on them.
+    val pointColor = MARKER_COLOR
 
     Text(stringResource(R.string.scale_title, plan.name), style = MaterialTheme.typography.headlineSmall)
     Text(stringResource(R.string.scale_info), style = MaterialTheme.typography.bodySmall)
@@ -125,11 +126,15 @@ private fun ColumnScope.ScaleContent(summary: FloorPlanSummary, onSave: (Double?
         val sa = a?.let { v.toScreen(it.first, it.second) }
         val sb = b?.let { v.toScreen(it.first, it.second) }
         if (sa != null && sb != null) {
-            drawLine(pointColor, Offset(sa.first, sa.second), Offset(sb.first, sb.second), strokeWidth = 4f)
+            val from = Offset(sa.first, sa.second)
+            val to = Offset(sb.first, sb.second)
+            drawLine(Color.White, from, to, strokeWidth = 9f)
+            drawLine(pointColor, from, to, strokeWidth = 5f)
         }
         listOfNotNull(sa, sb).forEach {
-            drawCircle(Color.White, radius = 14f, center = Offset(it.first, it.second))
-            drawCircle(pointColor, radius = 14f, center = Offset(it.first, it.second), style = Stroke(width = 5f))
+            val c = Offset(it.first, it.second)
+            drawCircle(Color.White, radius = 17f, center = c)
+            drawCircle(pointColor, radius = 13f, center = c, style = Stroke(width = 6f))
         }
     }
     Text(
@@ -166,6 +171,9 @@ private fun ColumnScope.ScaleContent(summary: FloorPlanSummary, onSave: (Double?
         OutlinedButton(onClick = { onSave(null) }) { Text(stringResource(R.string.scale_remove)) }
     }
 }
+
+/** Calibration markers: a strong magenta with a white outline reads on white plans, grey photos and dark scans. */
+private val MARKER_COLOR = Color(0xFFD81B60)
 
 private fun point(x: Float?, y: Float?): Pair<Float, Float>? = if (x != null && y != null) x to y else null
 

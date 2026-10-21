@@ -72,8 +72,8 @@ interface FloorPlanRepository {
 
     suspend fun plan(id: Long): FloorPlanSummary?
 
-    /** Name and page count of a picked file; null if it cannot be opened. */
-    suspend fun inspect(uri: Uri): PlanSource?
+    /** Name and page count of a picked file, or why it cannot be opened ([PlanImageException]). */
+    suspend fun inspect(uri: Uri): Result<PlanSource>
 
     /** Imports an image, or page [pdfPage] (0-based) of a PDF. */
     suspend fun import(uri: Uri, pdfPage: Int, name: String, floor: String?): PlanImportResult
@@ -101,7 +101,7 @@ class AppPlanFileStore @Inject constructor(@ApplicationContext context: Context)
 
 /** Decodes a picked file into the bitmap to store; Android-only, so tests replace it. */
 interface PlanImageReader {
-    fun inspect(uri: Uri): PlanSource?
+    fun inspect(uri: Uri): Result<PlanSource>
 
     /** The plan bitmap, already within [PlanGeometry.MAX_SIDE_PX], or the reason it failed. */
     fun read(uri: Uri, pdfPage: Int): Result<Bitmap>
@@ -113,15 +113,18 @@ class PlanImageException(val reason: PlanImportError, cause: Throwable? = null) 
 class AndroidPlanImageReader @Inject constructor(@ApplicationContext context: Context) : PlanImageReader {
     private val resolver: ContentResolver = context.contentResolver
 
-    override fun inspect(uri: Uri): PlanSource? = try {
+    override fun inspect(uri: Uri): Result<PlanSource> = try {
         val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null
         }
         val pages = if (isPdf(uri)) pdf(uri) { it.pageCount } else null
-        PlanSource(name, pages)
+        Result.success(PlanSource(name, pages))
+    } catch (e: SecurityException) {
+        // PdfRenderer: "Password required to access document" (moto g45, 2026-10-21).
+        Result.failure(PlanImageException(if (isPdf(uri)) PlanImportError.PDF_PROTECTED else PlanImportError.UNREADABLE, e))
     } catch (e: Exception) {
         CaughtErrors.caught("floor plan: picked file not readable", e)
-        null
+        Result.failure(PlanImageException(PlanImportError.UNREADABLE, e))
     }
 
     override fun read(uri: Uri, pdfPage: Int): Result<Bitmap> = try {
@@ -186,7 +189,7 @@ class RoomFloorPlanRepository @Inject constructor(
         return summary(entity, sessions = dao.sessionCount(id), waypoints = dao.activeWaypointCount(id))
     }
 
-    override suspend fun inspect(uri: Uri): PlanSource? = withContext(Dispatchers.IO) { reader.inspect(uri) }
+    override suspend fun inspect(uri: Uri): Result<PlanSource> = withContext(Dispatchers.IO) { reader.inspect(uri) }
 
     override suspend fun import(uri: Uri, pdfPage: Int, name: String, floor: String?): PlanImportResult = withContext(Dispatchers.IO) {
         val bitmap = reader.read(uri, pdfPage).getOrElse { e ->

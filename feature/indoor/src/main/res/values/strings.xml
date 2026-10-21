@@ -30,7 +30,7 @@
     <string name="plans_importing">Importing…</string>
     <string name="plans_name">Name</string>
     <string name="plans_floor">Floor (optional)</string>
-    <string name="plans_floor_info">E.g. "2nd floor" or "B1"; shown when you switch floors.</string>
+    <string name="plans_floor_info">E.g. “2nd floor” or “B1”; shown when you switch floors.</string>
     <string name="plans_pdf_page">PDF page (1–%1$d)</string>
     <string name="plans_import_failed">Not imported</string>
     <string name="plans_error_unsupported">This file is not an image or PDF that Android can read. Use PNG, JPEG, WebP, HEIC or PDF; export CAD drawings to PDF or PNG first.</string>

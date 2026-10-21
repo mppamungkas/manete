@@ -35,7 +35,7 @@ class FloorPlanRepositoryTest {
     private var nextResult: Result<Bitmap> = Result.success(Bitmap.createBitmap(1600, 900, Bitmap.Config.ARGB_8888))
 
     private val reader = object : PlanImageReader {
-        override fun inspect(uri: Uri) = PlanSource("plan.pdf", 3)
+        override fun inspect(uri: Uri) = Result.success(PlanSource("plan.pdf", 3))
         override fun read(uri: Uri, pdfPage: Int) = nextResult
     }
 

@@ -254,14 +254,18 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 ## Floor plans (decision 006, CLAUDE.md 1.8.x)
 
 - [ ] Database migrated 4 → 5 on each phone's debug install (back up first): sessions kept, floor plan tables empty
-- [ ] Settings list shows "Floor plans · None yet"; the page opens inside the Settings tab, "← Settings" and the tab return
-- [ ] Import a photo (JPEG, taken upright and sideways: EXIF rotation applied), a PNG screenshot and a PDF (one page and a
-      several-page PDF: page field 1–n); name prefilled from the file; large images stored at most 4096 px
-- [ ] A password-protected PDF and a non-image file: clear message, nothing stored
-- [ ] Rename and floor label; thumbnails in the list; "Not used in a session yet"
-- [ ] Scale: pinch zoom, drag, double-tap to reset; two taps + distance (with a comma decimal too) → "1 m = … px";
-      points too close refused; Remove the scale
-- [ ] Delete an unused plan: gone with its image (`run-as … ls files/plans`)
+      (moto 2026-10-21: 35 sessions / 13 752 ticks / 18 speed tests kept, integrity ok; A56 open)
+- [x] Settings list shows "Floor plans · None yet"; the page opens inside the Settings tab, "← Settings" and the tab return (moto)
+- [x] Import a PNG (3000 × 2000 kept), a 3-page PDF (page field 1–3, page 5 refused, page 2 at 2479 × 3508 = A4 at
+      300 dpi, white background) and an 8000 × 4500 PNG (stored 4096 × 2304); name prefilled without the extension (moto)
+- [ ] A camera photo taken upright and sideways (JPEG with EXIF rotation): stored upright
+- [x] A password-protected PDF and a non-image file: clear message, nothing stored (moto; the protected PDF first said
+      "could not be read": fixed, PdfRenderer's SecurityException is now reported as protected)
+- [x] Rename and floor label; thumbnails in the list; "Not used in a session yet" (moto)
+- [x] Scale: two taps + distance with a comma decimal → "1 m = 49.0 px" (≈ 2955 px over 60 m), saved and shown in the
+      list; points too close refused; markers magenta with a white outline (the theme colour was pale on white plans) (moto)
+- [ ] Scale: pinch zoom, drag while zoomed, double-tap to reset (needs two fingers: by hand); Remove the scale
+- [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release
 

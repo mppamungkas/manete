@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.my.pamslab.netlogger.core.data.FloorPlanRepository
 import id.my.pamslab.netlogger.core.data.FloorPlanSummary
+import id.my.pamslab.netlogger.core.data.PlanImageException
 import id.my.pamslab.netlogger.core.data.PlanImportError
 import id.my.pamslab.netlogger.core.data.PlanImportResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,12 +49,10 @@ class FloorPlansViewModel @Inject constructor(private val repository: FloorPlanR
         if (uri == null) return
         _import.value = ImportState.Inspecting
         viewModelScope.launch {
-            val source = repository.inspect(uri)
-            _import.value = if (source == null) {
-                ImportState.Failed(PlanImportError.UNREADABLE)
-            } else {
-                ImportState.Confirm(uri, defaultName(source.displayName), source.pdfPages)
-            }
+            _import.value = repository.inspect(uri).fold(
+                onSuccess = { ImportState.Confirm(uri, defaultName(it.displayName), it.pdfPages) },
+                onFailure = { ImportState.Failed((it as? PlanImageException)?.reason ?: PlanImportError.UNREADABLE) },
+            )
         }
     }
 
