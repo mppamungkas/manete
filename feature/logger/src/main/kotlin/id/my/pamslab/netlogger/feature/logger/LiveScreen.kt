@@ -54,6 +54,8 @@ import id.my.pamslab.netlogger.core.model.speedtest.SpeedTestTarget
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputType
 import id.my.pamslab.netlogger.core.ui.component.PlaceholderScreen
 import id.my.pamslab.netlogger.feature.logger.service.LoggingService
+import id.my.pamslab.netlogger.feature.logger.service.IndoorState
+import id.my.pamslab.netlogger.feature.logger.plan.formatElapsedShort
 import id.my.pamslab.netlogger.feature.logger.service.LoggingState
 import id.my.pamslab.netlogger.feature.logger.service.PeriodicStatus
 import id.my.pamslab.netlogger.feature.logger.service.SpeedTestState
@@ -71,6 +73,7 @@ internal fun LiveScreen(
     modifier: Modifier = Modifier,
     captureRow: CaptureRowSlot = {},
     onOpenProblem: (String) -> Unit = {},
+    onOpenPlan: () -> Unit = {},
 ) {
     if (loggingPermissionsMissing) {
         Column(modifier.fillMaxSize()) {
@@ -91,12 +94,18 @@ internal fun LiveScreen(
         }
     } else {
         // Only created (and sampling) when permissions are present.
-        LiveContent(hiltViewModel(), captureRow, onOpenProblem, modifier)
+        LiveContent(hiltViewModel(), captureRow, onOpenProblem, onOpenPlan, modifier)
     }
 }
 
 @Composable
-private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, onOpenProblem: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun LiveContent(
+    viewModel: LiveViewModel,
+    captureRow: CaptureRowSlot,
+    onOpenProblem: (String) -> Unit,
+    onOpenPlan: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     when (val s = state) {
         LiveUiState.Waiting -> PlaceholderScreen("Live", "Waiting for the first radio sample…", modifier)
@@ -109,7 +118,7 @@ private fun LiveContent(viewModel: LiveViewModel, captureRow: CaptureRowSlot, on
             Column(modifier.fillMaxSize()) {
                 StatusBar(s, scenario, viewModel::selectScenario, intervalMs)
                 problem?.let { ProblemCard(it, onView = { onOpenProblem(it.id) }, onDismiss = { viewModel.dismissProblem(it.id) }) }
-                SnapshotView(s, open, viewModel::setOpen, captureRow, Modifier.weight(1f))
+                SnapshotView(s, open, viewModel::setOpen, captureRow, onOpenPlan, Modifier.weight(1f))
             }
         }
     }
@@ -121,6 +130,7 @@ private fun SnapshotView(
     open: Set<LiveSection>,
     onOpen: (LiveSection, Boolean) -> Unit,
     captureRow: CaptureRowSlot,
+    onOpenPlan: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot = ui.snapshot
@@ -141,7 +151,7 @@ private fun SnapshotView(
             }
         }
         if (LiveSection.NEIGHBOURS in open) item { NeighborRows(neighbors) }
-        item { GpsAndDataSection(ui, captureRow) }
+        item { GpsAndDataSection(ui, captureRow, onOpenPlan) }
         item { EventsSection(ui.events, recording = ui.logging is LoggingState.Running) }
         item {
             SectionHeader(stringResource(R.string.live_details), stringResource(R.string.live_details_hint), detailsOpen) {
@@ -367,7 +377,7 @@ private fun NeighborRows(neighbors: List<CellSample>) {
 
 /** GPS in two lines and the data route with its rates (decision 004). */
 @Composable
-private fun GpsAndDataSection(ui: LiveUiState.Ready, captureRow: CaptureRowSlot) {
+private fun GpsAndDataSection(ui: LiveUiState.Ready, captureRow: CaptureRowSlot, onOpenPlan: () -> Unit) {
     val fix = ui.tick?.location ?: ui.location?.fix
     val status = ui.tick?.locationStatus ?: ui.location?.status
     val stale = (ui.locationAgeMs ?: 0) > STALE_AGE_MS
@@ -415,7 +425,38 @@ private fun GpsAndDataSection(ui: LiveUiState.Ready, captureRow: CaptureRowSlot)
             (ui.logging as? LoggingState.Running)?.let { SpeedTestRow(it.speedTest, it.periodic, it.latest?.radio?.elapsedRealtimeNs) }
             // Shows itself only while a session records or a capture is ending.
             captureRow { RowLabel(stringResource(R.string.live_capture)) }
+            (ui.logging as? LoggingState.Running)?.let { PlanRow(it, onOpenPlan) }
         }
+    }
+}
+
+/** The floor plan of the running session (decision 006): plan, taps, last tap; Plan opens the full-screen view. */
+@Composable
+private fun PlanRow(running: LoggingState.Running, onOpenPlan: () -> Unit) {
+    val indoor = running.indoor
+    val plan = indoor.plan
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RowLabel(stringResource(R.string.live_plan))
+        Column(Modifier.weight(1f)) {
+            if (plan == null) {
+                Text(stringResource(R.string.live_plan_none), style = MaterialTheme.typography.bodyMedium)
+            } else {
+                Text(IndoorState.label(plan), style = MaterialTheme.typography.bodyMedium)
+                val taps = indoor.active.count { it.planId == plan.id }
+                val last = indoor.lastActive?.waypoint
+                val nowNs = running.latest?.radio?.elapsedRealtimeNs
+                Text(
+                    if (last == null || nowNs == null) {
+                        stringResource(R.string.live_plan_no_taps)
+                    } else {
+                        pluralStringResource(R.plurals.live_plan_taps, taps, taps, formatElapsedShort(nowNs - last.elapsedRealtimeNs))
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        OutlinedButton(onClick = onOpenPlan) { Text(stringResource(R.string.live_plan_open)) }
     }
 }
 
@@ -664,7 +705,8 @@ private const val MAX_WARNINGS_SHOWN = 10
 /** Below this share of expected ticks, the status bar shows the share. */
 private const val WARN_TICK_SHARE_PCT = 95.0
 
-private val RecordingRed = Color(0xFFD32F2F)
+/** The REC dot, also on Live › Plan. */
+internal val RecordingRed = Color(0xFFD32F2F)
 
 // SignalStrength only fires on change, so a large age there means "unchanged", not "stale": never grayed out.
 private fun CellSample.isStale() = source == CellSource.CELL_INFO && (cellInfoAgeMs ?: 0) > STALE_AGE_MS

@@ -32,6 +32,7 @@ import androidx.navigation.compose.rememberNavController
 import id.my.pamslab.netlogger.feature.capture.CaptureRow
 import id.my.pamslab.netlogger.feature.indoor.navigation.FloorPlansRoute
 import id.my.pamslab.netlogger.feature.indoor.navigation.floorPlanPages
+import id.my.pamslab.netlogger.feature.logger.navigation.LivePlanRoute
 import id.my.pamslab.netlogger.feature.logger.navigation.LiveRoute
 import id.my.pamslab.netlogger.feature.logger.navigation.liveScreen
 import id.my.pamslab.netlogger.feature.map.navigation.MapRoute
@@ -131,6 +132,8 @@ fun NetLoggerApp(
                 onRequestPermissions = { navController.navigate(PermissionsRoute) },
                 captureRow = { label -> CaptureRow(label) },
                 onOpenProblem = { navController.navigateToProblem(it) },
+                onOpenPlan = { navController.navigate(LivePlanRoute) { launchSingleTop = true } },
+                onClosePlan = { navController.popBackStack() },
             )
             mapScreen()
             sessionsScreen(

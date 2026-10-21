@@ -7,6 +7,8 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.model.Clock
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -102,6 +104,22 @@ class FloorPlanRepositoryTest {
         }
         repo.setScale(id, null)
         assertNull(repo.plan(id)!!.plan.metresPerPx)
+    }
+
+    @Test
+    fun `taps are stored per session, undo marks them removed`() = runTest {
+        val plan = import()
+        val rec = RoomSessionRepository(db).startSession(TestData.start())
+        val first = rec.addWaypoint(Waypoint(plan, 1_000, 5_000_000_000, 120.5, 300.25))
+        rec.addWaypoint(Waypoint(plan, 2_000, 6_000_000_000, 130.0, 300.0, WaypointKind.STILL))
+        rec.removeWaypoint(first)
+        val stored = db.floorPlanDao().waypoints(rec.sessionId)
+        assertEquals(listOf(true, false), stored.map { it.removed })
+        assertEquals(listOf("HERE", "STILL"), stored.map { it.kind })
+        assertEquals(120.5, stored[0].x, 0.0)
+        val summary = repo.plans.first().single()
+        assertEquals(1, summary.sessions)
+        assertEquals(1, summary.waypoints)
     }
 
     @Test

@@ -38,6 +38,7 @@ import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import id.my.pamslab.netlogger.core.data.FloorPlanRepository
 import id.my.pamslab.netlogger.core.data.FloorPlanSummary
+import id.my.pamslab.netlogger.core.ui.plan.PlanView
 import id.my.pamslab.netlogger.core.model.indoor.PlanGeometry
 import id.my.pamslab.netlogger.feature.indoor.navigation.PlanScaleRoute
 import kotlinx.coroutines.flow.MutableStateFlow

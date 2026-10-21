@@ -13,6 +13,10 @@ import id.my.pamslab.netlogger.core.model.device.DeviceInfo
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
+import id.my.pamslab.netlogger.core.model.indoor.FloorPlan
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
+import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.TickStats
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -75,6 +79,8 @@ sealed interface LoggingState {
         val recentEvents: List<LiveEvent> = emptyList(),
         /** The periodic speed test of this session; null when it is off. */
         val periodic: PeriodicStatus? = null,
+        /** Floor plan, taps and placeable ticks of this session (decision 006). */
+        val indoor: IndoorState = IndoorState(),
     ) : LoggingState
 }
 
@@ -120,6 +126,9 @@ class LoggingEngine @Inject constructor(
     private val speedTestJob = AtomicReference<Job?>(null)
     private val speedTestStopRequested = AtomicBoolean(false)
 
+    /** Live events that do not come from the tick loop's detector (FLOOR_CHANGE), merged into each tick's list. */
+    private val outsideEvents = AtomicReference<List<LiveEvent>>(emptyList())
+
     /** Closes sessions a killed process left open; skipped while a session is recording. */
     suspend fun recoverAbandonedSessions(): Int =
         if (_state.value is LoggingState.Idle) repository.closeAbandonedSessions() else 0
@@ -134,6 +143,7 @@ class LoggingEngine @Inject constructor(
             SessionStart(UUID.randomUUID().toString(), clock.wallTimeMs(), startNs, intervalMs, scenario, info),
         )
         recorder.set(session)
+        outsideEvents.set(emptyList())
         locationState.set(LocationState(LocationStatus.WAITING))
         recentFixes.set(emptyList())
         _state.value = LoggingState.Running(
@@ -184,7 +194,8 @@ class LoggingEngine @Inject constructor(
                         else s.copy(
                             stats = s.stats.copy(recorded = seq, expected = maxOf(expected, seq)),
                             latest = tick,
-                            recentEvents = recentEvents,
+                            recentEvents = liveEvents(recentEvents, outsideEvents.get()),
+                            indoor = s.indoor.withTick(PlanTick.of(tick)),
                             writeErrors = s.writeErrors + if (writeFailed) 1 else 0,
                         )
                     }
@@ -334,6 +345,87 @@ class LoggingEngine @Inject constructor(
         }
     }
 
+    /**
+     * The floor plan the user taps on from now (decision 006). A change, also the first plan of a session, is stored as
+     * a FLOOR_CHANGE event; positions are never interpolated across it. False when not logging.
+     */
+    suspend fun setPlan(plan: FloorPlan): Boolean {
+        val session = recorder.get() ?: return false
+        val now = clock.wallTimeMs()
+        val nowNs = clock.elapsedRealtimeNs()
+        val running = _state.value as? LoggingState.Running ?: return false
+        if (running.indoor.plan?.id == plan.id) {
+            // The same plan, perhaps renamed or scaled meanwhile: no floor change.
+            _state.update { st -> if (st is LoggingState.Running) st.copy(indoor = st.indoor.copy(plan = plan)) else st }
+            return true
+        }
+        val previous = running.indoor.plan
+        val event = LiveEvent(EventType.FLOOR_CHANGE, now, previous?.let(IndoorState::label), IndoorState.label(plan))
+        outsideEvents.update { (listOf(event) + it).take(MAX_LIVE_EVENTS) }
+        _state.update { s ->
+            if (s is LoggingState.Running) {
+                s.copy(indoor = s.indoor.copy(plan = plan), recentEvents = liveEvents(s.recentEvents, listOf(event)))
+            } else {
+                s
+            }
+        }
+        stored("floor change") {
+            session.addEvent(
+                SessionEvent(EventType.FLOOR_CHANGE, now, nowNs, previous?.let(IndoorState::label), IndoorState.label(plan), null, null),
+            )
+        }
+        return true
+    }
+
+    /**
+     * A tap on the current plan at [x]/[y] (stored-image pixels): "I am here now" ([WaypointKind.HERE]). False when not
+     * logging or no plan is chosen.
+     */
+    suspend fun addWaypoint(x: Double, y: Double, kind: WaypointKind = WaypointKind.HERE): Boolean {
+        val session = recorder.get() ?: return false
+        val plan = (_state.value as? LoggingState.Running)?.indoor?.plan ?: return false
+        val waypoint = Waypoint(plan.id, clock.wallTimeMs(), clock.elapsedRealtimeNs(), x, y, kind)
+        val id = stored("waypoint") { session.addWaypoint(waypoint) } ?: return false
+        _state.update { s ->
+            if (s is LoggingState.Running) s.copy(indoor = s.indoor.copy(waypoints = s.indoor.waypoints + StoredWaypoint(id, waypoint))) else s
+        }
+        return true
+    }
+
+    /** "I am still here": the last tap's spot again, now. False without a tap on the current plan. */
+    suspend fun stillHere(): Boolean {
+        val indoor = (_state.value as? LoggingState.Running)?.indoor ?: return false
+        val last = indoor.lastActive?.waypoint?.takeIf { it.planId == indoor.plan?.id } ?: return false
+        return addWaypoint(last.x, last.y, WaypointKind.STILL)
+    }
+
+    /** Undo of the newest tap that was not undone yet; it stays stored, marked removed. False if there is none. */
+    suspend fun undoWaypoint(): Boolean {
+        val session = recorder.get() ?: return false
+        val last = (_state.value as? LoggingState.Running)?.indoor?.lastActive ?: return false
+        stored("waypoint undo") { session.removeWaypoint(last.id) } ?: return false
+        _state.update { s ->
+            if (s !is LoggingState.Running) return@update s
+            s.copy(
+                indoor = s.indoor.copy(
+                    waypoints = s.indoor.waypoints.map { if (it.id == last.id) it.copy(waypoint = it.waypoint.copy(removed = true)) else it },
+                ),
+            )
+        }
+        return true
+    }
+
+    /** Runs a database write to the end even if the caller (a screen) goes away; null and logged if it fails. */
+    private suspend fun <T> stored(what: String, write: suspend () -> T): T? = withContext(NonCancellable) {
+        try {
+            write()
+        } catch (e: Exception) {
+            log("$what not stored: $e")
+            CaughtErrors.record("$what not stored", e)
+            null
+        }
+    }
+
     /** Stops a running speed test (Live's Stop): finished phases are kept, the interrupted one is stored as stopped. */
     fun stopSpeedTest() {
         val job = speedTestJob.get() ?: return
@@ -416,6 +508,13 @@ class LoggingEngine @Inject constructor(
         const val SUMMARY_EVERY_TICKS = 60L
         const val NS_PER_MS = 1_000_000L
         const val FIX_HISTORY = 5
+
+        /** Live's event list (as [LiveEventTracker]). */
+        const val MAX_LIVE_EVENTS = 5
+
+        /** The detector's events and those from outside the tick loop, newest first, at most [MAX_LIVE_EVENTS]. */
+        fun liveEvents(detected: List<LiveEvent>, outside: List<LiveEvent>): List<LiveEvent> =
+            (detected + outside).distinct().sortedByDescending { it.wallTimeMs }.take(MAX_LIVE_EVENTS)
         const val NO_SERVER = "No speed test server set (Settings)"
         const val NO_PRIVATE_SERVER = "No private server set: Settings › Speed test"
         const val NO_PRIVATE_SERVER_PERIODIC = "Periodic test off: no private server set (Settings › Speed test)"

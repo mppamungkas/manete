@@ -12,6 +12,9 @@ import id.my.pamslab.netlogger.core.model.device.BatterySample
 import id.my.pamslab.netlogger.core.model.device.DeviceContext
 import id.my.pamslab.netlogger.core.model.device.DeviceInfo
 import id.my.pamslab.netlogger.core.model.device.TrafficSample
+import id.my.pamslab.netlogger.core.model.indoor.FloorPlan
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
 import id.my.pamslab.netlogger.core.model.location.LocationFix
 import id.my.pamslab.netlogger.core.model.location.LocationState
 import id.my.pamslab.netlogger.core.model.location.LocationStatus
@@ -113,6 +116,8 @@ class LoggingEngineTest {
         val markers = mutableListOf<UserMarker>()
         val events = mutableListOf<SessionEvent>()
         val throughput = mutableListOf<ThroughputResult>()
+        val waypoints = mutableListOf<Waypoint>()
+        val removedWaypoints = mutableListOf<Long>()
         var closedWith: EndReason? = null
         var failWritesFrom: Long = Long.MAX_VALUE
         var abandonedClosed = 0
@@ -129,6 +134,8 @@ class LoggingEngineTest {
                 override suspend fun addMarker(marker: UserMarker) { markers += marker }
                 override suspend fun addEvent(event: SessionEvent) { events += event }
                 override suspend fun addThroughput(result: ThroughputResult) { throughput += result }
+                override suspend fun addWaypoint(waypoint: Waypoint): Long { waypoints += waypoint; return 100L + waypoints.size }
+                override suspend fun removeWaypoint(id: Long) { removedWaypoints += id }
                 override suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long) { closedWith = reason }
             }
         }
@@ -487,6 +494,77 @@ class LoggingEngineTest {
         assertEquals(0L, pingOnly.maxBytesPerTest)
         assertEquals(0L, PeriodicSpeedTest(intervalMin = 0).maxBytesPerHour)
         assertFalse("no phase chosen is off", PeriodicSpeedTest(intervalMin = 5, phases = emptySet()).enabled)
+    }
+
+    private val buildingC = FloorPlan(1, "c", "Gedung C", "Lantai 2", 3000, 2000, 0.02)
+    private val buildingC3 = FloorPlan(2, "c3", "Gedung C", "Lantai 3", 3000, 2000)
+
+    @Test
+    fun `floor plan - taps need a session and a plan`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
+        assertFalse("not logging", engine.setPlan(buildingC))
+        val job = launch { engine.run(1_000, Scenario.INDOOR) }
+        advanceTimeBy(1_500)
+        assertFalse("no plan chosen", engine.addWaypoint(10.0, 20.0))
+        assertFalse(engine.stillHere())
+        assertFalse(engine.undoWaypoint())
+        assertTrue(repo.waypoints.isEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `floor plan - plan changes are FLOOR_CHANGE events, kept on Live across ticks`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
+        val job = launch { engine.run(1_000, Scenario.INDOOR) }
+        advanceTimeBy(1_500)
+        assertTrue(engine.setPlan(buildingC))
+        assertTrue("same plan, renamed: no event", engine.setPlan(buildingC.copy(name = "Gedung C (new)")))
+        advanceTimeBy(2_000)
+        assertTrue(engine.setPlan(buildingC3))
+        advanceTimeBy(3_000)
+
+        val floors = repo.events.filter { it.type == EventType.FLOOR_CHANGE }
+        assertEquals(listOf(null, "Gedung C (new) · Lantai 2"), floors.map { it.fromValue })
+        assertEquals(listOf("Gedung C · Lantai 2", "Gedung C · Lantai 3"), floors.map { it.toValue })
+        val running = engine.state.value as LoggingState.Running
+        assertEquals(buildingC3, running.indoor.plan)
+        assertEquals("still on Live after later ticks", 2, running.recentEvents.count { it.type == EventType.FLOOR_CHANGE })
+        assertEquals(EventType.FLOOR_CHANGE, running.recentEvents.first().type)
+        job.cancel()
+    }
+
+    @Test
+    fun `floor plan - here, still here and undo are stored with both clocks`() = runTest {
+        val clock = VirtualClock(this)
+        val repo = FakeRepository()
+        val engine = LoggingEngine(radio(clock), FakeLocation(), FakeDevice, clock, repo, FakeRunner(), FakeSettings(), CaptureStateHolder())
+        val job = launch { engine.run(1_000, Scenario.INDOOR) }
+        advanceTimeBy(500)
+        engine.setPlan(buildingC)
+        assertTrue(engine.addWaypoint(100.0, 200.0))
+        advanceTimeBy(5_000)
+        assertTrue(engine.stillHere())
+        advanceTimeBy(5_000)
+        assertTrue(engine.addWaypoint(400.0, 200.0))
+        assertTrue(engine.undoWaypoint())
+
+        assertEquals(listOf(WaypointKind.HERE, WaypointKind.STILL, WaypointKind.HERE), repo.waypoints.map { it.kind })
+        assertEquals(listOf(100.0, 100.0, 400.0), repo.waypoints.map { it.x })
+        assertEquals((BOOT_MS + 5_500) * 1_000_000, repo.waypoints[1].elapsedRealtimeNs)
+        assertEquals(clock.wallTimeMs(), repo.waypoints[2].wallTimeMs)
+        assertEquals("the last tap undone", listOf(103L), repo.removedWaypoints)
+        val indoor = (engine.state.value as LoggingState.Running).indoor
+        assertEquals(listOf(false, false, true), indoor.waypoints.map { it.waypoint.removed })
+        assertEquals(2, indoor.active.size)
+        assertEquals("one placeable tick per tick", 11, indoor.ticks.size)
+
+        engine.setPlan(buildingC3)
+        assertFalse("no tap on the new floor yet", engine.stillHere())
+        job.cancel()
     }
 
     @Test

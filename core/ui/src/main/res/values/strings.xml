@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Floor plan view (decision 006), shared by Settings › Floor plans, Live and Map. -->
+    <string name="plan_image_unreadable">The plan image could not be loaded.</string>
+</resources>

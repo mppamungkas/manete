@@ -1,4 +1,4 @@
-package id.my.pamslab.netlogger.feature.indoor
+package id.my.pamslab.netlogger.core.ui.plan
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

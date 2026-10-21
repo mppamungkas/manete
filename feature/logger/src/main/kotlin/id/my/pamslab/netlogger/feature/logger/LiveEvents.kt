@@ -76,6 +76,7 @@ internal fun EventType.title(): String = when (this) {
     EventType.DATA_SIM_CHANGED -> "Data SIM changed"
     EventType.CAPTURE_STARTED -> "Capture started"
     EventType.CAPTURE_STOPPED -> "Capture stopped"
+    EventType.FLOOR_CHANGE -> "Floor plan"
 }
 
 /** The from → to part in words, e.g. "PCI 123 → 211", "LTE → 5G NSA", "-104 → -93 dBm" appended for cell changes. */
@@ -86,6 +87,7 @@ internal fun LiveEvent.detail(): String {
         EventType.NR_ADDED -> toValue?.let { "PCI ${it.substringBefore('/')}" }
         EventType.GPS_LOST -> gpsReason(toValue)
         EventType.DATA_SIM_CHANGED -> "subId ${fromValue ?: "–"} → ${toValue ?: "–"}"
+        EventType.FLOOR_CHANGE -> listOfNotNull(fromValue, toValue).joinToString(" → ")
         else -> null
     }
     val level = if (levelBeforeDbm != null || levelAfterDbm != null) "${levelBeforeDbm ?: "–"} → ${levelAfterDbm ?: "–"} dBm" else null

@@ -1,4 +1,4 @@
-package id.my.pamslab.netlogger.feature.indoor
+package id.my.pamslab.netlogger.core.ui.plan
 
 /**
  * Where a floor plan is drawn in its view: fitted into the container at [zoom] 1, zoomed up to [MAX_ZOOM] and panned.

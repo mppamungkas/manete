@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.pamslab.netlogger.core.data.FloorPlanSummary
+import id.my.pamslab.netlogger.core.ui.plan.PlanBitmapState
+import id.my.pamslab.netlogger.core.ui.plan.rememberPlanBitmap
 import id.my.pamslab.netlogger.core.data.PlanImportError
 import java.util.Locale
 

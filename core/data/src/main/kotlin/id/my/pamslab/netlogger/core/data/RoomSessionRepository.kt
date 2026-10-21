@@ -2,12 +2,15 @@ package id.my.pamslab.netlogger.core.data
 
 import android.util.Log
 import id.my.pamslab.netlogger.core.data.db.EventEntity
+import id.my.pamslab.netlogger.core.data.db.FloorPlanDao
 import id.my.pamslab.netlogger.core.data.db.MeasurementDao
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
+import id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity
 import id.my.pamslab.netlogger.core.data.db.SessionDao
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
 import id.my.pamslab.netlogger.core.data.db.SessionSummaryRow
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -17,18 +20,19 @@ import id.my.pamslab.netlogger.core.model.session.Scenario
 import id.my.pamslab.netlogger.core.model.session.SessionStart
 import id.my.pamslab.netlogger.core.model.session.SessionSummary
 import id.my.pamslab.netlogger.core.model.speedtest.ThroughputResult
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import javax.inject.Inject
-import javax.inject.Singleton
 
 @Singleton
 class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : SessionRepository {
 
     private val sessions: SessionDao = db.sessionDao()
     private val measurements: MeasurementDao = db.measurementDao()
+    private val floorPlans: FloorPlanDao = db.floorPlanDao()
 
     /** Serializes start and recovery so recovery never closes the session being started. */
     private val lifecycle = Mutex()
@@ -138,6 +142,16 @@ class RoomSessionRepository @Inject constructor(db: NetLoggerDatabase) : Session
         override suspend fun addEvent(event: SessionEvent) {
             measurements.insertEvent(event.toEntity(sessionId))
         }
+
+        override suspend fun addWaypoint(waypoint: Waypoint): Long = floorPlans.insertWaypoint(
+            PlanWaypointEntity(
+                sessionId = sessionId, planId = waypoint.planId, wallTimeMs = waypoint.wallTimeMs,
+                elapsedRealtimeNs = waypoint.elapsedRealtimeNs, x = waypoint.x, y = waypoint.y,
+                kind = waypoint.kind.name, removed = waypoint.removed,
+            ),
+        )
+
+        override suspend fun removeWaypoint(id: Long) = floorPlans.markWaypointRemoved(id)
 
         override suspend fun addThroughput(result: ThroughputResult) {
             measurements.insertThroughput(

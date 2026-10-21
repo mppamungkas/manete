@@ -1,4 +1,4 @@
-package id.my.pamslab.netlogger.feature.indoor
+package id.my.pamslab.netlogger.core.ui.plan
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import id.my.pamslab.netlogger.core.ui.R
 import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

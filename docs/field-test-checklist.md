@@ -265,6 +265,11 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] Scale: two taps + distance with a comma decimal → "1 m = 49.0 px" (≈ 2955 px over 60 m), saved and shown in the
       list; points too close refused; markers magenta with a white outline (the theme colour was pale on white plans) (moto)
 - [ ] Scale: pinch zoom, drag while zoomed, double-tap to reset (needs two fingers: by hand); Remove the scale
+- [x] Live › Plan while recording (moto, session 36, Indoor): plan menu, taps along a corridor and into a room →
+      ticks placed along the path (LTE RSRP yellow, Network blue), last tap ringed; Still here kept the spot (STILL);
+      a stray tap undone (stored removed = 1); floor change to Basement: only its taps and ticks shown; Live row
+      "Basement · B1 · 2 taps · last 0:15 ago"; two FLOOR_CHANGE events (from empty, then C → Basement) on Live and stored
+- [ ] Live › Plan on the A56; with the screen off between taps; leaving and reopening the app keeps the plan and taps
 - [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release

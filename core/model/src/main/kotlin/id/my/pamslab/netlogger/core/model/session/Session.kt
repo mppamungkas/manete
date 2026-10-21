@@ -47,6 +47,12 @@ enum class EventType {
 
     /** Capture ended: from = why (USER, SESSION_END, VPN_REVOKED, ERROR, PROCESS_DIED; PCAPDROID in old sessions), to = counts. */
     CAPTURE_STOPPED,
+
+    /**
+     * The floor plan the user taps on changed (decision 006), also the first one chosen in a session: from/to = "name ·
+     * floor" (from empty the first time). Positions are never interpolated across it.
+     */
+    FLOOR_CHANGE,
 }
 
 /** What is known when a session starts; network fields are filled from the first tick. */

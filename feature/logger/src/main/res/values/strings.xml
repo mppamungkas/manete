@@ -52,4 +52,32 @@
     <string name="live_speed_private">Private server</string>
     <string name="live_speed_cloudflare">Cloudflare</string>
     <string name="live_speed_stop">Stop</string>
+    <!-- Floor plan on Live (decision 006) -->
+    <string name="live_plan">Plan</string>
+    <string name="live_plan_none">No floor plan chosen. Indoors, open Plan and tap where you are.</string>
+    <string name="live_plan_no_taps">No tap yet: tap where you are.</string>
+    <plurals name="live_plan_taps">
+        <item quantity="one">%1$d tap · last %2$s ago</item>
+        <item quantity="other">%1$d taps · last %2$s ago</item>
+    </plurals>
+    <string name="live_plan_open">Plan</string>
+    <string name="plan_back">← Live</string>
+    <plurals name="plan_rec">
+        <item quantity="one">REC %1$s · %2$d tick</item>
+        <item quantity="other">REC %1$s · %2$d ticks</item>
+    </plurals>
+    <string name="plan_not_logging">Start logging on Live first. Then open Plan again, choose the floor and tap where you are.</string>
+    <string name="plan_no_plans">No floor plans yet. Import one in Settings › Floor plans (a photo, an image or a PDF page of the building), then come back here.</string>
+    <string name="plan_choose">Choose the floor you are on. Then tap the plan where you are now, and again at every turn, door or landmark.</string>
+    <string name="plan_choose_button">Choose the floor plan…</string>
+    <string name="plan_floor_button">Floor: %1$s (change)</string>
+    <string name="plan_deleted">This floor plan was deleted. Choose another one.</string>
+    <string name="plan_hint_first">Tap the plan where you are now. Pinch to zoom, drag to move, double-tap to see the whole plan.</string>
+    <plurals name="plan_hint_taps">
+        <item quantity="one">%1$d tap on this floor · last %2$s ago. Tap again at the next turn, door or landmark; the measurements in between are placed along your path.</item>
+        <item quantity="other">%1$d taps on this floor · last %2$s ago. Tap again at the next turn, door or landmark; the measurements in between are placed along your path.</item>
+    </plurals>
+    <string name="plan_still_here">Still here</string>
+    <string name="plan_undo">Undo last tap</string>
+    <string name="plan_no_placed">no placed ticks yet (two taps needed)</string>
 </resources>

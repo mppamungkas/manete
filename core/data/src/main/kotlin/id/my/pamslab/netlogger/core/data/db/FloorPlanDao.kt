@@ -48,4 +48,15 @@ interface FloorPlanDao {
 
     @Query("DELETE FROM floor_plan WHERE id = :id")
     suspend fun delete(id: Long): Int
+
+    @Insert
+    suspend fun insertWaypoint(waypoint: PlanWaypointEntity): Long
+
+    /** Undo: the tap stays stored, marked removed, so the export can show it. */
+    @Query("UPDATE plan_waypoint SET removed = 1 WHERE id = :id")
+    suspend fun markWaypointRemoved(id: Long)
+
+    /** A session's taps in time order, removed ones too. */
+    @Query("SELECT * FROM plan_waypoint WHERE sessionId = :sessionId ORDER BY elapsedRealtimeNs, id")
+    suspend fun waypoints(sessionId: Long): List<PlanWaypointEntity>
 }

@@ -38,7 +38,6 @@
     <string name="plans_error_protected">This PDF is password-protected. Save it without a password, or take a screenshot of the plan.</string>
     <string name="plans_error_too_large">The image is too large for this phone\'s memory. Make it smaller first (e.g. a screenshot of the floor).</string>
     <string name="plans_error_not_saved">The plan could not be saved. Is the phone\'s storage full?</string>
-    <string name="plan_image_unreadable">The plan image could not be loaded.</string>
 
     <!-- Scale calibration -->
     <string name="scale_back">← Floor plans</string>

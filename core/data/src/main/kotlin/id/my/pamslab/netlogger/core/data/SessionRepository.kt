@@ -1,5 +1,6 @@
 package id.my.pamslab.netlogger.core.data
 
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
 import id.my.pamslab.netlogger.core.model.logging.SessionEvent
 import id.my.pamslab.netlogger.core.model.logging.Tick
 import id.my.pamslab.netlogger.core.model.logging.UserMarker
@@ -45,6 +46,12 @@ interface SessionRecorder {
     suspend fun addEvent(event: SessionEvent)
 
     suspend fun addThroughput(result: ThroughputResult)
+
+    /** A tap on a floor plan (decision 006). Returns its id, for [removeWaypoint]. */
+    suspend fun addWaypoint(waypoint: Waypoint): Long
+
+    /** Undo of tap [id]: it stays stored, marked removed. */
+    suspend fun removeWaypoint(id: Long)
 
     suspend fun close(reason: EndReason, endedAtMs: Long, endedElapsedNs: Long)
 }
