@@ -270,6 +270,11 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       a stray tap undone (stored removed = 1); floor change to Basement: only its taps and ticks shown; Live row
       "Basement · B1 · 2 taps · last 0:15 ago"; two FLOOR_CHANGE events (from empty, then C → Basement) on Live and stored
 - [ ] Live › Plan on the A56; with the screen off between taps; leaving and reopening the app keeps the plan and taps
+- [x] Map › Recorded session 36 (moto): the OSM track is a GPS scatter around the building; "Map ▾" → "Floor plan" shows
+      44 / 139 ticks on Gedung C (5 taps) along the walked path, legend counts; a tapped dot opens tick 48 with "x 1308,
+      y 996 px (26.7, 20.3 m) · 2.7 s from a tap" and its GPS fix; the floor menu switches to Basement (6 ticks, 2 taps);
+      back to Map works; a session without taps has no Map/Floor plan menu; no crash
+- [ ] Map › Live session while recording with taps: the floor plan view grows with new taps and ticks
 - [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release

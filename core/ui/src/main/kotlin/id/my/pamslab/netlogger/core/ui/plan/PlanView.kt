@@ -74,7 +74,8 @@ sealed interface PlanBitmapState {
 /**
  * A floor plan the user can zoom (pinch, up to [PlanViewport.MAX_ZOOM]), pan and tap. [planWidth] × [planHeight] is
  * the stored image size: [onTap] and [overlay] work in its pixels, whatever size [file] is decoded at for the screen.
- * Taps outside the plan are ignored.
+ * [onTap] also gets the current scale (screen pixels per plan pixel), e.g. to find the dot nearest a finger. Taps
+ * outside the plan are ignored.
  */
 @Composable
 fun PlanView(
@@ -82,7 +83,7 @@ fun PlanView(
     planWidth: Int,
     planHeight: Int,
     modifier: Modifier = Modifier,
-    onTap: ((x: Float, y: Float) -> Unit)? = null,
+    onTap: ((x: Float, y: Float, scale: Float) -> Unit)? = null,
     overlay: DrawScope.(PlanViewport) -> Unit = {},
 ) {
     val image = rememberPlanBitmap(file)
@@ -107,7 +108,7 @@ fun PlanView(
                     onTap = { offset ->
                         val v = viewport ?: return@detectTapGestures
                         val (x, y) = v.toPlan(offset.x, offset.y)
-                        if (v.onPlan(x, y)) tap?.invoke(x, y)
+                        if (v.onPlan(x, y)) tap?.invoke(x, y, v.scale)
                     },
                 )
             },

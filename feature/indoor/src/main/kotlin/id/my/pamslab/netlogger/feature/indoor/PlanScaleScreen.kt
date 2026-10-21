@@ -116,7 +116,7 @@ private fun ColumnScope.ScaleContent(summary: FloorPlanSummary, onSave: (Double?
     PlanView(
         summary.image, plan.widthPx, plan.heightPx,
         Modifier.fillMaxWidth().weight(1f).border(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        onTap = { x, y ->
+        onTap = { x, y, _ ->
             if (ax == null || bx != null) {
                 ax = x; ay = y; bx = null; by = null
             } else {

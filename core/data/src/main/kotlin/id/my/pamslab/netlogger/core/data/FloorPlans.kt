@@ -18,8 +18,11 @@ import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
 import id.my.pamslab.netlogger.core.model.Clock
 import id.my.pamslab.netlogger.core.model.indoor.FloorPlan
 import id.my.pamslab.netlogger.core.model.indoor.PlanGeometry
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import id.my.pamslab.netlogger.core.model.indoor.WaypointKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -35,6 +38,11 @@ data class FloorPlanSummary(
     val sessions: Int,
     val waypoints: Int,
 )
+
+/** A session's taps (removed ones too, in time order) and the plans they are on. */
+data class SessionIndoor(val plans: List<FloorPlanSummary>, val waypoints: List<Waypoint>) {
+    val active: List<Waypoint> get() = waypoints.filterNot { it.removed }
+}
 
 /** A file the user picked, before importing: its name and, for a PDF, its page count. */
 data class PlanSource(val displayName: String?, val pdfPages: Int?)
@@ -71,6 +79,9 @@ interface FloorPlanRepository {
     val plans: Flow<List<FloorPlanSummary>>
 
     suspend fun plan(id: Long): FloorPlanSummary?
+
+    /** The taps of [sessionId] and their plans; updates while the session records. */
+    fun sessionIndoor(sessionId: Long): Flow<SessionIndoor>
 
     /** Name and page count of a picked file, or why it cannot be opened ([PlanImageException]). */
     suspend fun inspect(uri: Uri): Result<PlanSource>
@@ -188,6 +199,15 @@ class RoomFloorPlanRepository @Inject constructor(
         val entity = dao.get(id) ?: return null
         return summary(entity, sessions = dao.sessionCount(id), waypoints = dao.activeWaypointCount(id))
     }
+
+    override fun sessionIndoor(sessionId: Long): Flow<SessionIndoor> =
+        combine(dao.observeWaypoints(sessionId), plans) { rows, all ->
+            val waypoints = rows.map {
+                Waypoint(it.planId, it.wallTimeMs, it.elapsedRealtimeNs, it.x, it.y, WaypointKind.entries.firstOrNull { k -> k.name == it.kind } ?: WaypointKind.HERE, it.removed)
+            }
+            val used = waypoints.map { it.planId }.toSet()
+            SessionIndoor(all.filter { it.plan.id in used }, waypoints)
+        }
 
     override suspend fun inspect(uri: Uri): Result<PlanSource> = withContext(Dispatchers.IO) { reader.inspect(uri) }
 

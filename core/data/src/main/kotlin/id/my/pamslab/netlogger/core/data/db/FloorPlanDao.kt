@@ -56,6 +56,10 @@ interface FloorPlanDao {
     @Query("UPDATE plan_waypoint SET removed = 1 WHERE id = :id")
     suspend fun markWaypointRemoved(id: Long)
 
+    /** A session's taps in time order, removed ones too; updates while the session records. */
+    @Query("SELECT * FROM plan_waypoint WHERE sessionId = :sessionId ORDER BY elapsedRealtimeNs, id")
+    fun observeWaypoints(sessionId: Long): Flow<List<PlanWaypointEntity>>
+
     /** A session's taps in time order, removed ones too. */
     @Query("SELECT * FROM plan_waypoint WHERE sessionId = :sessionId ORDER BY elapsedRealtimeNs, id")
     suspend fun waypoints(sessionId: Long): List<PlanWaypointEntity>

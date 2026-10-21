@@ -122,7 +122,7 @@ private fun ColumnScope.PlanContent(running: LoggingState.Running, plans: List<F
     PlanView(
         summary.image, current.widthPx, current.heightPx,
         Modifier.fillMaxWidth().weight(1f).border(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        onTap = { x, y ->
+        onTap = { x, y, _ ->
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             viewModel.tap(x, y)
         },

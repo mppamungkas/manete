@@ -25,7 +25,7 @@ class TrackTest {
 
     @Test
     fun `point values follow flat csv - serving cells, CELL_INFO first, SignalStrength for gaps`() {
-        val p = TrackPoint.of(FlatRow.of(tick(0), a56Tick)) ?: error("point expected")
+        val p = TrackPoint.of(FlatRow.of(tick(0), a56Tick))?.values ?: error("point expected")
         assertEquals(479, p.ltePci)
         assertEquals(-92, p.lteRsrp); assertEquals("CELL_INFO", p.lteRsrpSource)
         assertEquals(15, p.lteSinr); assertEquals("SIGNAL_STRENGTH", p.lteSinrSource)

@@ -15,6 +15,7 @@ class TrackLoader @Inject constructor(private val dao: ExportDao) {
 
     fun track(sessionId: Long): Flow<Track> = flow {
         val points = mutableListOf<TrackPoint>()
+        val values = mutableListOf<TickValues>()
         var lastSeq = -1L
         var ticks = 0L
         dao.observeLastSeq(sessionId).distinctUntilChanged().collect { newest ->
@@ -23,12 +24,17 @@ class TrackLoader @Inject constructor(private val dao: ExportDao) {
                     val page = dao.measurements(sessionId, lastSeq, PAGE_TICKS)
                     if (page.isEmpty()) break
                     val cells = dao.cells(sessionId, page.first().seq, page.last().seq).groupBy({ it.seq }, { it.cell })
-                    page.mapNotNullTo(points) { TrackPoint.of(FlatRow.of(it, cells[it.seq].orEmpty())) }
+                    page.forEach { m ->
+                        val row = FlatRow.of(m, cells[m.seq].orEmpty())
+                        val v = TickValues.of(row)
+                        values += v
+                        TrackPoint.of(row)?.let { points += it.copy(values = v) }
+                    }
                     ticks += page.size
                     lastSeq = page.last().seq
                 }
             }
-            emit(Track(sessionId, points.toList(), dao.events(sessionId), ticks))
+            emit(Track(sessionId, points.toList(), dao.events(sessionId), ticks, values.toList()))
         }
     }
 

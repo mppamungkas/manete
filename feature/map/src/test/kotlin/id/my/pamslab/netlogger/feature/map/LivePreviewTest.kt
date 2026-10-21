@@ -45,11 +45,11 @@ class LivePreviewTest {
         requireNotNull(p)
         assertEquals(7L, p.seq)
         assertEquals(-0.906, p.lat, 0.0)
-        assertEquals("NR_NSA", p.networkType)
-        assertEquals(-91, p.lteRsrp)
-        assertEquals("CELL_INFO", p.lteRsrpSource)
-        assertEquals(-102, p.nrRsrp) // NR only in SignalStrength
-        assertEquals("SIGNAL_STRENGTH", p.nrRsrpSource)
+        assertEquals("NR_NSA", p.values.networkType)
+        assertEquals(-91, p.values.lteRsrp)
+        assertEquals("CELL_INFO", p.values.lteRsrpSource)
+        assertEquals(-102, p.values.nrRsrp) // NR only in SignalStrength
+        assertEquals("SIGNAL_STRENGTH", p.values.nrRsrpSource)
         assertEquals(300L, p.locationAgeMs)
     }
 
@@ -60,7 +60,7 @@ class LivePreviewTest {
 
     @Test
     fun `legend counts the points per colour, none included`() {
-        val base = requireNotNull(LiveTrail.livePoint(0, radio, LocationState(LocationStatus.OK, fix)))
+        val base = requireNotNull(LiveTrail.livePoint(0, radio, LocationState(LocationStatus.OK, fix))).values
         val points = listOf(base, base.copy(lteRsrp = -75), base.copy(lteRsrp = -112), base.copy(lteRsrp = null), base.copy(lteRsrp = -90))
         val counts = Metric.LTE_RSRP.legendCounts(points).associate { it.first to it.third }
         assertEquals(1, counts[SignalLevel.GOOD.argb])
