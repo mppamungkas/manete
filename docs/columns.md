@@ -15,6 +15,10 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `capture_sync.csv` | With `capture.pcap`: time alignment, below |
 | `connections.csv` | With a traffic capture: one row per connection with its app, below (not in PCAPdroid-bridge sessions) |
 | `track.geojson` | GPS track (LineString) and events with a location (Points), RFC 7946 |
+| `waypoints.csv` | With floor plan taps (decision 006): every tap, undone ones too, below |
+| `indoor.csv` | With floor plan taps: one row per tick placed on a floor plan, below |
+| `plans.json` | With floor plan taps: the plans used, below |
+| `plans/<uuid>.png` | With floor plan taps: the plan images, unless the export left them out ("Include floor plan images") |
 
 ## Format rules (all CSV files)
 
@@ -324,6 +328,56 @@ in `core/model/.../radio/Radio.kt` (`WarningCode`) and `docs/decisions/001-cell-
 | `firstSeq` | | Tick of the first occurrence |
 | `firstElapsedRealtimeNs` | ns | First occurrence, time since boot |
 
+## waypoints.csv
+
+Floor plan taps (decision 006): what the user tapped on Live › Plan, in time order, as stored. Tick positions
+(indoor.csv) are derived from these; a tap marked `removed` was undone and is not used. Positions are pixels of the
+stored plan image (`plans/<uuid>.png`, top-left origin, x to the right, y down), rounded to 0.1 px; a tap is only as
+exact as the finger that made it.
+
+| Column | Unit | Description |
+|---|---|---|
+| `time` | ISO-8601 | When the user tapped |
+| `wallTimeMs` | ms | The same, Unix epoch |
+| `elapsedRealtimeNs` | ns | The same in elapsedRealtimeNs (the radio log's axis) |
+| `planUuid` | | The plan (plans.json) |
+| `planName` | | The plan's name at export |
+| `floor` | | The plan's floor label at export; empty if none |
+| `x` | px | Where on the plan, from the left |
+| `y` | px | Where on the plan, from the top |
+| `xM` | m | `x` in metres, when the plan has a scale; empty without one |
+| `yM` | m | `y` in metres, when the plan has a scale; empty without one |
+| `kind` | | `HERE` ("I am here now") or `STILL` ("I am still here", the previous spot again) |
+| `removed` | | `true` if the user undid this tap |
+
+## indoor.csv
+
+One row per tick placed on a floor plan: a tick between two consecutive taps (not undone) on the same plan lies on the
+straight line between them, in proportion to time (constant walking speed between taps). Ticks before the first tap,
+after the last one, or between taps on different plans (a floor change) have no row: positions are never guessed.
+Join with the other files by `seq` or `elapsedRealtimeNs`.
+
+| Column | Unit | Description |
+|---|---|---|
+| `seq` | | The tick (measurements.csv) |
+| `time` | ISO-8601 | The tick's time |
+| `wallTimeMs` | ms | The same, Unix epoch |
+| `elapsedRealtimeNs` | ns | The same in elapsedRealtimeNs |
+| `planUuid` | | The plan (plans.json) |
+| `floor` | | The plan's floor label at export; empty if none |
+| `planX` | px | Position on the plan image from the left, rounded to 0.1 px |
+| `planY` | px | Position on the plan image from the top, rounded to 0.1 px |
+| `planXM` | m | `planX` in metres, when the plan has a scale; empty without one |
+| `planYM` | m | `planY` in metres, when the plan has a scale; empty without one |
+| `waypointGapS` | s | Seconds to the nearest tap: 0 at a tap; larger values mean the position relies more on the constant-speed assumption |
+
+## plans.json
+
+The floor plans the session's taps are on, as a JSON array. `uuid`, `name`, `floor` (or null), `widthPx` × `heightPx`
+(the stored image, the unit of all plan positions), `metresPerPx` (or null without a scale), `taps` (active taps on it),
+`image` (`plans/<uuid>.png` in this ZIP, or null when the export left the images out: a building's layout can be
+confidential).
+
 ## track.geojson
 
 A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
@@ -350,5 +404,5 @@ A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 | `device` | `manufacturer`, `model`, `androidVersion`, `basebandVersion` |
 | `network` | `subscriptionId`, `simSlot`, `operatorName`, `mcc`, `mnc` of the logged SIM |
 | `captureFile` | Traffic capture: `<uuid>.pcap` (in the ZIP as capture.pcap); old PCAPdroid FILE-mode sessions: `Download/PCAPdroid/<name>` (stays on the phone); empty without a capture |
-| `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, `throughputTests`, and `trackPoints` (ticks with a fix) |
+| `counts` | Rows per file: `measurements`, `cells`, `events`, `warnings`, `throughputTests`, `trackPoints` (ticks with a fix), `waypoints` (waypoints.csv) and `indoorTicks` (indoor.csv) |
 | `files` | Files in the bundle |

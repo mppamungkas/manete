@@ -4,7 +4,9 @@ import id.my.pamslab.netlogger.core.data.db.CellEntity
 import id.my.pamslab.netlogger.core.data.db.CellWithTick
 import id.my.pamslab.netlogger.core.data.db.EventEntity
 import id.my.pamslab.netlogger.core.data.db.ExportDao
+import id.my.pamslab.netlogger.core.data.db.FloorPlanEntity
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
+import id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity
 import id.my.pamslab.netlogger.core.data.db.ParseWarningEntity
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
@@ -63,6 +65,8 @@ class FakeExportDao(
     val events: List<EventEntity> = emptyList(),
     val warnings: List<WarningWithSeq> = emptyList(),
     val throughput: List<ThroughputTestEntity> = emptyList(),
+    val waypoints: List<PlanWaypointEntity> = emptyList(),
+    val plans: List<FloorPlanEntity> = emptyList(),
 ) : ExportDao {
     var measurementQueries = 0
 
@@ -83,6 +87,8 @@ class FakeExportDao(
     override suspend fun warnings(sessionId: Long) = warnings
 
     override suspend fun measurementCount(sessionId: Long) = measurements.size.toLong()
+    override suspend fun waypoints(sessionId: Long) = waypoints
+    override suspend fun floorPlans(sessionId: Long) = plans
 
     override fun observeLastSeq(sessionId: Long) = kotlinx.coroutines.flow.flowOf(measurements.lastOrNull()?.seq)
 }

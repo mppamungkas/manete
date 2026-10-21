@@ -56,4 +56,12 @@ interface ExportDao {
     /** Emits again whenever the measurement table changes (every tick while logging); null without ticks. */
     @Query("SELECT MAX(seq) FROM measurement WHERE sessionId = :sessionId")
     fun observeLastSeq(sessionId: Long): Flow<Long?>
+
+    /** The session's floor plan taps in time order, undone ones too (decision 006). */
+    @Query("SELECT * FROM plan_waypoint WHERE sessionId = :sessionId ORDER BY elapsedRealtimeNs, id")
+    suspend fun waypoints(sessionId: Long): List<PlanWaypointEntity>
+
+    /** The floor plans the session's taps are on. */
+    @Query("SELECT * FROM floor_plan WHERE id IN (SELECT DISTINCT planId FROM plan_waypoint WHERE sessionId = :sessionId) ORDER BY id")
+    suspend fun floorPlans(sessionId: Long): List<FloorPlanEntity>
 }

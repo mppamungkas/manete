@@ -28,6 +28,8 @@ class ColumnsDocTest {
             "events.csv" to columns.events.map { it.name },
             "warnings.csv" to columns.warnings.map { it.name },
             "throughput.csv" to columns.throughput.map { it.name },
+            "waypoints.csv" to columns.waypoints.map { it.name },
+            "indoor.csv" to columns.indoor.map { it.name },
         ).forEach { (file, names) -> assertEquals(file, names, documented(file)) }
     }
 }

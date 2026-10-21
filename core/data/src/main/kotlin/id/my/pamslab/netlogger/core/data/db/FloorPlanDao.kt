@@ -13,6 +13,9 @@ data class FloorPlanUsageRow(
     val waypoints: Int,
 )
 
+/** A plan image used by a session. */
+data class SessionPlanFileRow(val sessionId: Long, val imageFile: String)
+
 /** Floor plans for indoor tests (decision 006). */
 @Dao
 interface FloorPlanDao {
@@ -26,6 +29,10 @@ interface FloorPlanDao {
 
     @Query("SELECT * FROM floor_plan WHERE id = :id")
     suspend fun get(id: Long): FloorPlanEntity?
+
+    /** Which plan images each session uses (for the export size estimate). */
+    @Query("SELECT DISTINCT w.sessionId AS sessionId, p.imageFile AS imageFile FROM plan_waypoint w JOIN floor_plan p ON p.id = w.planId")
+    fun observeSessionPlanFiles(): Flow<List<SessionPlanFileRow>>
 
     @Insert
     suspend fun insert(plan: FloorPlanEntity): Long

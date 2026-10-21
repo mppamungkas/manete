@@ -8,7 +8,8 @@ import java.util.Locale
  * - database, from SQLite's dbstat incl. indexes: measurement 182–189 B, cell 83–90 B, parse_warning ~110 B per row;
  * - export, deflated CSV + GeoJSON per session fitted over 35 sessions: 135 B per tick + 9 B per cell row
  *   (within ±20 % for sessions of 100+ ticks), plus ~3 kB for headers, session.json and the ZIP directory.
- * Capture files are added at their real size (a pcap of mostly encrypted traffic hardly compresses).
+ * Capture files are added at their real size (a pcap of mostly encrypted traffic hardly compresses), floor plan images
+ * (PNG, already compressed) to the export only: a plan is stored once on the phone, for all sessions that use it.
  */
 data class SizeEstimate(val databaseBytes: Long, val captureBytes: Long, val exportBytes: Long) {
     /** On the phone: the session's share of the database plus its capture files. */
@@ -22,10 +23,10 @@ data class SizeEstimate(val databaseBytes: Long, val captureBytes: Long, val exp
         const val ZIP_BYTES_PER_CELL = 9L
         const val ZIP_FIXED_BYTES = 3_000L
 
-        fun of(ticks: Long, cells: Long, warnings: Long, captureBytes: Long = 0): SizeEstimate = SizeEstimate(
+        fun of(ticks: Long, cells: Long, warnings: Long, captureBytes: Long = 0, planImageBytes: Long = 0): SizeEstimate = SizeEstimate(
             databaseBytes = ticks * DB_BYTES_PER_TICK + cells * DB_BYTES_PER_CELL + warnings * DB_BYTES_PER_WARNING,
             captureBytes = captureBytes,
-            exportBytes = ZIP_FIXED_BYTES + ticks * ZIP_BYTES_PER_TICK + cells * ZIP_BYTES_PER_CELL + captureBytes,
+            exportBytes = ZIP_FIXED_BYTES + ticks * ZIP_BYTES_PER_TICK + cells * ZIP_BYTES_PER_CELL + captureBytes + planImageBytes,
         )
 
         /** "820 B", "12 kB", "4.6 MB", "1.2 GB" (decimal units, like Android's storage settings). */

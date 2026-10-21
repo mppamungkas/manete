@@ -275,6 +275,11 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
       y 996 px (26.7, 20.3 m) · 2.7 s from a tap" and its GPS fix; the floor menu switches to Basement (6 ticks, 2 taps);
       back to Map works; a session without taps has no Map/Floor plan menu; no crash
 - [ ] Map › Live session while recording with taps: the floor plan view grows with new taps and ticks
+- [x] Export of session 36 (moto, Share ZIP): waypoints.csv 8 taps (metres for the scaled plan only), indoor.csv 50
+      rows (44 + 6, as on the Map), plans.json and both plan images byte for byte; recomputed independently from
+      waypoints.csv + measurements.csv: the same 50 ticks, positions within 0.1 px; size estimate includes the images
+- [x] "Include floor plan images" unticked (tapping the label; first only the box toggled: fixed): no plans/ files,
+      plans.json "image": null, positions unchanged
 - [x] Delete an unused plan: gone with its image (`run-as … ls files/plans`); Settings list "2 plans" (moto)
 
 ## Before a release

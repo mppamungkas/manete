@@ -55,4 +55,6 @@ class LiveDao(ticks: List<MeasurementEntity>, private val cells: (Long) -> List<
     override suspend fun warnings(sessionId: Long) = emptyList<WarningWithSeq>()
     override suspend fun measurementCount(sessionId: Long) = stored.size.toLong()
     override fun observeLastSeq(sessionId: Long) = lastSeq
+    override suspend fun waypoints(sessionId: Long) = emptyList<id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity>()
+    override suspend fun floorPlans(sessionId: Long) = emptyList<id.my.pamslab.netlogger.core.data.db.FloorPlanEntity>()
 }

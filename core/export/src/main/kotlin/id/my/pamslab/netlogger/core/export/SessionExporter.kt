@@ -1,9 +1,13 @@
 package id.my.pamslab.netlogger.core.export
 
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.PlanFileStore
 import id.my.pamslab.netlogger.core.data.db.ExportDao
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
 import id.my.pamslab.netlogger.core.data.db.SessionEntity
+import id.my.pamslab.netlogger.core.model.indoor.PlanInterpolator
+import id.my.pamslab.netlogger.core.model.indoor.Waypoint
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.OutputStream
 import java.io.OutputStreamWriter
@@ -23,14 +27,16 @@ data class ExportProgress(val file: String, val fraction: Double)
 
 /**
  * Writes one session as a ZIP bundle: session.json, measurements.csv, cells.csv, events.csv, warnings.csv, throughput.csv, flat.csv and
- * track.geojson. Ticks are read in pages of [PAGE_TICKS], so memory stays flat for long sessions. Timestamps are
- * formatted in [zone] (the device zone at export; sessions do not store one) next to the raw epoch ms and
- * elapsedRealtime ns columns.
+ * track.geojson; with floor plan taps (decision 006) also waypoints.csv, indoor.csv, plans.json and the plan images.
+ * Ticks are read in pages of [PAGE_TICKS], so memory stays flat for long sessions. Timestamps are formatted in [zone]
+ * (the device zone at export; sessions do not store one) next to the raw epoch ms and elapsedRealtime ns columns.
  */
 class SessionExporter @Inject constructor(
     private val dao: ExportDao,
-    /** TCP-mode traffic captures (Phase 3a); none in tests. */
+    /** Traffic captures; none in tests. */
     private val captures: CaptureFileStore? = null,
+    /** Floor plan images; none in tests. */
+    private val plans: PlanFileStore? = null,
 ) {
 
     suspend fun fileName(sessionId: Long, zone: ZoneId = ZoneId.systemDefault()): String {
@@ -41,13 +47,15 @@ class SessionExporter @Inject constructor(
     /**
      * Throws IllegalArgumentException for a missing or still-recording session; [out] is not closed. [onProgress] is
      * called after every page of ticks and capture chunk: the four tick passes (measurements, cells, flat, track) and
-     * the capture files share the whole equally.
+     * the capture files share the whole equally. [includePlanImages] false leaves the floor plan images out (decision
+     * 006, D8: a building's layout can be confidential); the positions are exported either way.
      */
     suspend fun export(
         sessionId: Long,
         out: OutputStream,
         zone: ZoneId = ZoneId.systemDefault(),
         nowMs: Long = System.currentTimeMillis(),
+        includePlanImages: Boolean = true,
         onProgress: (ExportProgress) -> Unit = {},
     ): ExportResult {
         val session = requireNotNull(dao.session(sessionId)) { "session $sessionId not found" }
@@ -137,6 +145,7 @@ class SessionExporter @Inject constructor(
             geo.finish(events)
         }
         pass++
+        val indoor = exportIndoor(zip, sessionId, columns, includePlanImages)
         // Traffic capture written by NetLogger: copied byte for byte. Sessions from the removed PCAPdroid bridge in its
         // FILE mode have their capture in PCAPdroid's Download folder (session.captureFile names it); not exported.
         val captureBytes = captureFiles.sumOf { it.second.length() }.coerceAtLeast(1)
@@ -155,11 +164,63 @@ class SessionExporter @Inject constructor(
             }
             zip.closeEntry()
         }
-        val counts = SessionJson.Counts(measurements, cells, events.size.toLong(), warnings.size.toLong(), trackPoints, throughput.size.toLong())
-        val files = FILES + captureFiles.map { it.first }
+        val counts = SessionJson.Counts(
+            measurements, cells, events.size.toLong(), warnings.size.toLong(), trackPoints, throughput.size.toLong(),
+            waypoints = indoor.waypoints, indoorTicks = indoor.ticks,
+        )
+        val files = FILES + indoor.files + captureFiles.map { it.first }
         entry(zip, SESSION) { w -> w.write(JSON.encodeToString(SessionJson.serializer(), sessionJson(session, time, nowMs, counts, files))) }
         zip.finish()
         return ExportResult(fileName(session, zone), counts)
+    }
+
+    private class IndoorExport(val waypoints: Long = 0, val ticks: Long = 0, val files: List<String> = emptyList())
+
+    /**
+     * Floor plan positions (decision 006): every tap as stored, the ticks placed between taps (derived now by
+     * [PlanInterpolator], D2), and the plans with their images. Nothing for a session without taps.
+     */
+    private suspend fun exportIndoor(zip: ZipOutputStream, sessionId: Long, columns: Columns, includeImages: Boolean): IndoorExport {
+        val stored = dao.waypoints(sessionId)
+        if (stored.isEmpty()) return IndoorExport()
+        val planById = dao.floorPlans(sessionId).associateBy { it.id }
+        entry(zip, WAYPOINTS) { w ->
+            val csv = CsvWriter(w)
+            csv.header(columns.waypoints.map { it.name })
+            csv.writeAll(columns.waypoints, stored.map { WaypointRow(it, planById[it.planId]) })
+        }
+        val active = stored.filterNot { it.removed }.map { Waypoint(it.planId, it.wallTimeMs, it.elapsedRealtimeNs, it.x, it.y, removed = false) }
+        var placed = 0L
+        entry(zip, INDOOR) { w ->
+            val csv = CsvWriter(w)
+            csv.header(columns.indoor.map { it.name })
+            pages(sessionId) { page ->
+                val rows = page.zip(PlanInterpolator.positions(page.map { it.elapsedRealtimeNs }, active))
+                    .mapNotNull { (m, p) -> p?.let { IndoorRow(m, it, planById[it.planId]) } }
+                csv.writeAll(columns.indoor, rows)
+                placed += rows.size
+            }
+        }
+        val images = if (includeImages) {
+            planById.values.mapNotNull { p -> plans?.image(p.imageFile)?.takeIf { it.isFile }?.let { "$PLAN_DIR${p.uuid}.png" to it } }
+        } else {
+            emptyList()
+        }
+        images.forEach { (name, file) ->
+            zip.putNextEntry(ZipEntry(name))
+            file.inputStream().use { it.copyTo(zip, BUFFER_BYTES) }
+            zip.closeEntry()
+        }
+        val taps = stored.filterNot { it.removed }.groupingBy { it.planId }.eachCount()
+        val plansJson = planById.values.map { p ->
+            PlanJson(
+                uuid = p.uuid, name = p.name, floor = p.floor, widthPx = p.widthPx, heightPx = p.heightPx,
+                metresPerPx = p.metresPerPx, taps = taps[p.id] ?: 0,
+                image = "$PLAN_DIR${p.uuid}.png".takeIf { name -> images.any { it.first == name } },
+            )
+        }
+        entry(zip, PLANS) { w -> w.write(JSON.encodeToString(ListSerializer(PlanJson.serializer()), plansJson)) }
+        return IndoorExport(stored.size.toLong(), placed, listOf(WAYPOINTS, INDOOR, PLANS) + images.map { it.first })
     }
 
     private suspend fun pages(sessionId: Long, block: suspend (List<MeasurementEntity>) -> Unit) {
@@ -219,6 +280,10 @@ class SessionExporter @Inject constructor(
         const val CONNECTIONS = "connections.csv"
         const val FLAT = "flat.csv"
         const val TRACK = "track.geojson"
+        const val WAYPOINTS = "waypoints.csv"
+        const val INDOOR = "indoor.csv"
+        const val PLANS = "plans.json"
+        const val PLAN_DIR = "plans/"
         val FILES = listOf(SESSION, MEASUREMENTS, CELLS, EVENTS, WARNINGS, THROUGHPUT, FLAT, TRACK)
 
         private const val PAGE_TICKS = 500

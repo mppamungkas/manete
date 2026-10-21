@@ -83,6 +83,9 @@ interface FloorPlanRepository {
     /** The taps of [sessionId] and their plans; updates while the session records. */
     fun sessionIndoor(sessionId: Long): Flow<SessionIndoor>
 
+    /** Plan image files per session id, for sessions with taps. */
+    val planImagesBySession: Flow<Map<Long, List<File>>>
+
     /** Name and page count of a picked file, or why it cannot be opened ([PlanImageException]). */
     suspend fun inspect(uri: Uri): Result<PlanSource>
 
@@ -198,6 +201,10 @@ class RoomFloorPlanRepository @Inject constructor(
     override suspend fun plan(id: Long): FloorPlanSummary? {
         val entity = dao.get(id) ?: return null
         return summary(entity, sessions = dao.sessionCount(id), waypoints = dao.activeWaypointCount(id))
+    }
+
+    override val planImagesBySession: Flow<Map<Long, List<File>>> = dao.observeSessionPlanFiles().map { rows ->
+        rows.groupBy({ it.sessionId }, { files.image(it.imageFile) })
     }
 
     override fun sessionIndoor(sessionId: Long): Flow<SessionIndoor> =

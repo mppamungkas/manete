@@ -2,14 +2,23 @@ package id.my.pamslab.netlogger.core.export
 
 import id.my.pamslab.netlogger.core.data.db.CellWithTick
 import id.my.pamslab.netlogger.core.data.db.EventEntity
+import id.my.pamslab.netlogger.core.data.db.FloorPlanEntity
 import id.my.pamslab.netlogger.core.data.db.MeasurementEntity
+import id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import id.my.pamslab.netlogger.core.data.db.WarningWithSeq
+import id.my.pamslab.netlogger.core.model.indoor.PlanPosition
 
 /** One CSV column: header name and value. Definitions and units: docs/columns.md (kept in sync by a unit test). */
 class Column<T>(val name: String, val value: (T) -> Any?)
 
 private fun <T> col(name: String, value: (T) -> Any?) = Column(name, value)
+
+/** One tap for waypoints.csv, with its plan (decision 006). */
+class WaypointRow(val w: PlanWaypointEntity, val plan: FloorPlanEntity?)
+
+/** One tick placed on a floor plan for indoor.csv. */
+class IndoorRow(val m: MeasurementEntity, val position: PlanPosition, val plan: FloorPlanEntity?)
 
 /** Column sets per file. [time] formats epoch ms as ISO-8601 in the export's time zone. */
 class Columns(time: IsoTime) {
@@ -138,8 +147,43 @@ class Columns(time: IsoTime) {
     )
 
     val flat: List<Column<FlatRow>> = FlatRow.columns(time)
+
+    val waypoints: List<Column<WaypointRow>> = listOf(
+        col("time") { time.format(it.w.wallTimeMs) },
+        col("wallTimeMs") { it.w.wallTimeMs },
+        col("elapsedRealtimeNs") { it.w.elapsedRealtimeNs },
+        col("planUuid") { it.plan?.uuid },
+        col("planName") { it.plan?.name },
+        col("floor") { it.plan?.floor },
+        col("x") { it.w.x.round(1) },
+        col("y") { it.w.y.round(1) },
+        col("xM") { it.plan?.metresPerPx?.let { m -> (it.w.x * m).round(2) } },
+        col("yM") { it.plan?.metresPerPx?.let { m -> (it.w.y * m).round(2) } },
+        col("kind") { it.w.kind },
+        col("removed") { it.w.removed },
+    )
+
+    val indoor: List<Column<IndoorRow>> = listOf(
+        col("seq") { it.m.seq },
+        col("time") { time.format(it.m.wallTimeMs) },
+        col("wallTimeMs") { it.m.wallTimeMs },
+        col("elapsedRealtimeNs") { it.m.elapsedRealtimeNs },
+        col("planUuid") { it.plan?.uuid },
+        col("floor") { it.plan?.floor },
+        col("planX") { it.position.x.round(1) },
+        col("planY") { it.position.y.round(1) },
+        col("planXM") { it.plan?.metresPerPx?.let { m -> (it.position.x * m).round(2) } },
+        col("planYM") { it.plan?.metresPerPx?.let { m -> (it.position.y * m).round(2) } },
+        col("waypointGapS") { it.position.waypointGapS.round(1) },
+    )
 }
 
 fun <T> CsvWriter.writeAll(columns: List<Column<T>>, rows: Iterable<T>) {
     rows.forEach { r -> row(columns.map { it.value(r) }) }
+}
+
+/** Positions are taps by finger: sub-pixel or sub-centimetre digits would only suggest a precision that is not there. */
+private fun Double.round(decimals: Int): Double {
+    val f = Math.pow(10.0, decimals.toDouble())
+    return Math.round(this * f) / f
 }

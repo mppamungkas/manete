@@ -1,6 +1,9 @@
 package id.my.pamslab.netlogger.core.export
 
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.PlanFileStore
+import id.my.pamslab.netlogger.core.data.db.FloorPlanEntity
+import id.my.pamslab.netlogger.core.data.db.PlanWaypointEntity
 import id.my.pamslab.netlogger.core.data.db.ThroughputTestEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -21,9 +24,14 @@ class SessionExporterTest {
 
     private val zone = ZoneId.of("Asia/Jakarta")
 
-    private suspend fun exportZip(dao: FakeExportDao, captures: CaptureFileStore? = null): Pair<ExportResult, Map<String, String>> {
+    private suspend fun exportZip(
+        dao: FakeExportDao,
+        captures: CaptureFileStore? = null,
+        plans: PlanFileStore? = null,
+        includePlanImages: Boolean = true,
+    ): Pair<ExportResult, Map<String, String>> {
         val out = ByteArrayOutputStream()
-        val result = SessionExporter(dao, captures).export(1, out, zone, nowMs = START_MS + 3_600_000)
+        val result = SessionExporter(dao, captures, plans).export(1, out, zone, nowMs = START_MS + 3_600_000, includePlanImages = includePlanImages)
         val entries = linkedMapOf<String, String>()
         ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
             generateSequence { zip.nextEntry }.forEach { entries[it.name] = zip.readBytes().toString(Charsets.UTF_8) }
@@ -32,6 +40,72 @@ class SessionExporterTest {
     }
 
     private fun lines(csv: String) = csv.split("\r\n").dropLast(1)
+
+    /** 700 ticks; taps at ticks 10, 20 (removed), 30 on plan 1, then 600 and 610 on plan 2 (another floor). */
+    private fun indoorDao(): FakeExportDao {
+        fun tap(seq: Long, plan: Long, x: Double, removed: Boolean = false) = PlanWaypointEntity(
+            sessionId = 1, planId = plan, wallTimeMs = START_MS + seq * 1_000, elapsedRealtimeNs = START_NS + seq * 1_000_000_000,
+            x = x, y = 100.0, kind = "HERE", removed = removed,
+        )
+        return FakeExportDao(
+            measurements = (0L until 700).map { measurement(it, lat = null, lon = null) },
+            waypoints = listOf(tap(10, 1, 0.0), tap(20, 1, 999.0, removed = true), tap(30, 1, 200.0), tap(600, 2, 0.0), tap(610, 2, 50.0)),
+            plans = listOf(
+                FloorPlanEntity(1, "p-one", "Gedung C", "Lantai 2", "p-one.png", 3000, 2000, 0.05, null, 0),
+                FloorPlanEntity(2, "p-two", "Gedung C", null, "p-two.png", 1000, 800, null, null, 0),
+            ),
+        )
+    }
+
+    @Test
+    fun `indoor session - taps, placed ticks, plans and images`() = runTest {
+        val dir = Files.createTempDirectory("plans").toFile()
+        File(dir, "p-one.png").writeText("PNG-ONE")
+        File(dir, "p-two.png").writeText("PNG-TWO")
+        val store = object : PlanFileStore { override val dir = dir }
+        val (result, files) = exportZip(indoorDao(), plans = store)
+
+        val taps = lines(files.getValue("waypoints.csv"))
+        assertEquals(Columns(IsoTime(zone)).waypoints.joinToString(",") { it.name }, taps[0])
+        assertEquals("every tap, the undone one too", 6, taps.size)
+        assertTrue(taps[2], taps[2].endsWith(",p-one,Gedung C,Lantai 2,999,100,49.95,5,HERE,true"))
+
+        val indoor = lines(files.getValue("indoor.csv"))
+        assertEquals("ticks 10..30 on floor 1, 600..610 on floor 2; none in between", 1 + 21 + 11, indoor.size)
+        val tick20 = indoor.first { it.startsWith("20,") }.split(',')
+        assertEquals("the undone tap is not used: halfway between 0 and 200", "100", tick20[6])
+        assertEquals("5", tick20[8]) // 100 px × 0.05 m
+        assertEquals("10", tick20[10]) // seconds to the nearest tap
+        val tick605 = indoor.first { it.startsWith("605,") }.split(',')
+        assertEquals(listOf("p-two", "", "25", "100", "", ""), tick605.subList(4, 10))
+
+        assertEquals("PNG-ONE", files["plans/p-one.png"])
+        assertEquals("PNG-TWO", files["plans/p-two.png"])
+        val plans = Json.parseToJsonElement(files.getValue("plans.json")).toString()
+        assertTrue(plans, plans.contains("\"image\":\"plans/p-one.png\"") && plans.contains("\"taps\":2"))
+        assertEquals(5L, result.counts.waypoints)
+        assertEquals(32L, result.counts.indoorTicks)
+        val listed = Json.parseToJsonElement(files.getValue("session.json")).jsonObject.getValue("files").toString()
+        listOf("waypoints.csv", "indoor.csv", "plans.json", "plans/p-one.png").forEach { assertTrue(it, listed.contains(it)) }
+        dir.deleteRecursively()
+    }
+
+    @Test
+    fun `plan images can be left out, positions stay`() = runTest {
+        val dir = Files.createTempDirectory("plans").toFile()
+        File(dir, "p-one.png").writeText("PNG-ONE")
+        val (_, files) = exportZip(indoorDao(), plans = object : PlanFileStore { override val dir = dir }, includePlanImages = false)
+        assertTrue(files.keys.none { it.startsWith("plans/") })
+        assertTrue(files.getValue("plans.json").contains("\"image\": null"))
+        assertEquals(33, lines(files.getValue("indoor.csv")).size)
+        dir.deleteRecursively()
+    }
+
+    @Test
+    fun `a session without taps has no indoor files`() = runTest {
+        val (_, files) = exportZip(FakeExportDao())
+        assertTrue(files.keys.none { it in setOf("waypoints.csv", "indoor.csv", "plans.json") })
+    }
 
     @Test
     fun `bundle has every file, one header plus one row per record, across page boundaries`() = runTest {

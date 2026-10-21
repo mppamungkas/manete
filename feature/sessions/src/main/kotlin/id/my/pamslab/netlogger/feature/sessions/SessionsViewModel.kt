@@ -10,6 +10,8 @@ import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import id.my.pamslab.netlogger.core.data.CaptureFileStore
+import id.my.pamslab.netlogger.core.data.SessionIndoor
+import id.my.pamslab.netlogger.core.data.FloorPlanRepository
 import id.my.pamslab.netlogger.core.data.SessionRepository
 import id.my.pamslab.netlogger.core.data.db.NetLoggerDatabase
 import id.my.pamslab.netlogger.core.diagnostics.CaughtErrors
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -38,19 +41,22 @@ import javax.inject.Inject
 class SessionsViewModel @Inject constructor(
     repository: SessionRepository,
     captureFiles: CaptureFileStore,
+    floorPlans: FloorPlanRepository,
     @ApplicationContext context: Context,
 ) : ViewModel() {
     /** null until the first database read. */
     val sessions: StateFlow<List<SessionSummary>?> = repository.observeSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Estimated sizes per session id, from the row counts and the capture files on disk. */
-    val sizes: StateFlow<Map<Long, SizeEstimate>> = repository.observeSessions()
-        .map { list ->
-            list.associate { s ->
-                s.id to SizeEstimate.of(s.measurements, s.cells, s.warnings, captureFiles.existing(s.uuid).sumOf { it.length() })
-            }
+    /** Estimated sizes per session id, from the row counts, the capture files and the floor plan images on disk. */
+    val sizes: StateFlow<Map<Long, SizeEstimate>> = combine(repository.observeSessions(), floorPlans.planImagesBySession) { list, plans ->
+        list.associate { s ->
+            s.id to SizeEstimate.of(
+                s.measurements, s.cells, s.warnings, captureFiles.existing(s.uuid).sumOf { it.length() },
+                plans[s.id].orEmpty().sumOf { if (it.isFile) it.length() else 0L },
+            )
         }
+    }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
@@ -83,6 +89,7 @@ class SessionDetailViewModel @Inject constructor(
     private val exportRunner: ExportRunner,
     private val chartLoader: ChartLoader,
     private val captureFiles: CaptureFileStore,
+    floorPlans: FloorPlanRepository,
 ) : ViewModel() {
 
     val id: Long = savedStateHandle.toRoute<SessionDetailRoute>().id
@@ -90,9 +97,25 @@ class SessionDetailViewModel @Inject constructor(
     val session: StateFlow<SessionSummary?> = repository.observeSession(id)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Estimated size on the phone and of the export (row counts + capture files on disk). */
-    val size: StateFlow<SizeEstimate?> = session
-        .map { s -> s?.let { SizeEstimate.of(it.measurements, it.cells, it.warnings, captureFiles.existing(it.uuid).sumOf { f -> f.length() }) } }
+    /** Floor plans and taps of this session (decision 006); empty without taps. */
+    val indoor: StateFlow<SessionIndoor?> = floorPlans.sessionIndoor(id)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Decision 006, D8: plan images in the export (default) or not; the positions are exported either way. */
+    private val _includePlanImages = MutableStateFlow(true)
+    val includePlanImages: StateFlow<Boolean> = _includePlanImages.asStateFlow()
+
+    fun setIncludePlanImages(include: Boolean) {
+        _includePlanImages.value = include
+    }
+
+    /** Estimated size on the phone and of the export (row counts, capture files and plan images on disk). */
+    val size: StateFlow<SizeEstimate?> = combine(session, indoor, _includePlanImages) { s, i, include ->
+        s?.let {
+            val planBytes = if (include) i?.plans.orEmpty().sumOf { p -> if (p.image.isFile) p.image.length() else 0L } else 0L
+            SizeEstimate.of(it.measurements, it.cells, it.warnings, captureFiles.existing(it.uuid).sumOf { f -> f.length() }, planBytes)
+        }
+    }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -162,11 +185,11 @@ class SessionDetailViewModel @Inject constructor(
 
     /** Writes the ZIP to a document the user picked (Storage Access Framework). */
     fun saveTo(uri: Uri) {
-        if (!exportRunner.save(id, uri)) _message.value = "Another export is still running."
+        if (!exportRunner.save(id, uri, _includePlanImages.value)) _message.value = "Another export is still running."
     }
 
     fun share() {
-        if (!exportRunner.share(id)) _message.value = "Another export is still running."
+        if (!exportRunner.share(id, _includePlanImages.value)) _message.value = "Another export is still running."
     }
 
     /** The screen started the share chooser of a finished export. */
