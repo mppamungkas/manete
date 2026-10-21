@@ -17,8 +17,9 @@ It is built for research and teaching, for example:
 The design follows three rules: data quality and traceability come before UI polish, it uses **public Android APIs
 only** (no root, no vendor diagnostic interfaces), and it never crashes on missing data.
 
-> **Status:** in development (version 0.1.0). No release APK is published yet; build it from source (below).
-> Tested on a Motorola moto g45 5G (Android 15) and a Samsung Galaxy A56 (Android 16).
+> **Status:** version 0.4.0, the first published release: download the APK from
+> [Releases](https://github.com/mppamungkas/netlogger/releases/latest) (see [Install](#install)). Still in
+> development. Tested on a Motorola moto g45 5G (Android 15) and a Samsung Galaxy A56 (Android 16).
 
 ## Features
 
@@ -48,11 +49,16 @@ only** (no root, no vendor diagnostic interfaces), and it never crashes on missi
   - The recording session, or a live preview while not logging (in memory only, never stored), or any recorded session.
   - The track is coloured by LTE RSRP, NR SS-RSRP, SINR or network type; the legend counts the ticks per colour.
   - Event markers; tap a point to see its values.
+- **Indoor tests with floor plans:** import a floor plan per floor (photo, image or PDF page), tap on it where you
+  are while walking (Live › Plan), and the measurements in between are placed along your path; Map › Floor plan
+  shows the session on its plans, coloured by signal. Optional: a scale (positions in metres) and a placement on the
+  map (positions as latitude/longitude); heatmap images in the export.
 - **Sessions:** list with the estimated size on the phone and of the export, label, notes, scenario, charts (RSRP and
   SINR over time, network type timeline), export, delete.
 - **Speed test:** ping, download and upload over mobile data against a server you set (for example your own
   [LibreSpeed](https://github.com/librespeed/speedtest) server), or against Cloudflare for comparison, with Stop to end
-  a test early; Cloudflare's answering site (e.g. SIN) is stored with the result. Redirects are never followed, so an operator's captive portal is reported as an error, not as a
+  a test early; Cloudflare's answering site (e.g. SIN) is stored with the result. Optionally repeated every 5–30 min
+  during a session, with limits on the data it may use. Upload speed counts only what the server received. Redirects are never followed, so an operator's captive portal is reported as an error, not as a
   measurement.
 - **Settings:** written for teachers and students; every option explains itself.
   - Logging, Speed test and Traffic capture options.
@@ -92,6 +98,7 @@ Each session exports as one ZIP (save to a folder or share):
 | `events.csv`, `warnings.csv`, `throughput.csv` | Events, parse warnings, speed test results |
 | `track.geojson` | GPS track and events |
 | `capture.pcap`, `capture_sync.csv`, `connections.csv` | With a traffic capture |
+| `waypoints.csv`, `indoor.csv`, `plans.json`, `plans/`, `heatmaps/` | With floor plan taps: the taps, a plan position per tick, the plans (images optional) |
 
 Every row has both `wallTimeMs` and `elapsedRealtimeNs` (the sync key with the pcap). CSV files are UTF-8 with `.`
 as the decimal separator on every locale, and **an empty field means "not reported"**, never `0` or `-999`. All
@@ -103,6 +110,17 @@ columns and units are defined in [`docs/columns.md`](docs/columns.md).
 - Permissions: location (while in use), phone state, notifications. Background location is not needed.
 - What each phone reports differs a lot by manufacturer and modem; see Settings › Phone capabilities and
   [`docs/device-quirks.md`](docs/device-quirks.md).
+
+## Install
+
+1. Download `netlogger-<version>.apk` from the [latest release](https://github.com/mppamungkas/netlogger/releases/latest)
+   on the phone (optionally check it against the `.sha256` file next to it).
+2. Open it and allow installing from this source when Android asks (NetLogger is not on the Play Store).
+3. A newer release installs as an update over an older one and keeps all sessions; the database is upgraded on the
+   first start. Releases are signed with the same key, certificate SHA-256
+   `c64b1cbf4019009f730738d4fbf9696768561ca0608f3712aed6ad55ff1c19fc`.
+
+The APK contains the arm64-v8a and armeabi-v7a code, which covers phones from the last years.
 
 ## Build
 

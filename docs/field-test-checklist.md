@@ -314,3 +314,8 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] Schema v3 (CLAUDE.md 1.7.7): DatabaseSmokeTest 2/2 on the moto g45 and 2/2 on the A56 (2026-10-19, branch
       feat/speedtest-buttons); both debug installs migrated to v3 with their sessions kept (moto 33, A56 5), the
       release apps untouched
+- [x] Release 0.4.0 (versionCode 4, build d641d51, 49.8 MB, SHA-256 1c8d92d8…dc0dbc6, same signing certificate):
+      DatabaseSmokeTest 2/2 with schema v5 on the moto g45 and on the A56; installed as an update over 0.3.0 on both
+      phones, release databases migrated v3 → v5 with their sessions kept (moto 2, A56 1 with its 113 MB capture);
+      Floor plans in Settings; About "Version 0.4.0 · build d641d51"; no crash (2026-10-22). Published as the first
+      GitHub release (v0.4.0)
