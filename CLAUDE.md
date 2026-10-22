@@ -1,13 +1,14 @@
-# NetLogger: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
+# Manete: Android Cellular / 5G NSA Drive Test Logger + Traffic Capture
 
-**CLAUDE.md version 1.8.6** · last updated 2026-10-22
-**License:** NetLogger is licensed under **GNU GPL v3** (see `LICENSE`).
+**CLAUDE.md version 1.8.7** · last updated 2026-10-22
+**License:** Manete is licensed under **GNU GPL v3** (see `LICENSE`).
 
 ### Project status
 - Milestones 1–5 implemented and tested (milestone 3 screen-off test: 100 % ticks over 46 min unplugged incl. deep Doze on the moto; milestone 4 field walk on the A56 incl. kill recovery; milestone 5 export checked on the A56 against its database). Milestone 6 (map) implemented and checked on both phones (moving track seen on the moto; airplane mode still to check). G-NetTrack Pro cross-check done on both phones (2026-10-14, `docs/device-quirks.md`). Milestone 7 (EventDetector, LTE/WCDMA/GSM band mapping) implemented; field check pending. Milestone 8 (speed test) implemented and checked on the A56 against the user's LibreSpeed server and Cloudflare, also during a capture (2026-10-15). Milestone 9 (session charts, Compose Canvas, no chart library) implemented; to check on a phone. Milestone 10 (PCAPdroid bridge) implemented and checked on both phones, then removed in 1.7.0. Milestone 11 (native VpnService capture, `docs/decisions/002-native-capture.md`) implemented and checked on both phones (2026-10-15; open: IPv6 traffic through the capture). Settings, help and phone capabilities (`docs/decisions/003-settings-ux.md`) implemented and checked on both phones (2026-10-16). Live dashboard (`docs/decisions/004-live-dashboard.md`) implemented and checked on both phones (2026-10-16). Problem reports (`docs/decisions/005-problem-reports.md`) implemented and checked on both phones (2026-10-16). 1-hour screen-off test done: 1.5 h unplugged on the moto with a capture, 100 % ticks (2026-10-16, `docs/device-quirks.md`). Milestone 12 (floor plans for indoor tests, `docs/decisions/006-indoor-floorplan.md`): steps 1–5 and 7 of 7 done (step 6, device checks, partly) (schema v5, `PlanInterpolator`; Settings › Floor plans with import and scale; Live › Plan with taps, floors and coloured ticks; Map › Floor plan; export; How to use; checked on the moto 2026-10-21/22, A56 and a real two-floor walk open).
 - Cell parsing approach: see `docs/decisions/001-cell-parsing.md` (approved decision is binding).
 
 ### Changelog
+- **1.8.7:** Project renamed **Manete** (Minangkabau slang *man-dete*, "doing a drive test"; "NetLogger" is taken, e.g. LBNL's NetLogger toolkit). Changed: app name ("Manete", "Manete debug"), all user-visible texts, notifications, VPN session name, problem report texts, export ZIP prefix `manete_…`, release APK name `manete-<version>.apk`, repository URL `github.com/mppamungkas/manete`, docs. **Kept on purpose** (updates and data must survive): application IDs `id.my.pamslab.netlogger(.debug)`, Kotlin packages, class names (`NetLoggerDatabase`, …), database file `netlogger.db`, log tag `NetLogger` and wake lock tag `NetLogger:logging`, intent actions, Gradle plugin IDs `netlogger.*`, `local.properties` keys `netlogger.*`, `session.json` format id `netlogger-session`, the `libnetcapture` library.
 - **1.8.6:** Milestone 12 step 7: Settings › Floor plans › On map places a plan on the OSM map with 2–3 points (plan + map), fitted as a similarity transform (`GeoTransform`, least squares, error shown with 3 points), stored as points in `floor_plan.georefJson` (kotlinx.serialization). Export: `lat`/`lon` in indoor.csv, indoor `LineString`s (`positionSource` FLOOR_PLAN, the GPS track now says GPS) in track.geojson, the placement in plans.json; `heatmaps/<uuid>_<metric>.png` per plan and metric with values (only with the plan images, D8). `feature:indoor` uses MapLibre and core:location; core:export uses core:ui (colour rules).
 - **1.8.5:** Milestone 12 step 6 (part): How to use › 3. Indoor test with a floor plan (later sections renumbered); moto checks of the screen off between taps, leaving and reopening the app, and the Map's floor plan view growing while recording. Open: the A56, a real walk over two floors, pinch zoom and a sideways photo by hand.
 - **1.8.4:** Milestone 12 step 5: export of sessions with floor plan taps: `waypoints.csv` (every tap, undone ones too), `indoor.csv` (one row per tick placed between taps, pixels, metres with a scale, `waypointGapS`), `plans.json` and `plans/<uuid>.png`; "Include floor plan images" on the session detail (D8, default on; positions are exported either way); `session.json` counts `waypoints`, `indoorTicks`; size estimates count plan images in the export. `flat.csv` unchanged (D7).
@@ -18,14 +19,14 @@
 - **1.7.9:** Upload measurement counts only what the server received: pieces of 256 kB doubling up to 8 MB per connection while one takes under 1 s, each counted when the server answers, the phase timed to the last answer. Before, bytes handed to the socket were counted, and the send buffers (2 MB per connection on the A56, more during a capture) inflated every upload rate: a 10 MB periodic upload "took" 0.5 s (162 Mbps vs. 30 Mbps manual, `docs/device-quirks.md` 2026-10-20). Upload rows before 1.7.9 overstate; no schema change.
 - **1.7.8:** Periodic speed test: Settings › Speed test › Repeat during a session (off / 5 / 10 / 15 / 30 min, private server or Cloudflare, the schedule read at session start, slots counted from Start, a slot during another test is skipped, Stop ends only the running test); by default the manual test, optional limits (parts, 5/10 s, download and upload caps) with the data use per test and per hour shown. Schema v4: `throughput_test.triggeredBy` (MANUAL / PERIODIC), migration 3→4 marks earlier rows MANUAL, tested. `connections.csv`: ICMP rows have `app` = `ICMP (app unknown)`. Caught errors (decision 005 addendum): `CaughtErrors.caught/record` in catch blocks, kept 7 days per process, summarised in "Describe a problem" reports (never the exception message). Speed test log lines name the server ("Private server" / "Cloudflare"), never its URL, and error texts lose IP addresses.
 - **1.7.7:** Speed test on Live: three buttons, Private server (the user's server from Settings; a red note when none is set), Cloudflare (public comparison, always offered, never the default; the Settings on/off switch is gone) and Stop (finished phases are kept, the interrupted one is stored with `error` = `stopped`, or `session stopped` when the session ends during a test). Schema v3: `throughput_test.serverLocation`, Cloudflare's site code from the `CF-RAY` header (e.g. `SIN`), migration 2→3 tested.
-- **1.7.6:** Release builds: signed with the release key from `local.properties` (`netlogger.signing.*`, never in the repo; unsigned without it), arm64-v8a + armeabi-v7a only, version 0.2.0. Debug builds have their own app ID `id.my.pamslab.netlogger.debug` ("NetLogger debug"), so debug and release install side by side, each with its own data; adb component names keep the class package (`id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.MainActivity`).
-- **1.7.5:** Problem reports without the Play Store (`docs/decisions/005-problem-reports.md`, new module `core:diagnostics`): crashes (Java with stack trace, native with a tombstone summary), ANRs and Android ending NetLogger during a recording, from `ApplicationExitInfo` plus an uncaught-exception handler in both processes; a card on Live, Settings › Problem reports (view, share, public GitHub issue, delete; raw tombstone only if the user ticks it), Describe a problem. Nothing is sent automatically; reports contain no location, cell identities, SSID or capture content. Debug builds: `CrashTestReceiver` for tests.
+- **1.7.6:** Release builds: signed with the release key from `local.properties` (`netlogger.signing.*`, never in the repo; unsigned without it), arm64-v8a + armeabi-v7a only, version 0.2.0. Debug builds have their own app ID `id.my.pamslab.netlogger.debug` ("Manete debug"), so debug and release install side by side, each with its own data; adb component names keep the class package (`id.my.pamslab.netlogger.debug/id.my.pamslab.netlogger.MainActivity`).
+- **1.7.5:** Problem reports without the Play Store (`docs/decisions/005-problem-reports.md`, new module `core:diagnostics`): crashes (Java with stack trace, native with a tombstone summary), ANRs and Android ending Manete during a recording, from `ApplicationExitInfo` plus an uncaught-exception handler in both processes; a card on Live, Settings › Problem reports (view, share, public GitHub issue, delete; raw tombstone only if the user ticks it), Describe a problem. Nothing is sent automatically; reports contain no location, cell identities, SSID or capture content. Debug builds: `CrashTestReceiver` for tests.
 - **1.7.4:** Live is a dashboard (`docs/decisions/004-live-dashboard.md`): status bar (recording time, ticks, Marker/Stop; scenario and Start when idle), operator and network type in words, one serving-cell table (NR merged from CellInfo and SignalStrength, "SS" marks the latter), GPS, data route (Wi-Fi SSID / cellular, `NetworkRouteSource`, Live only, not stored) with 5 s average rates, compact speed test and capture rows, the last events ("cell change", never "handover"), raw values under Details. Tapping the open Map tab no longer rebuilds (and crashed) the map.
 - **1.7.3:** Map: "Live session" (the recording session, or while not logging an in-memory live preview of position and radio values, never stored, read only while the Map is visible) or "Recorded session"; session, metric and mode as dropdowns; the legend counts the ticks per colour. Sessions: estimated size on the phone and of the export ZIP per session (`SizeEstimate`, weights measured on both phones) plus the real database and capture sizes.
 - **1.7.2:** Settings redesigned for teachers and students (decision 003): a list of pages (Logging, Speed test, Traffic capture; Phone capabilities, How to use, About), every option with a description. Logging interval (500/1000/2000/5000 ms) and default scenario are settings (`LoggingSettings`, core:data). Capture options (all or specific apps from an app picker, MTU) moved from the Live card to Settings (`CaptureSettings` now in core:data, same prefs); start/stop stays on Live. Phone capabilities: live check of the reported fields plus their share in recorded sessions (read-only queries, no schema change), Copy report. About: version and build commit, GPL text, privacy note, OSM attribution, third-party credits with full licence texts (`Licences.kt`; update with dependencies). English only, all texts in strings.xml.
 - **1.7.1:** Speed test: the user's LibreSpeed server is set in Settings (plain HTTP allowed per host by a generated network security config from `netlogger.cleartextHosts` in local.properties; no server or host in the repo); optional, clearly labeled public secondary target (Cloudflare), never the default; redirects are never followed (an operator's captive portal is an error, not a measurement).
-- **1.7.0:** Phase 3 capture is NetLogger's own VpnService only (milestone 11): the PCAPdroid bridge (Phase 3a, milestone 10) was removed at the user's request. Native capture: `libnetcapture` (C, NDK r27d, CMake) with zdtun (LGPL v3+, copied unchanged) in a separate `:vpn` process; nanosecond pcap whose timestamps are elapsedRealtimeNs + one fixed offset; `connections.csv` with each connection's app; MTU setting (1500 realistic / 10 000 fast). Old PCAPdroid sessions stay readable and exportable.
-- **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. NetLogger's packet count on the capture card and in CAPTURE_STOPPED.
+- **1.7.0:** Phase 3 capture is Manete's own VpnService only (milestone 11): the PCAPdroid bridge (Phase 3a, milestone 10) was removed at the user's request. Native capture: `libnetcapture` (C, NDK r27d, CMake) with zdtun (LGPL v3+, copied unchanged) in a separate `:vpn` process; nanosecond pcap whose timestamps are elapsedRealtimeNs + one fixed offset; `connections.csv` with each connection's app; MTU setting (1500 realistic / 10 000 fast). Old PCAPdroid sessions stay readable and exportable.
+- **1.6.0:** Phase 3a stream mode is **TCP** ("UDP stream mode" replaced): the UDP exporter lost ~46 % of a 10 MB download. Packets keep PCAPdroid's timestamps; capture_sync.csv holds the wall-clock ↔ elapsedRealtimeNs offset at START and STOP; PCAPdroid's vs. Manete's packet count on the capture card and in CAPTURE_STOPPED.
 - **1.5.9:** Phase 3a (milestone 10): PCAPdroid bridge in `feature:capture`, both modes; capture start/stop stored as `CAPTURE_STARTED` / `CAPTURE_STOPPED` events (no schema change); the stream mode writes `files/captures/<uuid>.pcap` + `_sync.csv`, exported as `capture.pcap` / `capture_sync.csv`. The Live screen gets the capture card through a slot from :app (features stay independent).
 - **1.5.8:** Schema v2 (`throughput_test`, migration 1→2 tested; the A56's field data migrated on the phone). `throughput_test` also stores `startedElapsedNs` (timing rule), `streams` and `error`. Speed test (milestone 8): HTTP RTT ping, OkHttp download/upload over mobile data only, manual trigger, server URLs in Settings (LibreSpeed or any web server).
 - **1.5.7:** Events (milestone 7) are detected per tick without debouncing, except a serving NR cell change (confirmed over 2 ticks) (definitions in `docs/columns.md`). GSM `band` is the frequency in MHz. A band the ARFCN settles (only one band contains it, or the country's known band) overrules a contradicting `getBands()`.
@@ -36,7 +37,7 @@
 - **1.5.2:** Added Samsung Galaxy A56 (unrooted, serial `RRGYB06DN2T`) as the unrooted reference phone; always use `adb -s <serial>` with two phones attached.
 - **1.5.1:** Package / application ID is `id.ac.pnp.netlogger` (root safety rules corrected).
 - **1.5:** Project license set to GPL v3; reference reuse rules updated accordingly. Added pilot device (moto g45 5G, rooted, USB passthrough) and root safety rules. ADB over USB is now the primary connection. Added first device findings to Radio collection. Added `docs/samples/` (gitignored, contains location data) and optional modem-diag validation track. Added project status.
-- **1.4:** Added PCAPdroid to `reference/` (study only, GPL). Phase 3a now uses PCAPdroid's app API, including UDP packet streaming to NetLogger. Capture file changed from `.pcapng` to `.pcap` (PCAPng is a paid PCAPdroid feature).
+- **1.4:** Added PCAPdroid to `reference/` (study only, GPL). Phase 3a now uses PCAPdroid's app API, including UDP packet streaming to Manete. Capture file changed from `.pcapng` to `.pcap` (PCAPng is a paid PCAPdroid feature).
 - **1.3:** Added development environment (Proxmox homelab, Ubuntu Server VM, Claude Code CLI, ADB over Wi-Fi). Added `reference/` folder with open-source projects for study and license rules for reuse. NetMonster Core evaluated as a parsing dependency in Milestone 2. Added device/ADB commands and `.gitignore` rules. Updated first prompt.
 
 ## Goal
@@ -99,13 +100,13 @@ adb exec-out screencap -p > /tmp/screen.png    # screenshot of the app for revie
 
 ## Pilot device
 - **Motorola moto g45 5G** (Snapdragon 6s Gen 3, SM6375), Android 15, ADB serial `ZP22222MQL`.
-- **Rooted.** Root is for the developer's validation tools only; NetLogger must never require or use root.
+- **Rooted.** Root is for the developer's validation tools only; Manete must never require or use root.
 - Dual SIM; slot 1 currently Tri / IOH (MCC 510, MNC 89), slot 2 empty.
 
 ### Unrooted reference phone
 - **Samsung Galaxy A56** (SM-A566B, Exynos 1580 / Samsung modem), Android 16, ADB serial `RRGYB06DN2T`. **Unrooted.**
 - SIM varies between tests (seen: Telkomsel 510-10, Tri 510-89); record the operator with every finding.
-- Samsung redacts cell identity (`mCi`, `mPci`, `mTac`, `mEarfcn`) in `dumpsys telephony.registry`; compare those via NetLogger or `mPhysicalChannelConfigs`.
+- Samsung redacts cell identity (`mCi`, `mPci`, `mTac`, `mEarfcn`) in `dumpsys telephony.registry`; compare those via Manete or `mPhysicalChannelConfigs`.
 - Connected over USB like the pilot phone; ADB over Wi-Fi as fallback (keeps Wi-Fi on, so mobile data and NR stay idle).
 
 With two phones attached, **always** use `adb -s <serial>` (and `ANDROID_SERIAL=<serial> ./gradlew installDebug` to install on one).
@@ -114,11 +115,11 @@ With two phones attached, **always** use `adb -s <serial>` (and `ANDROID_SERIAL=
 - Record everything device-specific in `docs/device-quirks.md`.
 
 ### Root safety rules (strict)
-Allowed without asking: `adb install/uninstall` of NetLogger, `logcat`, `dumpsys`, `am`/`pm` commands for `id.my.pamslab.netlogger` and `id.my.pamslab.netlogger.debug`, `screencap`, `pull` of NetLogger's own files. Uninstalling deletes that app's sessions: back them up first.
-**Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside NetLogger's own storage.
+Allowed without asking: `adb install/uninstall` of Manete, `logcat`, `dumpsys`, `am`/`pm` commands for `id.my.pamslab.netlogger` and `id.my.pamslab.netlogger.debug`, `screencap`, `pull` of Manete's own files. Uninstalling deletes that app's sessions: back them up first.
+**Never without explicit user approval:** `su` or any root command, flashing, `reboot bootloader/recovery`, modifying system settings or other apps, touching `/dev/diag` or modem interfaces, deleting files outside Manete's own storage.
 
 ### Optional validation track (outside the app)
-On the rooted pilot phone, open-source modem-diag tools (e.g. QCSuper, SCAT) may capture LTE/NR RRC signaling as ground truth to validate NetLogger's public-API data. This is a separate research tool, run only by the user; Claude Code may help write analysis scripts for its output but must not integrate diag access into NetLogger.
+On the rooted pilot phone, open-source modem-diag tools (e.g. QCSuper, SCAT) may capture LTE/NR RRC signaling as ground truth to validate Manete's public-API data. This is a separate research tool, run only by the user; Claude Code may help write analysis scripts for its output but must not integrate diag access into Manete.
 
 ## Module structure
 Multi-module from day 1 so traffic capture can be added later without refactoring.
@@ -195,7 +196,7 @@ Rules:
 - Read-only: never edit, build, or add `reference/` to the Gradle build.
 - Always check the project's own `LICENSE` file before reuse; the table above is a starting point, not a guarantee.
 - Default: **write our own implementation** after studying the approach.
-- NetLogger is GPL v3, so code from GPL v3 (and "GPL v2 or later"), Apache 2.0, MIT and BSD projects may be copied or adapted, including PCAPdroid and zdtun.
+- Manete is GPL v3, so code from GPL v3 (and "GPL v2 or later"), Apache 2.0, MIT and BSD projects may be copied or adapted, including PCAPdroid and zdtun.
 - MPL 2.0 code (Tower Collector): reuse only if the file is not marked "Incompatible With Secondary Licenses"; otherwise study only. Ask if unsure.
 - Code licensed "GPL v2 only" or under a proprietary/unknown license: **do not copy**.
 - Before copying or adapting anything: tell the user the source file, project and license, and wait for approval. Then keep the original copyright/license header in the file, add our own modification note, and list the project in `docs/third-party.md`.
@@ -303,7 +304,7 @@ Optional: a "G-NetTrack-compatible" column layout for side-by-side validation. I
 - **Settings** (`docs/decisions/003-settings-ux.md`): Logging (interval, default scenario, data SIM shown), Floor plans (decision 006), How to use incl. indoor tests, Speed test (private server URLs, periodic test on either server with optional limits; Cloudflare needs no setting), Traffic capture (all/specific apps, MTU); Phone capabilities (live check + recorded share, Copy report), How to use, Problem reports (decision 005), About (licences, privacy, credits). Users are teachers and students: every option explains itself; English only, texts in strings.xml.
 
 ## Phase 3: Traffic capture
-NetLogger's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):
+Manete's own `VpnService` (milestone 11; plan and decisions in `docs/decisions/002-native-capture.md`):
 - `NativeCaptureService` runs in a separate `:vpn` process, so a native crash cannot end radio logging; it writes no
   database rows and reports to the main process by package-limited broadcasts (counters every second, ENDED once).
 - `libnetcapture` (C, NDK): one select() loop over the tun and zdtun's sockets (zdtun, LGPL v3+, copied unchanged),
@@ -322,15 +323,15 @@ Limits, shown in the UI:
 - cannot run together with another VPN;
 - adds overhead, so throughput tests during capture are flagged (`captureActive = true`).
 
-History: milestone 10 bridged to PCAPdroid's app API (TCP stream into NetLogger, or PCAPdroid's own file). It worked
+History: milestone 10 bridged to PCAPdroid's app API (TCP stream into Manete, or PCAPdroid's own file). It worked
 without loss but was removed in 1.7.0 in favour of the native capture; old sessions keep their files and events.
 
 ## Coding conventions
 - Kotlin official style; no `!!` in production code.
 - Parsers are pure functions returning nullable fields + a list of parse warnings.
 - Log lines (`Log.*`, tag "NetLogger") never contain locations, cell identities (cell ID, TAC, PCI), SSIDs, IP
-  addresses or capture content: problem reports include NetLogger's own log lines (decision 005).
-- In a catch block NetLogger survives, use `CaughtErrors.caught(where, e)` instead of `Log.w` (or add
+  addresses or capture content: problem reports include Manete's own log lines (decision 005).
+- In a catch block Manete survives, use `CaughtErrors.caught(where, e)` instead of `Log.w` (or add
   `CaughtErrors.record(where, e)`), with a fixed `where` text that follows the log rule above.
 - Domain units in names: `rsrpDbm`, `speedMps`, `bandwidthKhz` in code; CSV headers may drop suffixes but must be documented in `docs/columns.md`.
 - Every Room schema change needs a migration and a migration test.
@@ -395,4 +396,4 @@ docs/samples/
 ```
 
 ## Next prompt to give Claude Code (milestone 2 validation)
-> Read CLAUDE.md v1.5 (changed: GPL v3, pilot device, root safety rules, device findings). Update `.gitignore` and `docs/device-quirks.md` accordingly. Then validate milestone 2 on the pilot phone: with NetLogger's Live screen open, capture `adb shell dumpsys telephony.registry`, a screenshot, and NetLogger's logcat, and compare serving cell values (PCI, EARFCN, band, bandwidths/CA, TAC, CI, network type, RSRP/RSRQ/SINR). Report every mismatch or missing value in a table, propose fixes, and wait for my approval before changing code. Do not use root.
+> Read CLAUDE.md v1.5 (changed: GPL v3, pilot device, root safety rules, device findings). Update `.gitignore` and `docs/device-quirks.md` accordingly. Then validate milestone 2 on the pilot phone: with Manete's Live screen open, capture `adb shell dumpsys telephony.registry`, a screenshot, and Manete's logcat, and compare serving cell values (PCI, EARFCN, band, bandwidths/CA, TAC, CI, network type, RSRP/RSRQ/SINR). Report every mismatch or missing value in a table, propose fixes, and wait for my approval before changing code. Do not use root.

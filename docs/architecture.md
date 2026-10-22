@@ -1,12 +1,12 @@
 # Architecture
 
-Three views of NetLogger, drawn from the code (release 0.4.0, database schema v5): which parts run where and talk to
+Three views of Manete, drawn from the code (release 0.4.0, database schema v5): which parts run where and talk to
 what, how the database is laid out, and what happens during one tick of a recording. Column definitions and units are
 in [`columns.md`](columns.md); design decisions in [`decisions/`](decisions/).
 
 ## System architecture
 
-![NetLogger system architecture: main process and :vpn process](architecture/system-architecture.svg)
+![Manete system architecture: main process and :vpn process](architecture/system-architecture.svg)
 
 Radio, location and device readings flow down into the logging engine, which writes each tick to the database in one
 transaction; the screens only read. The traffic capture lives in its own process (amber), so a crash in the C code
@@ -23,7 +23,7 @@ cannot end a recording.
 
 ## Database (Room, schema v5)
 
-![NetLogger database: tables, keys and relations](architecture/database.svg)
+![Manete database: tables, keys and relations](architecture/database.svg)
 
 Everything hangs off `session`, and deleting a session deletes all its rows (ON DELETE CASCADE, solid lines). The one
 exception is the dashed link: a floor plan used by any tap cannot be deleted, so old sessions never lose the plan their
@@ -39,7 +39,7 @@ positions refer to.
 
 ## One tick, from the modem to the database
 
-![NetLogger tick flow: from the radio read to the database and its readers](architecture/tick-flow.svg)
+![Manete tick flow: from the radio read to the database and its readers](architecture/tick-flow.svg)
 
 Each tick runs the same six steps in one coroutine. Everything that arrives on its own (callbacks, GPS, user actions)
 is only read at the moment the tick needs it, and each GPS fix is matched to the tick by time, so a late fix never

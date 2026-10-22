@@ -55,7 +55,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `gpsAccuracy` | m | Horizontal accuracy (68 %) |
 | `locationAgeMs` | ms | Tick time minus fix time; large values mean a stale fix |
 | `locationStatus` | | `OK`, `WAITING`, `NO_PERMISSION`, `DISABLED`, `UNAVAILABLE`, `ERROR` |
-| `networkType` | | NetLogger's classification: `LTE`, `NR_NSA`, `NR_SA`, `WCDMA`, `GSM`, `NONE` |
+| `networkType` | | Manete's classification: `LTE`, `NR_NSA`, `NR_SA`, `WCDMA`, `GSM`, `NONE` |
 | `overrideNetworkType` | | `TelephonyDisplayInfo.getOverrideNetworkType()`: 0 none, 1 LTE_CA, 2 LTE_ADVANCED_PRO, 3 NR_NSA, 4 NR_NSA_MMWAVE, 5 NR_ADVANCED |
 | `dataNetworkType` | | `TelephonyManager.NETWORK_TYPE_*` of the data connection (13 = LTE, 20 = NR) |
 | `nsaLteServing` | | NSA input: an LTE serving cell is present (CellInfo) |
@@ -74,8 +74,8 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `isCharging` | | Charging |
 | `rxBytesTotal` | bytes | `TrafficStats.getTotalRxBytes()`: all interfaces incl. Wi-Fi, counter since boot; use differences between ticks |
 | `txBytesTotal` | bytes | `TrafficStats.getTotalTxBytes()` |
-| `rxBytesApp` | bytes | NetLogger's own received bytes (`getUidRxBytes`) |
-| `txBytesApp` | bytes | NetLogger's own sent bytes |
+| `rxBytesApp` | bytes | Manete's own received bytes (`getUidRxBytes`) |
+| `txBytesApp` | bytes | Manete's own sent bytes |
 | `screenOn` | | Screen interactive |
 | `thermalStatus` | | `PowerManager.getCurrentThermalStatus()`: 0 none … 6 shutdown |
 | `parseErrors` | count | Telephony getter calls that threw in this tick (real parse failures) |
@@ -92,7 +92,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `rat` | | `LTE`, `NR`, `WCDMA`, `GSM` |
 | `source` | | `CELL_INFO` (`getAllCellInfo`, has identity) or `SIGNAL_STRENGTH` (`SignalStrength.getCellSignalStrengths()`, serving signal only, no identity) |
 | `reportedServing` | | The phone's own label, never corrected: registered, or connection status PRIMARY/SECONDARY_SERVING. Empty for SIGNAL_STRENGTH rows |
-| `servingInferred` | | NetLogger's serving flag after flagged corrections; use this one. SIGNAL_STRENGTH rows are `true`, except a stale entry: NR with no 5G indicator, no serving NR cell and older than 10 s (`NR_SIGNAL_STRENGTH_STALE`), or LTE older than 10 s (`LTE_SIGNAL_STRENGTH_STALE`) |
+| `servingInferred` | | Manete's serving flag after flagged corrections; use this one. SIGNAL_STRENGTH rows are `true`, except a stale entry: NR with no 5G indicator, no serving NR cell and older than 10 s (`NR_SIGNAL_STRENGTH_STALE`), or LTE older than 10 s (`LTE_SIGNAL_STRENGTH_STALE`) |
 | `servingSource` | | NR CELL_INFO rows only: how `servingInferred` was decided. `REPORTED` (phone's label kept), `NSA_INFERRED` (phone gave no label; one NR cell under an NSA override), `SIGNAL_STRENGTH_MATCH` / `STRONGEST` (several candidates on one NR-ARFCN; the one matching SignalStrength within 1 dB, else the strongest), `AMBIGUOUS` (no basis; none serving). See `docs/decisions/001-cell-parsing.md` |
 | `isRegistered` | | `CellInfo.isRegistered()` |
 | `connectionStatus` | | `NONE`, `PRIMARY_SERVING`, `SECONDARY_SERVING` after corrections; the original is in `reportedServing` and warnings.csv |
@@ -116,7 +116,7 @@ One session exports as `netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scen
 | `csiSinr` | dB | NR CSI-SINR |
 | `rscp` | dBm | WCDMA RSCP |
 | `ecNo` | dB | WCDMA Ec/No |
-| `cellInfoAgeMs` | ms | Tick time minus the cell's own timestamp (`CellInfo.getTimestampMillis()`; for SIGNAL_STRENGTH rows `SignalStrength.getTimestampMillis()`). ~10 s with the screen off is the modem refresh, not a NetLogger delay |
+| `cellInfoAgeMs` | ms | Tick time minus the cell's own timestamp (`CellInfo.getTimestampMillis()`; for SIGNAL_STRENGTH rows `SignalStrength.getTimestampMillis()`). ~10 s with the screen off is the modem refresh, not a Manete delay |
 
 ## flat.csv
 
@@ -230,8 +230,8 @@ the state. The serving cells are chosen as in flat.csv.
 | `GPS_LOST` | – → reason | After a first fix: location status not OK (status name), no fix (`NO_FIX`) or fix older than 5 s (`STALE_FIX`) |
 | `GPS_RESTORED` | reason → – | A fix no older than 5 s again |
 | `DATA_SIM_CHANGED` | subId → subId | Default data SIM changed; the session keeps logging its own SIM |
-| `CAPTURE_STARTED` | `NATIVE` → file name, `wallMinusElapsedNs`, `mtu` | NetLogger's VPN reported its first packet counters; at most one capture per session. Sessions from the removed PCAPdroid bridge: `TCP` / `FILE` → file name and `wallMinusElapsedNs` (PCAPdroid accepted the start request) |
-| `CAPTURE_STOPPED` | reason → counts | Capture ended. Reason: `USER` (stop button), `SESSION_END`, `PCAPDROID` (old sessions: PCAPdroid stopped by itself), `VPN_REVOKED` (native: another VPN started or the VPN was turned off in Android's settings), `ERROR` (native capture loop failed), `PROCESS_DIED` (native: the capture process ended without reporting; the pcap is valid up to its last flush, at most ~1 s lost). Counts of old PCAPdroid-bridge sessions: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus NetLogger's count; slightly negative is normal, PCAPdroid reads its counters just before its last packets are dumped; positive means loss), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`. Native counts: `pcap_packets`, `pcap_bytes`, `expected_packets` (packets that crossed the VPN; equal to `pcap_packets` unless `dropped` > 0), `dropped` (pcap write errors), `tun_rx_packets` (from apps), `tun_tx_packets` (to apps), `tun_tx_errors`, `connections_tcp/udp/icmp`, `uid_unknown`, `conns_failed`, `unparsed` / `fragments` / `tcp_without_conn` (captured but not forwarded: e.g. IPv6 control packets, IP fragments, TCP segments of connections older than the capture), `exit`. Both: `wallMinusElapsedNs` |
+| `CAPTURE_STARTED` | `NATIVE` → file name, `wallMinusElapsedNs`, `mtu` | Manete's VPN reported its first packet counters; at most one capture per session. Sessions from the removed PCAPdroid bridge: `TCP` / `FILE` → file name and `wallMinusElapsedNs` (PCAPdroid accepted the start request) |
+| `CAPTURE_STOPPED` | reason → counts | Capture ended. Reason: `USER` (stop button), `SESSION_END`, `PCAPDROID` (old sessions: PCAPdroid stopped by itself), `VPN_REVOKED` (native: another VPN started or the VPN was turned off in Android's settings), `ERROR` (native capture loop failed), `PROCESS_DIED` (native: the capture process ended without reporting; the pcap is valid up to its last flush, at most ~1 s lost). Counts of old PCAPdroid-bridge sessions: `netlogger_packets`, `netlogger_bytes`, `pcapdroid_packets` (pkts_sent + pkts_rcvd), `pcapdroid_bytes_dumped`, `missing` (PCAPdroid's minus Manete's count; slightly negative is normal, PCAPdroid reads its counters just before its last packets are dumped; positive means loss), `not_drained` if PCAPdroid did not close the stream within 5 s, `error`. Native counts: `pcap_packets`, `pcap_bytes`, `expected_packets` (packets that crossed the VPN; equal to `pcap_packets` unless `dropped` > 0), `dropped` (pcap write errors), `tun_rx_packets` (from apps), `tun_tx_packets` (to apps), `tun_tx_errors`, `connections_tcp/udp/icmp`, `uid_unknown`, `conns_failed`, `unparsed` / `fragments` / `tcp_without_conn` (captured but not forwarded: e.g. IPv6 control packets, IP fragments, TCP segments of connections older than the capture), `exit`. Both: `wallMinusElapsedNs` |
 | `FLOOR_CHANGE` | plan → plan | The floor plan the user taps on changed (decision 006), also the first plan chosen in a session (from empty). Values are "name · floor" as the plan was named then; `waypoints.csv` links each tap to its plan. Tick positions are never interpolated across a floor change |
 
 ## throughput.csv
@@ -287,7 +287,7 @@ phone's wall clock moved (NTP or user), which shifts `firstSeen`/wall times only
 
 ## connections.csv
 
-Native capture only (milestone 11): one row per connection (flow) that crossed NetLogger's VPN, written when it
+Native capture only (milestone 11): one row per connection (flow) that crossed Manete's VPN, written when it
 ends; connections still open when the capture stops are written then. "Out" is app → network, "in" network → app,
 counted on the tun (the packets in `capture.pcap`). Times use the capture's own clock offset, so they match the pcap
 timestamps exactly. Not checked by ColumnsDocTest.
@@ -296,10 +296,10 @@ timestamps exactly. Not checked by ColumnsDocTest.
 |---|---|---|
 | `protocol` | | `TCP`, `UDP` or `ICMP` (ICMPv6 included) |
 | `ipVersion` | | 4 or 6 |
-| `srcIp`, `srcPort` | | The app's side: NetLogger's tun address and the app's port (ICMP: the echo id) |
+| `srcIp`, `srcPort` | | The app's side: Manete's tun address and the app's port (ICMP: the echo id) |
 | `dstIp`, `dstPort` | | The remote side (ICMP: no port) |
 | `uid` | | Owning app's Linux uid from `ConnectivityManager.getConnectionOwnerUid()`; empty when unknown (always for ICMP) |
-| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); `ICMP (app unknown)` for every ICMP row (Android can only name the app of TCP and UDP connections; empty in captures made before this label was added); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from NetLogger; `uid` is still filled) |
+| `app` | | Package name(s) of `uid`, joined by `\|` for a shared uid (e.g. `com.google.android.gms\|com.google.android.gsf`); a system uid's name (`android.uid.system:1000`); `ICMP (app unknown)` for every ICMP row (Android can only name the app of TCP and UDP connections; empty in captures made before this label was added); empty if the uid has none (e.g. 1051, the system DNS resolver) or the app has no launcher icon (Android hides such packages from Manete; `uid` is still filled) |
 | `firstSeen`, `lastSeen` | ISO-8601 | First and last packet of the connection |
 | `firstSeenElapsedNs`, `lastSeenElapsedNs` | ns | The same in elapsedRealtimeNs (the radio log's axis) |
 | `durationMs` | ms | `lastSeen - firstSeen` |
@@ -410,7 +410,7 @@ A FeatureCollection. Coordinates are `[lon, lat]` (RFC 7946 order), WGS84, 2D.
 | `durationMs`, `intervalMs` | End minus start; tick interval |
 | `timeZone`, `utcOffset` | Zone used for every ISO time in the bundle (phone zone at export) and its offset at session start |
 | `exportedAt` | Export time |
-| `appVersion`, `schemaVersion` | NetLogger version and database schema version |
+| `appVersion`, `schemaVersion` | Manete version and database schema version |
 | `device` | `manufacturer`, `model`, `androidVersion`, `basebandVersion` |
 | `network` | `subscriptionId`, `simSlot`, `operatorName`, `mcc`, `mnc` of the logged SIM |
 | `captureFile` | Traffic capture: `<uuid>.pcap` (in the ZIP as capture.pcap); old PCAPdroid FILE-mode sessions: `Download/PCAPdroid/<name>` (stays on the phone); empty without a capture |

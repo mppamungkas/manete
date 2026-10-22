@@ -23,7 +23,7 @@ capture cards carry long explanations.
    metrics, GPS status, network status (data route and rates), events. Layout below accepted.
 2. **Show the Wi-Fi SSID** in the data route.
 3. **"Cell change"** instead of "Handover" / "Cell reselection": telling them apart needs the RRC state (connected
-   vs. idle), which no public API gives. NetLogger does not label what it cannot know.
+   vs. idle), which no public API gives. Manete does not label what it cannot know.
 
 ## Layout
 
@@ -84,10 +84,10 @@ keeps the existing event type names (`docs/columns.md`); only the display change
   count, NR merge, rates, event text) in a separate file with unit tests.
 - **Data route** (new, read-only): a `NetworkRouteSource` in `core:device` with a `ConnectivityManager` network
   callback on the default network: transport (Wi-Fi / cellular / none) and, for Wi-Fi, the SSID from `WifiInfo`
-  (`FLAG_INCLUDE_LOCATION_INFO`, Android 12+; needs the fine location permission NetLogger already has, and location
+  (`FLAG_INCLUDE_LOCATION_INFO`, Android 12+; needs the fine location permission Manete already has, and location
   on). If the phone also requires `ACCESS_WIFI_STATE`, it is added (install-time, no prompt); see D2. An unknown or
   hidden SSID shows as "Wi-Fi". Listened to only while Live is visible or a session records.
-- **Rates:** from the device traffic counters NetLogger already reads every tick (`rxBytesTotal`, `txBytesTotal`):
+- **Rates:** from the device traffic counters Manete already reads every tick (`rxBytesTotal`, `txBytesTotal`):
   bytes between two ticks / time between them. Shown as kbps / Mbps.
 - **Events while not logging:** an `EventDetector` instance on the Live preview ticks, in memory only (like the Map's
   live preview), cleared when a session starts; while logging, Live shows the session's own events. The RSRP

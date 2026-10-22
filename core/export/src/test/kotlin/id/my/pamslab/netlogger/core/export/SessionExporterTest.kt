@@ -245,7 +245,7 @@ class SessionExporterTest {
         assertEquals("2026-10-14T05:40:00.000+07:00", json["startedAt"]?.jsonPrimitive?.content)
         assertEquals("60000", json["durationMs"]?.jsonPrimitive?.content)
         assertEquals("89", json.getValue("network").jsonObject["mnc"]?.jsonPrimitive?.content)
-        assertEquals("netlogger_SM-A566B_20261014-054000_Pasar-Raya-loop-1-A_cb1784a9.zip", result.fileName)
+        assertEquals("manete_SM-A566B_20261014-054000_Pasar-Raya-loop-1-A_cb1784a9.zip", result.fileName)
     }
 
     @Test
@@ -297,7 +297,7 @@ class SessionExporterTest {
 
     @Test
     fun `file name falls back to the scenario and stays ASCII`() {
-        assertEquals("netlogger_SM-A566B_20261014-054000_walk_cb1784a9.zip", SessionExporter.fileName(session(label = "  "), zone))
-        assertEquals("netlogger_SM-A566B_20261014-054000_x_cb1784a9.zip", SessionExporter.fileName(session(label = "日本"), zone))
+        assertEquals("manete_SM-A566B_20261014-054000_walk_cb1784a9.zip", SessionExporter.fileName(session(label = "  "), zone))
+        assertEquals("manete_SM-A566B_20261014-054000_x_cb1784a9.zip", SessionExporter.fileName(session(label = "日本"), zone))
     }
 }

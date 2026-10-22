@@ -1,14 +1,14 @@
 # Device quirks
 
 Update after every real-device test. For each quirk: device, Android / baseband version, what was seen
-(paste `dumpsys telephony.registry` or logcat excerpts), and how NetLogger handles it.
+(paste `dumpsys telephony.registry` or logcat excerpts), and how Manete handles it.
 
 ## Test devices
 
 | Device | SoC / modem | Android | Notes |
 |---|---|---|---|
 | Samsung Galaxy A56 (SM-A566B, `a56x`) | Exynos 1580 (`ro.soc.model` = s5e8855), baseband `A566BXXSECZI2` | 16 (API 36) | Samsung corrections active. Unrooted: use for the per-milestone unrooted check. ADB over Wi-Fi. First tested 2026-10-13 |
-| Motorola moto g45 5G (`fogos`, ADB `ZP22222MQL`) | Qualcomm Snapdragon 6s Gen 3 (`ro.soc.model` = SM6375), baseband `M6375_HI434_03.562.01.115R` | 15 (API 35) | **Pilot phone, rooted** (root only for the developer's validation tools; NetLogger never uses it). No OEM corrections. First tested 2026-10-13 |
+| Motorola moto g45 5G (`fogos`, ADB `ZP22222MQL`) | Qualcomm Snapdragon 6s Gen 3 (`ro.soc.model` = SM6375), baseband `M6375_HI434_03.562.01.115R` | 15 (API 35) | **Pilot phone, rooted** (root only for the developer's validation tools; Manete never uses it). No OEM corrections. First tested 2026-10-13 |
 
 ## Seen on our devices
 
@@ -64,7 +64,7 @@ No parse warnings, no extraction failures. Reported vs. G-NetTrack Pro: "NR_NSA 
 
 **The NR data is not dropped. It is split across two sources, and neither one is labelled as the serving NR cell:**
 
-| Source | What it holds | How NetLogger shows it now |
+| Source | What it holds | How Manete shows it now |
 |---|---|---|
 | `CellInfoNr` | `mRegistered=NO`, `mCellConnectionStatus=0` (NONE), PCI 479, NR-ARFCN 531870, `mBands=[]`, TAC 19350, NCI unavailable, **all signal fields unavailable** | Parsed (no cast or filter problem), but **as a neighbor** because it is neither registered nor PRIMARY/SECONDARY_SERVING: neighbor row "NR 479 531870 – –". Band null (`getBands()` empty, `BandMapper.None` until milestone 7). `nsaInputs.nrCellInfo = false`. |
 | `SignalStrength.getCellSignalStrengths()` → `CellSignalStrengthNr` | SS-RSRP -101 / -103, SS-RSRQ -11 / -12, SS-SINR 17 / unavailable; CSI unavailable | Parsed: "NR serving · SIGNAL_STRENGTH" card with RSRP/RSRQ, **no PCI/ARFCN/band** (by design, decision 001 addendum). `nsaInputs.nrSignal = true`. |
@@ -113,7 +113,7 @@ To test NR on the A56: Wi-Fi off and traffic on mobile data, which needs ADB ove
 USB passthrough) or checks done by hand.
 
 Other findings:
-- **TAC byte swap: not present on this A56 (Android 16).** NetLogger reads CI 12866878 / TAC 19350 for the cell,
+- **TAC byte swap: not present on this A56 (Android 16).** Manete reads CI 12866878 / TAC 19350 for the cell,
   identical to the moto g45 on the same cell (19350 = 0x4B96; a swap would read 38475), and no
   `SAMSUNG_TAC_BYTE_SWAP` warning. The correction stays in code for other Samsung models/firmware.
 - **Cell bandwidths include 60000 kHz** (`[10000, 10000, 60000]`) while `isUsingCarrierAggregation=false` and one
@@ -134,7 +134,7 @@ no crash. The A56's `mPhysicalChannelConfigs` (dumpsys only) gives ground truth 
 |---|---|---|
 | `CellInfoNr` present | yes | yes |
 | registered / status | NO / **0 (NONE)** | NO / **2 (SECONDARY_SERVING)** |
-| NR-ARFCN (SSB) | 531870 | 531870 (via NetLogger; dumpsys redacts) |
+| NR-ARFCN (SSB) | 531870 | 531870 (via Manete; dumpsys redacts) |
 | `getBands()` | `[]` | **`[7]`** (wrong: network config says n41; 60 MHz is not a valid n7 bandwidth) |
 | PCI | **479 = LTE anchor PCI** (wrong: real NR PCI is 440) | 440 (matches PhysicalChannelConfig) |
 | TAC | 19350 = LTE TAC (copied) | **0** (NSA NR has no TAC; Samsung placeholder) |
@@ -143,7 +143,7 @@ no crash. The A56's `mPhysicalChannelConfigs` (dumpsys only) gives ground truth 
 | CSI-RSRP / RSRQ / SINR in CellInfoNr | unavailable | **-140 / -20 / -23**: -20 and -23 are the floors of Android's CSI-RSRQ / CSI-SINR ranges, -140 is ~40 dB below SS-RSRP (the LTE RSRP floor): a "not measured" placeholder, not a reading |
 | `CellSignalStrengthNr` in SignalStrength | yes: -100 / -11 / 18 | yes: -100…-104 / -10…-11 / 9–14, CSI unavailable, CSI CQI report `[10]` |
 | `CellConfigLte.isEndcAvailable` | false (even in NSA) | false (even in NSA) |
-| NetLogger today | NR CELL_INFO card: SECONDARY_SERVING (inferred), PCI 479, n41 MAPPED, TAC blank, no signal; NR SIGNAL_STRENGTH card with signal | NR CELL_INFO card: SECONDARY_SERVING (reported), PCI 440, **band 7 (API)**, **TAC 0**, SS signal, **CSI -140/-20/-23**; NR SIGNAL_STRENGTH card |
+| Manete today | NR CELL_INFO card: SECONDARY_SERVING (inferred), PCI 479, n41 MAPPED, TAC blank, no signal; NR SIGNAL_STRENGTH card with signal | NR CELL_INFO card: SECONDARY_SERVING (reported), PCI 440, **band 7 (API)**, **TAC 0**, SS signal, **CSI -140/-20/-23**; NR SIGNAL_STRENGTH card |
 
 **Problems found, fixed 2026-10-13 and confirmed on both phones:**
 1. moto: NR **PCI copied from the LTE anchor** together with the TAC (the A56 and its PhysicalChannelConfig show 440
@@ -174,8 +174,8 @@ telephony.registry` sampled every ~4.5 s for 3 minutes (36 samples each; log in 
 - The moto releases the NR leg after ~30 s without data activity; the A56 keeps it while idle. NR availability in
   drive tests therefore depends on the phone's inactivity handling, not only on coverage: log `mDataActivity`-like
   context (TrafficStats deltas, milestone 3) next to the network type.
-- **Screen off (moto):** with the screen off and NetLogger in the background, the registry's cell list lost
-  `CellInfoNr` for ~45 s while `NR_NSA` and NR signal were still present; it came back as soon as NetLogger was in
+- **Screen off (moto):** with the screen off and Manete in the background, the registry's cell list lost
+  `CellInfoNr` for ~45 s while `NR_NSA` and NR signal were still present; it came back as soon as Manete was in
   front and requested an update. For milestone 3: check whether `requestCellInfoUpdate()` from the foreground service
   returns NR with the screen off, or cached data without it (`cellInfoAgeMs`, `cellInfoOrigin`).
 - The 5 dB SS-RSRP gap between phones on the same carrier is device-level (antenna, position, calibration): compare
@@ -192,7 +192,7 @@ Plugged in via USB (charging, so **no Doze**: `deviceidle mState=ACTIVE`), scree
 - GPS age with screen off ≤ 1 s (fused, high accuracy, held by the foreground service).
 - NR ticks dropped to 0 in the screen-off minutes with idle data (NR leg released, as seen before).
 - Battery current is positive while charging on this phone (+57678 µA); sign convention to confirm while discharging.
-- App TrafficStats rx/tx = 0 (NetLogger itself uses no network yet).
+- App TrafficStats rx/tx = 0 (Manete itself uses no network yet).
 - **Still to do:** the unplugged 1-hour test on both phones (Doze), see `docs/field-test-checklist.md`.
 
 A56: service starts and runs (foreground, type location), but its lock screen could not be dismissed over adb, so
@@ -280,19 +280,19 @@ pulled database and logcat. Raw database backed up in `docs/samples/` (gitignore
 
 Two static sessions with both SIMs active (subId 5 = Tri, data; subId 1 = Telkomsel, default voice/SMS).
 
-- **Only the data SIM is logged, nothing leaks from the other SIM.** NetLogger reads CellInfo, ServiceState and
+- **Only the data SIM is logged, nothing leaks from the other SIM.** Manete reads CellInfo, ServiceState and
   SignalStrength through `createForSubscriptionId(defaultDataSubId)`. Every tick had exactly one registered cell
   (Tri LTE PCI 479, EARFCN 1625, B3); Telkomsel was camped on EARFCN 1850 (registry, phone 1), which never appeared
   in our cells. Session metadata: subId 5, slot 0, operator 3SinyalKuatHemat, MNC 89.
 - **Wi-Fi on = no NR.** With Wi-Fi as the default network, the Tri data connection was down (`dataState` 0, only
   the IMS PDN up), override `0`, LTE CA only (`[20000,10000,10000]`, SCell on EARFCN 1475 kept as serving): the network
-  adds the NR leg only for mobile data traffic. NetLogger and the registry agreed. For NR tests, turn Wi-Fi off.
+  adds the NR leg only for mobile data traffic. Manete and the registry agreed. For NR tests, turn Wi-Fi off.
 - **Wi-Fi off:** 81/81 ticks NR_NSA (override 3, `dataState` 2), bandwidths `[20000,10000,60000]` as in the
   registry. NR serving selection: PCI 440 in every tick (67 `REPORTED`, 13 `STRONGEST` against neighbor 438 on the
   same NR-ARFCN, first tick `MAPPED_MCC_FALLBACK`); never more than one serving NR cell per NR-ARFCN. `parseErrors` 0;
   warnings are the known Samsung corrections (11.5 per tick on average).
 - **The data SIM is chosen once per session.** `RadioSampler` resolves the default data subscription when the
-  session starts. If the user switches the data SIM during a session, NetLogger keeps logging the first SIM and
+  session starts. If the user switches the data SIM during a session, Manete keeps logging the first SIM and
   nothing marks the switch. Handled since 2026-10-14 (approved): the session stays on its SIM, every tick after a
   switch has a `DATA_SIM_CHANGED` warning, a `DATA_SIM_CHANGED` event marks each switch, and Live shows a notice.
 - **Data-SIM switch confirmed (2026-10-14, 08:35–08:38, 176 ticks, 100 %):** session on Tri (subId 5); data switched
@@ -359,15 +359,15 @@ Both phones unplugged, screen off for most of the drive (moto 1218 / 1411 ticks,
 - **Map:** the moving track draws on the moto (1411 / 1411 points with GPS). Zoomed out, the dense points' dark
   outline makes the line look almost black; colors are clear when zoomed in.
 
-### Both phones, NetLogger vs. G-NetTrack Pro on the same phone, Tri (510-89), drive, 2026-10-14 (16:02–16:29)
+### Both phones, Manete vs. G-NetTrack Pro on the same phone, Tri (510-89), drive, 2026-10-14 (16:02–16:29)
 
-Each phone ran NetLogger (1 s) and G-NetTrack Pro at the same time, **screen on, both apps in the foreground**,
-unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogger tick of the same second
+Each phone ran Manete (1 s) and G-NetTrack Pro at the same time, **screen on, both apps in the foreground**,
+unplugged. Not the screen-off test. G-NetTrack rows were matched to the Manete tick of the same second
 (moto 712 pairs, A56 680).
 
-- **Ticks:** NetLogger moto 1623 / A56 1596 ticks, 100 % of expected, max spacing 1.007 s, cell info always FRESH.
+- **Ticks:** Manete moto 1623 / A56 1596 ticks, 100 % of expected, max spacing 1.007 s, cell info always FRESH.
   G-NetTrack wrote a row every ~2–3 s, with 21 / 22 gaps of 5 s or more (longest 36–38 s at the start).
-- **5G share:** moto NetLogger 93.1 % NR_NSA vs. G-NetTrack 91.9 % 5G; A56 98.2 % vs. 96.8 %. Network type agrees in
+- **5G share:** moto Manete 93.1 % NR_NSA vs. G-NetTrack 91.9 % 5G; A56 98.2 % vs. 96.8 %. Network type agrees in
   all but 6 / 6 matched rows (transitions).
 - **Values agree; both apps read the same API values.** moto: LTE PCI/EARFCN/RSRP/RSRQ/SINR/RSSI/TA, NR SS-RSRP,
   SS-RSRQ and SS-SINR identical in 91–99 % of pairs, median difference 0. A56: identical in 66–96 % (NR SS-RSRP 66 %,
@@ -375,32 +375,32 @@ unplugged. Not the screen-off test. G-NetTrack rows were matched to the NetLogge
 - **G-NetTrack hides the same staleness.** moto LTE SINR comes only from SignalStrength (age median 3.8 s, max 51.6 s
   even with the screen on). NR SS-RSRP on the moto changes every 6 s (median), longest 47 s, in **both** apps. G-NetTrack
   has no age column, so its values only look steadier.
-- **CQI:** moto reports none (both apps). A56: NetLogger has a CQI from CellInfo in every tick, changing every ~2 s
+- **CQI:** moto reports none (both apps). A56: Manete has a CQI from CellInfo in every tick, changing every ~2 s
   (values 4–14). G-NetTrack shows 8 in 510 of 682 rows and changed only 13 times: it holds a stale CQI.
-- **NR band: G-NetTrack says N7, NetLogger n41 (`MAPPED`).** NR-ARFCN 531870 lies in n7, n41 and n90; the A56's
+- **NR band: G-NetTrack says N7, Manete n41 (`MAPPED`).** NR-ARFCN 531870 lies in n7, n41 and n90; the A56's
   physical channel config (2026-10-13) said n41, 60 MHz, and 60 MHz is not a valid n7 bandwidth. G-NetTrack is wrong
-  on both phones (on the A56 it apparently takes `getBands()` = [7], which NetLogger flags `API_BAND_CONFLICT`).
-- **NR PCI:** moto's CellInfoNr has no usable NR PCI (NetLogger: `NR_PCI_FROM_LTE`, nrPci empty). G-NetTrack shows the
+  on both phones (on the A56 it apparently takes `getBands()` = [7], which Manete flags `API_BAND_CONFLICT`).
+- **NR PCI:** moto's CellInfoNr has no usable NR PCI (Manete: `NR_PCI_FROM_LTE`, nrPci empty). G-NetTrack shows the
   LTE anchor's PCI as the NR PCI, so its 40 moto "5G→5G handovers" are LTE anchor changes. A56: NR PCI agrees in 89 %
-  of pairs (NetLogger's serving NR choice, `SIGNAL_STRENGTH_MATCH` / `STRONGEST`).
+  of pairs (Manete's serving NR choice, `SIGNAL_STRENGTH_MATCH` / `STRONGEST`).
 - **NR PLMN on the A56:** G-NetTrack labels the NR cells 510-10 (Telkomsel, the voice SIM in slot 1) with LAC 0;
-  NetLogger's NR cells have no MCC/MNC from the API. Probably G-NetTrack filling in from the other SIM; not verified.
-- **Invalid values:** G-NetTrack wrote LAC 65535 and empty cell IDs (moto 16:15:38); NetLogger stores null.
-- **Events:** G-NetTrack logged 76 (moto) / 50 (A56) events. NetLogger's flat.csv has 52 / 87 LTE PCI changes, 0 / 106
+  Manete's NR cells have no MCC/MNC from the API. Probably G-NetTrack filling in from the other SIM; not verified.
+- **Invalid values:** G-NetTrack wrote LAC 65535 and empty cell IDs (moto 16:15:38); Manete stores null.
+- **Events:** G-NetTrack logged 76 (moto) / 50 (A56) events. Manete's flat.csv has 52 / 87 LTE PCI changes, 0 / 106
   NR PCI changes and 33 / 6 network-type changes, not yet written as events (milestone 7). A56 NR PCI changes include
-  NetLogger's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
+  Manete's serving pick moving between NR cells on the same ARFCN; G-NetTrack logs fewer (39 5G→5G).
 - Battery: moto 96 → 93 %, A56 51 → 47 % over 27 min with both apps and the screen on.
 
 ### moto g45, PCAPdroid capture: UDP vs. TCP stream, 2026-10-14 (milestone 10)
 
 PCAPdroid 2.0.2, VPN mode (records ≤ 10000 bytes = PCAPdroid's VPN MTU; LINKTYPE_RAW, snaplen 32768). The "root"
-prompt the user saw was PCAPdroid's own consent dialog; NetLogger's request now also says `root_capture=false`.
+prompt the user saw was PCAPdroid's own consent dialog; Manete's request now also says `root_capture=false`.
 
 - **UDP exporter loses packets under load.** A 10 MB download (session 8): PCAPdroid counted 10,779 packets / 11.2 MB
-  dumped, NetLogger received 5,813 / 5.9 MB (~46 % lost). The socket kept Android's 224 KB default receive buffer
+  dumped, Manete received 5,813 / 5.9 MB (~46 % lost). The socket kept Android's 224 KB default receive buffer
   (rmem_max allows 16 MB on the moto, 32 MB on the A56). A small capture (331 packets) arrived complete. UDP's arrival
   delay also varied by up to 1.5 s (PCAPdroid queues and sends in batches), so arrival time is no packet clock.
-- **TCP exporter: nothing lost.** Session 10, 3 × 10 MB download (curl from the shell, Cloudflare): NetLogger
+- **TCP exporter: nothing lost.** Session 10, 3 × 10 MB download (curl from the shell, Cloudflare): Manete
   5,483 packets / 30,388,956 bytes = PCAPdroid 5,483 / 30,388,956 bytes dumped; file valid to the last byte,
   timestamps monotonic. Wall-clock offset START vs. STOP: 0.6 ms apart.
 - **Capture overhead on throughput: none measurable.** Same spot, 5G NSA, LTE CA 10+10+20 MHz, LTE RSRP -97/-98,
@@ -428,8 +428,8 @@ the device. Same spot, 5G NSA, LTE 20+10 MHz + NR 60 MHz, LTE RSRP -91/-92, NR -
 | TCP capture on (session 13, 21:20) | 0.751 s | 0.733 s | 0.830 s | 0.771 s, 13.0 MB/s |
 
 No slowdown from the capture; the spread between runs (0.73–1.10 s) is larger than any difference.
-Packets: NetLogger 6,053 / 30,418,158 bytes, PCAPdroid 6,052 / 30,418,058 bytes dumped (`missing=-1`); session 12's
-short capture: 2,449 vs. 2,446. NetLogger gets slightly *more*: PCAPdroid reads its counters when the capture stops,
+Packets: Manete 6,053 / 30,418,158 bytes, PCAPdroid 6,052 / 30,418,058 bytes dumped (`missing=-1`); session 12's
+short capture: 2,449 vs. 2,446. Manete gets slightly *more*: PCAPdroid reads its counters when the capture stops,
 just before its last packets are dumped. A positive `missing` would be loss. File valid to the last byte, max record
 10,000 bytes (VPN MTU), timestamps monotonic; wall-clock offset START vs. STOP 0.14 ms apart.
 
@@ -483,7 +483,7 @@ DNS) to the operator's DNS servers: 4 packets out, none back, so Tri's resolvers
 
 ### moto g45, native capture from the capture card, Tri (510-89), 2026-10-15 (milestone 11, step 5)
 
-Static sessions 11–14, started and stopped through NetLogger's own UI (adb taps). The VPN consent was given in step
+Static sessions 11–14, started and stopped through Manete's own UI (adb taps). The VPN consent was given in step
 3, so no dialog appeared.
 
 - **Start:** the main process recorded CAPTURE_STARTED 50 ms after the `:vpn` process reported its first counters.
@@ -535,11 +535,11 @@ YouTube for ~3 min; the session was then stopped (CAPTURE_STOPPED SESSION_END).
 - **Package names were missing** for most uids (YouTube = uid 10279 showed no `app`): Android 11+ package
   visibility hides other apps' names. On the moto this went unnoticed because the apps seen there (shell, Google Play
   services, Play Store) are always visible. Fixed with a `<queries>` entry for launcher apps (no permission):
-  `dumpsys package queries` then lists 132 packages visible to NetLogger, YouTube, WhatsApp, Instagram, ChatGPT,
+  `dumpsys package queries` then lists 132 packages visible to Manete, YouTube, WhatsApp, Instagram, ChatGPT,
   Gmail and OneDrive among them. Packages without a launcher icon (e.g. `com.facebook.services`, uid 10075) keep only
   their uid; only `QUERY_ALL_PACKAGES` (restricted on Google Play) would name them.
-- The capture card still had "PCAPdroid → NetLogger" selected from milestone 10, so the first start was a PCAPdroid
-  capture: NetLogger 9,434 vs. PCAPdroid 9,433 packets (missing −1, as expected).
+- The capture card still had "PCAPdroid → Manete" selected from milestone 10, so the first start was a PCAPdroid
+  capture: Manete 9,434 vs. PCAPdroid 9,433 packets (missing −1, as expected).
 - The A56's mobile data (`3gprs`) is IPv4 only, like the moto's: the IPv6 path is untested on both phones.
 - **Another VPN takes over** (user started a capture in the PCAPdroid app during a native capture): Android called
   `onRevoke`, the loop ended `TUN_CLOSED` 0.1 s later, CAPTURE_STOPPED VPN_REVOKED; pcap 2,056 = expected, 1 tun write
@@ -555,7 +555,7 @@ Drive session 16 (static on the desk, USB connected), native capture MTU 1500, a
 off; a 5 MB HTTP range download every 2 min (17 in total) from the Surabaya mirror.
 
 - Logging: 2,146 of 2,146 expected ticks (100.0 %) over 2,145 s, longest gap 1.00 s; 1,840 ticks with the screen off
-  (30.7 min). `dumpsys power` showed `Awake` for ~5 min in the middle (23:46–23:51 UTC); NetLogger's screen state says
+  (30.7 min). `dumpsys power` showed `Awake` for ~5 min in the middle (23:46–23:51 UTC); Manete's screen state says
   the display stayed off for most of that.
 - Capture: all 17 downloads complete (HTTP 206, 5,000,000 B, 3.9–6.6 MB/s with the screen off), VPN up the whole
   time; pcap 109,780 = expected, dropped 0; 178 connections, every uid resolved.
@@ -572,7 +572,7 @@ everything under `/backend/`; the root paths answer 404.
 | `GET /backend/garbage.php?ckSize=N` | 200, `application/octet-stream`, N MiB (ckSize=1 → 1,048,576 B; 100 → 104,857,600 B); `Cache-Control: no-store` |
 | `POST /backend/empty.php` (upload) | 200, empty body; 10 MB accepted |
 | `GET /backend/empty.php` (ping) | 200, empty; keep-alive (later requests reuse the connection) |
-| `GET /backend/getIP.php` | 200 JSON `{processedString, rawIspInfo}`; `?isp=true` adds ISP details (ASN, country). Not used by NetLogger |
+| `GET /backend/getIP.php` | 200 JSON `{processedString, rawIspInfo}`; `?isp=true` adds ISP details (ASN, country). Not used by Manete |
 
 So `SpeedTestConfig.libreSpeed(base)` (ping/upload `empty.php`, download `garbage.php?ckSize=100`) fits unchanged. The
 server is plain HTTP: allowed only for its host via the generated network security config
@@ -585,7 +585,7 @@ route limits the result. That first phone result is doubtful anyway, see below.
 tests this day): every plain-HTTP request — the LibreSpeed server, the mirror — got `302 Location:
 https://bimatri.ioh.co.id/` (IOH's bima+ portal) within 0.1 s, and every TLS handshake (speed.cloudflare.com,
 cloudflare.com, google.com) was reset right after the TCP connect. The same with and without the native capture; from
-the VM all of these answered normally. NetLogger then recorded ping/download "timeout" or "Connection reset" and an
+the VM all of these answered normally. Manete then recorded ping/download "timeout" or "Connection reset" and an
 upload of 35 Mbit/s into the portal.
 
 **Fixed:** the speed test followed redirects (OkHttp's default), so a captive portal could be measured as the server.
@@ -594,13 +594,13 @@ this phone from before the fix on 2026-10-15 09:40–09:42 (session of that time
 
 ### PCAPdroid bridge removed, 2026-10-15 (CLAUDE.md 1.7.0)
 
-At the user's request NetLogger now captures only with its own VPN. The PCAPdroid findings above (milestone 10) stay
+At the user's request Manete now captures only with its own VPN. The PCAPdroid findings above (milestone 10) stay
 for the record and for reading old sessions. PCAPdroid can still run as a separate app, but not at the same time as
-a NetLogger capture (one VPN at a time; NetLogger refuses to start while another VPN is active).
+a Manete capture (one VPN at a time; Manete refuses to start while another VPN is active).
 
-### moto g45: NetLogger data lost and partly restored, 2026-10-15 11:00
+### moto g45: Manete data lost and partly restored, 2026-10-15 11:00
 
-Running `:app:connectedDebugAndroidTest` (launcher icon previews) uninstalled NetLogger afterwards, as AGP does for
+Running `:app:connectedDebugAndroidTest` (launcher icon previews) uninstalled Manete afterwards, as AGP does for
 the app module, and deleted its data. Restored from a database copy taken at 07:02 for the screen-off check:
 sessions 1–16 (integrity ok, schema 2). **Lost:** session 16 after 07:02 (it ends there now) and its
 CAPTURE_STOPPED event; session 17 (09:40, speed test, invalid anyway); all capture files of sessions 7–16 (copies
@@ -642,19 +642,19 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
   never reported (0 % of 6739); LTE RSSNR in 66 %, TA in 78 %, NR SS-SINR in 54 % of recorded rows.
 - **Phone capabilities, A56 (Telkomsel, LTE B1 with CA 20 + 10 MHz, icon LTE_CA):** all LTE fields available,
   including CQI (100 %); neighbour cells in 59 % of recorded rows.
-- Battery optimisation is on for NetLogger on both phones (Android's default). The earlier screen-off runs reached
+- Battery optimisation is on for Manete on both phones (Android's default). The earlier screen-off runs reached
   their tick targets anyway; the How to use page still advises Unrestricted.
 - **500 ms interval, moto, screen on, static, NR_NSA (session 17):** 400 ticks in 199.5 s, tick spacing median
   500.0 ms (max 506). The serving LTE cell's `cellInfoAgeMs`: median 986 ms, max 1996 ms; 57.5 % of rows older than
   500 ms and 34.8 % older than 1000 ms. The moto's modem refreshes cell info only about every 1–2 s, so at 500 ms
   more than half the rows repeat cell values (identifiable by their age); 1000 ms is the useful minimum here.
-- **Capture with Specific apps, A56 (Telkomsel, session 26):** only NetLogger selected, Map tiles loaded during the
-  capture: all 15 connections in `connections.csv` have NetLogger's uid; 357 packets, 0 dropped. Tiles went over
+- **Capture with Specific apps, A56 (Telkomsel, session 26):** only Manete selected, Map tiles loaded during the
+  capture: all 15 connections in `connections.csv` have Manete's uid; 357 packets, 0 dropped. Tiles went over
   IPv4 even with IPv6 available; the 9 IPv6 packets in the pcap are the ones counted as unparsed (not app
   connections), so the IPv6 capture path is still untested. The VPN consent from the earlier tests still held.
 
 ### moto g45, Map crash when tapping the open Map tab, 2026-10-16 08:57
-- The crash log had a NetLogger crash at 05:51 (process 5 s old, foreground). Reproduced: with the Map open,
+- The crash log had a Manete crash at 05:51 (process 5 s old, foreground). Reproduced: with the Map open,
   tapping the Map tab again crashed the app 4 of 4 times; switching Map → Live 0 of 4. Each crash: a native
   SIGSEGV in MapLibre's `MapRenderer::render` (null pointer, render thread), then on the main thread
   `IllegalStateException: Calling getSourceAs when a newer style is loading/has loaded` from `TrackMap`.
@@ -699,7 +699,7 @@ slot 1 (subId 3). Wi-Fi off on both. Branch `feat/settings-ux`.
   main process kept running was in `dumpsys activity exit-info` but not returned to the app; it appeared at the next
   start of the main process. The moto (Android 15) returned it at once. The capture row shows the ended capture
   meanwhile.
-- ANR (main thread blocked, app in the foreground): Samsung's "NetLogger isn't responding" dialog; "Close app" ends
+- ANR (main thread blocked, app in the foreground): Samsung's "Manete isn't responding" dialog; "Close app" ends
   the process with REASON_ANR and a 78 KB thread dump; description "user request after error: Input dispatching timed
   out (… Waited 10000ms …)", shortened in the title. Same on the moto.
 - Wi-Fi on (2026-10-16): the Live data row shows the SSID with the existing permissions (fine location, location on);
@@ -802,7 +802,7 @@ half the ticks, native capture all apps (MTU 1500). Analysis in `~/netlogger-ana
 ### moto g45, floor plan import (decision 006 step 2), 2026-10-21
 
 - `PdfRenderer` refuses a password-protected PDF already when opening it (to count pages), with
-  `SecurityException: Password required to access document`; NetLogger now reports it as protected.
+  `SecurityException: Password required to access document`; Manete now reports it as protected.
 - The system file picker's Downloads view lists only files in Android's media index: files pushed with `adb push`
   appear only under the phone's storage root (side menu › moto g45 5G › Download). Not an issue for files saved by apps.
 

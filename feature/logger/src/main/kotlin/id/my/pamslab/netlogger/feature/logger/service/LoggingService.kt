@@ -142,7 +142,7 @@ class LoggingService : Service() {
         }
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_logging)
-            .setContentTitle("NetLogger is logging")
+            .setContentTitle("Manete is logging")
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)

@@ -100,7 +100,7 @@ class CaughtErrorsTest {
             ),
             ctx,
         )
-        val section = text.indexOf("Caught errors (last 7 days, NetLogger kept running; 1 kinds)")
+        val section = text.indexOf("Caught errors (last 7 days, Manete kept running; 1 kinds)")
         assertTrue(text, section > text.indexOf("Your note"))
         assertTrue(text, section < text.indexOf("Log: none readable"))
         assertTrue(text.contains("  2× speed test: upload failed · IOException · 10-19 10:21–10:22 · main"))

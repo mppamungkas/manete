@@ -26,13 +26,13 @@ Do this on each phone, in LTE-only coverage and in 5G NSA coverage (5G icon visi
 Run on the moto g45 (pilot) and on the A56 (unrooted). **Unplug the phone**: on USB it charges and never enters
 Doze, so a plugged-in test proves nothing about screen-off behavior.
 
-- [ ] Live → **Start logging**: notification "NetLogger is logging" with Stop and Add marker appears
+- [ ] Live → **Start logging**: notification "Manete is logging" with Stop and Add marker appears
 - [ ] `adb -s <serial> shell dumpsys power | grep NetLogger:logging` shows the partial wake lock while logging
 - [ ] Add marker from the notification and from the Live screen: marker count goes up
 - [ ] GPS card: status OK, accuracy and age plausible (age < 2 s while moving outdoors)
 - [ ] Device card: battery %, current (note sign while charging vs. discharging), voltage, temperature, thermal, screen
 - [x] Unplug, screen off, **1 hour** (walk or drive if possible). Then plug in and read
-      `adb -s <serial> logcat -d -s NetLogger:I | grep ticks` (one summary per minute: ticks recorded/expected,
+      `adb -s <serial> logcat -d -s Manete:I | grep ticks` (one summary per minute: ticks recorded/expected,
       cell info origin, max serving-cell age, max GPS age, screen-off ticks, NR ticks)
 - [x] Pass: ≥ 95 % of expected ticks (Live: "Last session x / y"), no crash. **moto g45, 2026-10-16 17:29–19:03,
       unplugged, 98 % screen off, release 0.2.0 with a capture and the debug build logging in parallel: 5603 / 5603 and
@@ -120,12 +120,12 @@ Kept for the record; these checks no longer apply.
 
 - [ ] PCAPdroid installed (F-Droid / Play); no other VPN active
 - [ ] Without PCAPdroid: the capture card says so, no crash
-- [ ] Logging → capture card → "Into NetLogger" (TCP) → Start capture: PCAPdroid asks for consent (first time) and for the
+- [ ] Logging → capture card → "Into Manete" (TCP) → Start capture: PCAPdroid asks for consent (first time) and for the
       VPN; deny once: the card shows the error, no CAPTURE_STARTED event, no file left behind
 - [ ] Allow: packets and MB count up on the card; browse / run a speed test (flagged `captureActive`)
-- [ ] Stop capture: card shows NetLogger's vs. PCAPdroid's packet count (missing ≈ 0); CAPTURE_STOPPED has both;
+- [ ] Stop capture: card shows Manete's vs. PCAPdroid's packet count (missing ≈ 0); CAPTURE_STOPPED has both;
       export → capture.pcap opens in Wireshark (raw IP); capture_sync.csv has START and STOP rows
-- [ ] Stop from PCAPdroid itself: NetLogger notices (CAPTURE_STOPPED reason PCAPDROID)
+- [ ] Stop from PCAPdroid itself: Manete notices (CAPTURE_STOPPED reason PCAPDROID)
 - [ ] Stop the session from the notification while capturing: CAPTURE_STOPPED SESSION_END; Live offers "Stop PCAPdroid capture"
 - [ ] Screen off for 10 min while capturing: packets keep counting; missing ≈ 0 at the end
 - [ ] "PCAPdroid file" mode: file in Download/PCAPdroid/netlogger_<uuid>.pcap, session.json captureFile names it
@@ -168,7 +168,7 @@ Kept for the record; these checks no longer apply.
 - [x] Copy report: pasted back on the phone, a Markdown table with LTE/NR prefixes
 - [x] How to use (6 sections) and About: icon, version + build commit, GPL text, privacy, OSM attribution, credits with licence texts (A56)
 - [x] Phone capabilities with 5G NSA and mobile data on: moto (Tri, NR_NSA) NR values from CellInfo and SignalStrength, NR PCI missing, NR band mapped, mobile data "IPv4" (IMS network ignored); A56 (Telkomsel, LTE CA) "IPv4 + IPv6" (2026-10-16, docs/device-quirks.md)
-- [x] A capture with Specific apps (A56, Telkomsel, session 26): only NetLogger selected, all 15 connections in connections.csv are NetLogger's, 0 dropped
+- [x] A capture with Specific apps (A56, Telkomsel, session 26): only Manete selected, all 15 connections in connections.csv are Manete's, 0 dropped
 - [x] Earlier `appFilter` typed on the old card reads as Specific apps: unit test (`CaptureSettingsTest`); not seen on a phone (neither phone had a list saved)
 - [x] Same on the moto g45 (Tri + Tri, data on slot 1): Settings list, Logging (data SIM slot 1), Speed test, Traffic capture, Phone capabilities + Copy report, How to use, About; layout fine at 720 px
 - [x] 500 ms interval (moto, screen on, session 17): ticks exactly 500 ms, but 57.5 % of rows carry cell info older than 500 ms (modem refreshes every 1–2 s)
@@ -216,7 +216,7 @@ java|native|anr --receiver-foreground`; `id.my.pamslab.netlogger.CrashTestVpnRec
 - [x] GitHub issue: a 9.2 KB report opens the form (URL kept under 7000 encoded characters); two issues sent by the
       user (#9, #10)
 - [x] "Was the report sent?" asked on return; Keep keeps it
-- [ ] Android ending NetLogger during a recording (low memory / battery limits): needs a long field run (no way to
+- [ ] Android ending Manete during a recording (low memory / battery limits): needs a long field run (no way to
       cause it without root)
 
 ## Speed test buttons and Cloudflare location (CLAUDE.md 1.7.7)

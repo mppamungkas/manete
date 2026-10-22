@@ -63,7 +63,7 @@ internal fun AboutScreen(onBack: () -> Unit, onLicence: (Licence) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             facts?.icon?.let { Image(it, contentDescription = null, modifier = Modifier.size(56.dp)) }
             Column {
-                Text("NetLogger", style = MaterialTheme.typography.titleLarge)
+                Text("Manete", style = MaterialTheme.typography.titleLarge)
                 facts?.let { Text(stringResource(R.string.about_version, it.version, it.commit), style = MaterialTheme.typography.bodyMedium) }
             }
         }

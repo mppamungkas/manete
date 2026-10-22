@@ -7,11 +7,11 @@ import org.junit.Test
 
 class IssueTextTest {
 
-    private val header = "NetLogger problem report\nApp        0.1.0 (build d86e809)\nWhat       Crash (native): SIGSEGV\n\nTrace\n"
+    private val header = "Manete problem report\nApp        0.1.0 (build d86e809)\nWhat       Crash (native): SIGSEGV\n\nTrace\n"
 
     @Test
     fun `short reports go in whole`() {
-        val report = header + "  #00 libmaplibre.so render+144\n\nLog (NetLogger's own lines before the end, 1)\n  a line\n"
+        val report = header + "  #00 libmaplibre.so render+144\n\nLog (Manete's own lines before the end, 1)\n  a line\n"
         assertEquals("```\n$report\n```", IssueText.body("t", report))
     }
 
@@ -20,12 +20,12 @@ class IssueTextTest {
         // Like the moto's 9.8 KB Java report whose issue URL GitHub refused.
         val frames = (0 until 120).joinToString("\n") { "  #%02d libart.so bool art::interpreter::DoCall<false>(art::ArtMethod*, art::Thread*)+2416".format(it) }
         val log = (0 until 60).joinToString("\n") { "  10-16 12:16:40.554 15805 15805 D nativeloader: Configuring clns-7 for other apk /data/app/…/base.apk" }
-        val report = "$header$frames\n\nLog (NetLogger's own lines before the end, 60)\n$log\n"
+        val report = "$header$frames\n\nLog (Manete's own lines before the end, 60)\n$log\n"
         val title = "Crash (native): SIGSEGV (SEGV_MAPERR) in libmaplibre.so mln::android::MapRenderer::render(_JNIEnv&)"
         val body = IssueText.body(title, report)
 
         assertTrue(IssueText.encodedLength(title) + IssueText.encodedLength(body) <= IssueText.MAX_ENCODED)
-        assertTrue(body.startsWith("```\nNetLogger problem report\n"))
+        assertTrue(body.startsWith("```\nManete problem report\n"))
         assertTrue(body.contains("  #00 libart.so"))
         assertFalse(body.contains("nativeloader"))
         assertTrue(body.endsWith("full report, with the log, is on the clipboard: paste it below.)"))

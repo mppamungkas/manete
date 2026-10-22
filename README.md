@@ -1,13 +1,17 @@
 <p align="center">
-  <img src="docs/branding/netlogger-logo.png" alt="NetLogger logo" width="160">
+  <img src="docs/branding/netlogger-logo.png" alt="Manete logo" width="160">
 </p>
 
-# NetLogger
+# Manete
 
-NetLogger is an Android drive-test logger for **LTE and 5G NSA** with its own **traffic capture**. It records
+Manete is an Android drive-test logger for **LTE and 5G NSA** with its own **traffic capture**. It records
 radio measurements, GPS and device context once per tick, shows them live and on a map, and exports clean,
 documented datasets. Optionally it captures the phone's IP traffic into a pcap file that is time-aligned with the
 radio log, so radio conditions can be compared with what the apps did.
+
+The name is Minangkabau slang: *manete*, from *man-dete*, "doing a drive test". Up to version 0.4.0 the project was
+called NetLogger; the app ID (`id.my.pamslab.netlogger`) and other internal names keep the old name, so new versions
+install as updates and keep all sessions.
 
 It is built for research and teaching, for example:
 - LTE anchor quality vs. 5G NSA availability;
@@ -18,7 +22,7 @@ The design follows three rules: data quality and traceability come before UI pol
 only** (no root, no vendor diagnostic interfaces), and it never crashes on missing data.
 
 > **Status:** version 0.4.0, the first published release: download the APK from
-> [Releases](https://github.com/mppamungkas/netlogger/releases/latest) (see [Install](#install)). Still in
+> [Releases](https://github.com/mppamungkas/manete/releases/latest) (see [Install](#install)). Still in
 > development. Tested on a Motorola moto g45 5G (Android 15) and a Samsung Galaxy A56 (Android 16).
 
 ## Features
@@ -65,11 +69,11 @@ only** (no root, no vendor diagnostic interfaces), and it never crashes on missi
   - **Phone capabilities:** which radio fields this phone reports right now, and how often they appeared in your
     recorded sessions. Copy report gives a Markdown table.
   - How to use, About (licences, privacy, credits).
-- **Problem reports:** if NetLogger crashes, freezes or is ended by Android during a recording, a card on Live says
-  so and Settings › Problem reports keeps a report (what happened, a technical trace, NetLogger's own log lines; no
+- **Problem reports:** if Manete crashes, freezes or is ended by Android during a recording, a card on Live says
+  so and Settings › Problem reports keeps a report (what happened, a technical trace, Manete's own log lines; no
   location or cell identities). The user sends it by e-mail/chat or as a GitHub issue; nothing is sent automatically.
 
-**Traffic capture** (NetLogger's own `VpnService`, no other app needed)
+**Traffic capture** (Manete's own `VpnService`, no other app needed)
 - Native C capture loop with [zdtun](https://github.com/emanuele-f/zdtun) as the user-space forwarder, in a separate
   process, so a capture failure cannot stop radio logging.
 - Captures all apps or only the apps you pick.
@@ -113,9 +117,9 @@ columns and units are defined in [`docs/columns.md`](docs/columns.md).
 
 ## Install
 
-1. Download `netlogger-<version>.apk` from the [latest release](https://github.com/mppamungkas/netlogger/releases/latest)
+1. Download `manete-<version>.apk` (`netlogger-<version>.apk` up to 0.4.0) from the [latest release](https://github.com/mppamungkas/manete/releases/latest)
    on the phone (optionally check it against the `.sha256` file next to it).
-2. Open it and allow installing from this source when Android asks (NetLogger is not on the Play Store).
+2. Open it and allow installing from this source when Android asks (Manete is not on the Play Store).
 3. A newer release installs as an update over an older one and keeps all sessions; the database is upgraded on the
    first start. Releases are signed with the same key, certificate SHA-256
    `c64b1cbf4019009f730738d4fbf9696768561ca0608f3712aed6ad55ff1c19fc`.
@@ -175,12 +179,12 @@ Design decisions: [cell parsing](docs/decisions/001-cell-parsing.md),
 
 Sessions and exports contain your precise location, the cells you used and your phone model and operator. A traffic
 capture contains the network traffic of the captured apps. Everything stays on the phone until you export it.
-Problem reports also stay on the phone until you send one. NetLogger has no account, no analytics and no upload. It only contacts the OpenStreetMap tile server, the speed test
+Problem reports also stay on the phone until you send one. Manete has no account, no analytics and no upload. It only contacts the OpenStreetMap tile server, the speed test
 server you set or Cloudflare (only when you run a test), and Google Play services for the location.
 
 ## Licence
 
-NetLogger is free software under the [GNU General Public License v3](LICENSE).
+Manete is free software under the [GNU General Public License v3](LICENSE).
 
 It includes code from other projects ([`docs/third-party.md`](docs/third-party.md)):
 - zdtun (LGPL v3 or later);

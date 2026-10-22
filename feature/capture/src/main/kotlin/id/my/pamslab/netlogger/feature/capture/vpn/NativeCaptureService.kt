@@ -255,7 +255,7 @@ class NativeCaptureService : VpnService() {
 
     private fun builder(plan: TunPlan, allowedApps: List<String>, mtu: Int): Builder {
         val b = Builder()
-            .setSession("NetLogger capture")
+            .setSession("Manete capture")
             .setMtu(mtu)
             .setBlocking(true)
             // Metered like the network underneath, instead of always metered.
@@ -284,7 +284,7 @@ class NativeCaptureService : VpnService() {
         val manager = getSystemService(NotificationManager::class.java)
         manager?.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Traffic capture", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while NetLogger captures the phone's IP traffic"
+                description = "Shown while Manete captures the phone's IP traffic"
             },
         )
         val stop = PendingIntent.getService(
@@ -292,7 +292,7 @@ class NativeCaptureService : VpnService() {
         )
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_capture)
-            .setContentTitle("NetLogger is capturing traffic")
+            .setContentTitle("Manete is capturing traffic")
             .setContentText(fileName)
             .setOngoing(true)
             .setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)

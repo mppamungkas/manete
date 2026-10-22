@@ -4,7 +4,7 @@
     <string name="plans_back">← Settings</string>
     <string name="plans_title">Floor plans</string>
     <string name="plans_what_title">Floor plans for indoor tests</string>
-    <string name="plans_what_info">Indoors GPS is weak or wrong. Import a floor plan of the building (a photo, an image or a PDF page from the architect or the fire-escape plan), one per floor. During an indoor session you then tap on the plan where you are at every turn, door or landmark, and NetLogger places the measurements in between along your path. Plans stay on this phone.</string>
+    <string name="plans_what_info">Indoors GPS is weak or wrong. Import a floor plan of the building (a photo, an image or a PDF page from the architect or the fire-escape plan), one per floor. During an indoor session you then tap on the plan where you are at every turn, door or landmark, and Manete places the measurements in between along your path. Plans stay on this phone.</string>
     <string name="plans_import">Import a floor plan…</string>
     <string name="plans_none">No floor plans yet.</string>
     <string name="plans_size">%1$d × %2$d px</string>

@@ -3,7 +3,7 @@
 - **Status:** Accepted (D1–D8 as recommended; D3: share sheet and GitHub issue), 2026-10-16. Implemented (steps 1–4),
   checked on both phones 2026-10-16. Differences from the plan: the debug test hook is a broadcast receiver only the
   shell can trigger (DUMP permission), not a screen; a report cannot delete itself after sending (Android does not tell
-  whether it was sent), so NetLogger asks on return; GitHub issue bodies are limited by their encoded URL length
+  whether it was sent), so Manete asks on return; GitHub issue bodies are limited by their encoded URL length
   (7000), not by characters; on Android 16 a `:vpn` crash appears only at the next app start. Step 1 finding (moto g45): a tombstone also holds memory dumps and the process' log buffer, unfiltered, so the
   report shows only its summary; the raw file is attached only when the user ticks a box that says what it may
   contain (D5 changed so by the user, 2026-10-16; step 3).
@@ -13,9 +13,9 @@
 
 ## Problem
 
-NetLogger is installed from an APK, not from the Play Store, so the Play Console's crash reports (Android vitals) never
+Manete is installed from an APK, not from the Play Store, so the Play Console's crash reports (Android vitals) never
 see it. Today a crash leaves nothing behind but Android's own crash log, which only `adb` can read. Example: on
-2026-10-16 the moto g45 had a NetLogger crash at 05:51 that nobody noticed; it was found by chance in
+2026-10-16 the moto g45 had a Manete crash at 05:51 that nobody noticed; it was found by chance in
 `logcat -b crash` and turned out to be a reproducible Map crash (fixed in PR #7). On a student's phone it would have
 gone unreported.
 
@@ -25,34 +25,34 @@ recording. Today such a session is closed on the next start without saying why.
 
 ## What Android provides (public APIs, no permission)
 
-- **`ActivityManager.getHistoricalProcessExitReasons()`** (`ApplicationExitInfo`, Android 11+; NetLogger's minSdk is
+- **`ActivityManager.getHistoricalProcessExitReasons()`** (`ApplicationExitInfo`, Android 11+; Manete's minSdk is
   31): why each of the app's own processes ended (the main process and `:vpn`), with time, importance and PSS.
   Reasons include `REASON_CRASH` (Java), `REASON_CRASH_NATIVE`, `REASON_ANR`, `REASON_LOW_MEMORY`, `REASON_SIGNALED`,
   `REASON_EXCESSIVE_RESOURCE_USAGE`, `REASON_FREEZER`, `REASON_USER_REQUESTED` (force stop), `REASON_EXIT_SELF`.
   - `getTraceInputStream()`: for an ANR the thread dump (text); for a native crash on Android 12+ the **tombstone**
     (protobuf: signal, abort message, the crashing thread's backtrace with library and function names). This is how
     the MapLibre `MapRenderer::render` crash would have been reported.
-  - For a Java crash it has no stack trace, so NetLogger also needs its own uncaught-exception handler.
-- **`ActivityManager.setProcessStateSummary()`** (≤ 128 bytes, kept with the next exit record): NetLogger stores what
+  - For a Java crash it has no stack trace, so Manete also needs its own uncaught-exception handler.
+- **`ActivityManager.setProcessStateSummary()`** (≤ 128 bytes, kept with the next exit record): Manete stores what
   was running (session id, capture on/off, the open screen), so a report can say "a recording was running".
 - **Thread.setDefaultUncaughtExceptionHandler**: writes the Java stack trace to a file before the process dies, then
   hands over to Android's handler (the system crash dialog and exit info stay as they are).
 - **Own log lines**: an app can read its own processes' log lines with `logcat -d` (no permission, own UID only).
   Whether the previous process' lines are still in the buffer after a restart differs by phone: checked in step 1;
-  fallback, an in-memory ring buffer of NetLogger's own log lines, written to the report file at a crash.
+  fallback, an in-memory ring buffer of Manete's own log lines, written to the report file at a crash.
 
 ## Plan
 
 ### What is recorded
 
-At every start of the main process, NetLogger reads the exit records it has not seen yet (it remembers the newest
+At every start of the main process, Manete reads the exit records it has not seen yet (it remembers the newest
 timestamp it has read) and keeps a **problem report** for each one that was not normal:
 
 | Exit reason | Report | Live card |
 |---|---|---|
 | Crash (Java or native), in the main process or `:vpn` | yes, with the stack trace / tombstone summary | yes |
 | ANR (frozen) | yes, with the main thread of the dump | yes |
-| Ended by Android (low memory, signaled, excessive resource use, freezer) **while a session was recording** | yes, no trace | yes: "Android ended NetLogger during a recording" |
+| Ended by Android (low memory, signaled, excessive resource use, freezer) **while a session was recording** | yes, no trace | yes: "Android ended Manete during a recording" |
 | Ended by Android while not recording, force stop, normal exit, app update | no | no |
 
 ### The report
@@ -60,7 +60,7 @@ timestamp it has read) and keeps a **problem report** for each one that was not 
 Plain text, readable by a teacher, useful to the developer:
 
 ```
-NetLogger problem report
+Manete problem report
 App        0.1.0 (build 511cf00), installed from APK
 Phone      motorola moto g45 5G, Android 15 (API 35), baseband …
 Time       2026-10-16 05:51:08 +07:00
@@ -69,18 +69,18 @@ What       Crash (native): SIGSEGV in libmaplibre.so MapRenderer::render
 Running    Map screen; no recording; no capture
 Trace      #00 libmaplibre.so mln::android::MapRenderer::render(_JNIEnv&)+144
            …
-Log        (NetLogger's own lines before the end, last 200)
+Log        (Manete's own lines before the end, last 200)
 Your note  (Report a problem: what the user typed)
 ```
 
 **Never in a report:** location, cell identities (cell ID, TAC, PCI), the Wi-Fi SSID, phone numbers or IMEI, capture
-contents. NetLogger's own log lines contain none of these today (checked 2026-10-16); a filter drops any line with a
+contents. Manete's own log lines contain none of these today (checked 2026-10-16); a filter drops any line with a
 coordinate pattern anyway, and a rule in `CLAUDE.md` keeps them out of log lines. The user always sees the whole report
 before it leaves the phone.
 
 ### Where the user sees it
 
-- **Live**, after an unexpected end: a card at the top, "NetLogger stopped unexpectedly at 05:51 (crash on the Map)",
+- **Live**, after an unexpected end: a card at the top, "Manete stopped unexpectedly at 05:51 (crash on the Map)",
   with **View report**, **Send** and **Dismiss**. Shown once per report.
 - **Settings › Report a problem** (Info section):
   - the list of kept reports (time, what happened), each with View, Send and Delete;
@@ -91,7 +91,7 @@ before it leaves the phone.
 
 - **Share**: Android's share sheet (email, WhatsApp, Drive …) with the report as text and, for a native crash, the
   raw tombstone as an attachment (`FileProvider`, as the session export already uses).
-- **GitHub issue**: opens `github.com/mppamungkas/netlogger/issues/new` in the browser with title and body filled in
+- **GitHub issue**: opens `github.com/mppamungkas/manete/issues/new` in the browser with title and body filled in
   (the body cut to fit a URL; the full report is copied to the clipboard to paste). The page warns that issues are
   public. Needs a GitHub account.
 
@@ -130,11 +130,11 @@ app. The About › Privacy text gets one line: "Problem reports stay on the phon
   Crashlytics** (works without the Play Store, but uploads automatically to Google, closed source, needs a Firebase
   project; contradicts "no analytics, no upload"), **Sentry** (needs a server or an account).
   *Recommendation: built in.*
-- **D2** Also report Android ending NetLogger **during a recording** (low memory, battery restrictions), not only
+- **D2** Also report Android ending Manete **during a recording** (low memory, battery restrictions), not only
   crashes and ANRs. *Recommendation: yes: for a logger these lose data just like a crash.*
 - **D3** Sending: share sheet **and** a pre-filled GitHub issue (public, with a warning). *Recommendation: both.*
   Alternative: share only, if issues should stay private (reports would then reach you by e-mail or chat).
-- **D4** Include NetLogger's own log lines (last 200, filtered, shown before sending). *Recommendation: yes.*
+- **D4** Include Manete's own log lines (last 200, filtered, shown before sending). *Recommendation: yes.*
 - **D5** Summarise native tombstones with a small protobuf reader of our own (no protobuf library), and attach the raw
   tombstone. *Recommendation: yes.*
 - **D6** A debug-only test screen that crashes the app on purpose. *Recommendation: yes; never in release builds.*
@@ -144,14 +144,14 @@ app. The About › Privacy text gets one line: "Problem reports stay on the phon
 
 ## Addendum 2026-10-19: caught errors in "Describe a problem"
 
-Errors NetLogger catches and keeps running after (a getter that throws on one phone, a failed export, a refused VPN)
+Errors Manete catches and keeps running after (a getter that throws on one phone, a failed export, a refused VPN)
 left only a log line, gone from the buffer within minutes on a busy phone. Accepted by the user 2026-10-19:
 
 - `CaughtErrors` (`core:diagnostics`): catch blocks call `CaughtErrors.caught(where, e)` (same log line as `Log.w`)
   or `record(where, e)` where the log line stays as it was. Kept per process (main, `:vpn`) in
-  `files/problems/caught/<process>.json`: one entry per (where, exception class, first NetLogger frame) with count,
+  `files/problems/caught/<process>.json`: one entry per (where, exception class, first Manete frame) with count,
   first and last time; 7 days, at most 50 kinds. Saved at once for a new kind, otherwise at most every 30 s.
-- Never the exception message (it can carry hosts, IP addresses, file names): only NetLogger's own `where` text,
+- Never the exception message (it can carry hosts, IP addresses, file names): only Manete's own `where` text,
   which follows the log rules, the class name(s) and the frame (`Extract.get:44`).
 - "Describe a problem" adds a "Caught errors" section (newest first, at most 30 lines) above the log lines. Crash
   reports are unchanged.

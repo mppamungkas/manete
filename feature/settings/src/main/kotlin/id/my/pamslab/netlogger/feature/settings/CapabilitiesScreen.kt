@@ -112,7 +112,7 @@ class CapabilitiesViewModel @Inject constructor(
     fun copyReport() {
         val text = capabilitiesReport(context, _state.value)
         try {
-            context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("NetLogger phone capabilities", text))
+            context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Manete phone capabilities", text))
         } catch (e: Exception) {
             CaughtErrors.caught("capabilities: copy failed", e)
         }
@@ -281,7 +281,7 @@ private fun nowLines(context: Context, s: CapabilitiesState): List<Triple<String
 
 /** The page as plain text (Markdown table), e.g. for docs/device-quirks.md or a teacher. */
 internal fun capabilitiesReport(context: Context, s: CapabilitiesState): String = buildString {
-    appendLine("NetLogger phone capabilities · ${s.checkedAtMs?.let { time(it, withDate = true) } ?: ""}")
+    appendLine("Manete phone capabilities · ${s.checkedAtMs?.let { time(it, withDate = true) } ?: ""}")
     appendLine()
     deviceLines(context, s).forEach { (label, value) -> appendLine("- $label: $value") }
     appendLine()
