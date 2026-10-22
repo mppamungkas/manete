@@ -49,7 +49,7 @@ class ReportBuilderTest {
         assertTrue(report.contains("Running    Map screen; no recording; no capture"))
         assertTrue(report.contains("  SIGSEGV (SEGV_MAPERR), fault address 0x0"))
         assertTrue(report.contains("  #00 libmaplibre.so mln::android::MapRenderer::render(_JNIEnv&)+144"))
-        assertTrue(report.contains("Log (NetLogger's own lines before the end, 1)"))
+        assertTrue(report.contains("Log (Manete's own lines before the end, 1)"))
         assertFalse(report.contains("/data/app"))
         assertFalse(report.contains("tile.openstreetmap.org"))
     }
@@ -62,7 +62,7 @@ class ReportBuilderTest {
 
             java.lang.RuntimeException: Unable to start receiver
             	at android.app.ActivityThread.handleReceiver(ActivityThread.java:4915)
-            Caused by: java.lang.IllegalStateException: NetLogger crash test (debug build)
+            Caused by: java.lang.IllegalStateException: Manete crash test (debug build)
             	at id.my.pamslab.netlogger.CrashTestReceiver.onReceive(CrashTestReceiver.kt:23)
 
             log:
@@ -73,13 +73,13 @@ class ReportBuilderTest {
 
         assertTrue(report, report.contains("Time       2026-10-16 05:51:08 +07:00"))
         assertTrue(report.contains("Ended      2026-10-16 05:52:23 +07:00 (Android kept the process until then)"))
-        assertTrue(report.contains("What       Crash: java.lang.IllegalStateException: NetLogger crash test (debug build)"))
+        assertTrue(report.contains("What       Crash: java.lang.IllegalStateException: Manete crash test (debug build)"))
         assertTrue(report.contains("Running    Live screen; recording session 22; no capture"))
         assertTrue(report.contains("Process    main · foreground service"))
         assertTrue(report.contains("  at id.my.pamslab.netlogger.CrashTestReceiver.onReceive(CrashTestReceiver.kt:23)".replace("  at", "  \tat")))
         assertTrue(report.contains("W NetLogger: crash test: java"))
         assertFalse(report.contains("ignored"))
-        assertEquals("Crash: java.lang.IllegalStateException: NetLogger crash test (debug build)", ReportBuilder.title(p, java))
+        assertEquals("Crash: java.lang.IllegalStateException: Manete crash test (debug build)", ReportBuilder.title(p, java))
     }
 
     @Test
@@ -107,7 +107,7 @@ class ReportBuilderTest {
         assertEquals("Crash (no stack trace kept)", ReportBuilder.title(problem(ProblemKind.CRASH, ExitReason.CRASH)))
 
         val user = ReportBuilder.build(ReportInput(null, logLines = listOf("a line"), userNote = "  Map stays grey on the A56.  ", reportedAtMs = t0), ctx)
-        assertTrue(user, user.startsWith("NetLogger problem report (reported by the user)"))
+        assertTrue(user, user.startsWith("Manete problem report (reported by the user)"))
         assertTrue(user.contains("Your note\nMap stays grey on the A56.\n"))
         assertTrue(user.contains("Time       2026-10-16 05:51:08 +07:00"))
         assertFalse(user.contains("What "))

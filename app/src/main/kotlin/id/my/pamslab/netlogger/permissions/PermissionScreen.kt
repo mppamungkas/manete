@@ -58,7 +58,7 @@ fun PermissionScreen(
     ) {
         Text("Permissions", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "NetLogger records radio measurements for research. It only uses public Android APIs " +
+            "Manete records radio measurements for research. It only uses public Android APIs " +
                 "and keeps all data on the device until you export it.",
             style = MaterialTheme.typography.bodyMedium,
         )

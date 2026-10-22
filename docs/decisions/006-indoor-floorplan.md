@@ -20,7 +20,7 @@ between taps are placed along the path.
 
 ## What Android provides (public APIs, no new permission)
 
-- **Storage Access Framework** (`ACTION_OPEN_DOCUMENT`): the user picks an image or PDF; NetLogger copies it into its
+- **Storage Access Framework** (`ACTION_OPEN_DOCUMENT`): the user picks an image or PDF; Manete copies it into its
   own storage. No storage permission.
 - **`BitmapFactory`** with `inSampleSize` for PNG/JPEG/WebP, **`ImageDecoder`** for HEIC; **`PdfRenderer`** renders a
   PDF page to a bitmap (architects often hand out PDFs).

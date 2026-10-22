@@ -48,4 +48,4 @@ internal val CREDITS = listOf(
 )
 
 /** Where the source code is published (GPL v3: recipients may get the source). */
-internal const val SOURCE_URL = "https://github.com/mppamungkas/netlogger"
+internal const val SOURCE_URL = "https://github.com/mppamungkas/manete"

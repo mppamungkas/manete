@@ -22,12 +22,12 @@ open class CrashTestReceiver : BroadcastReceiver() {
         val kind = intent.getStringExtra("kind")
         Log.w("NetLogger", "crash test: $kind in ${Application.getProcessName()}")
         when (kind) {
-            "java" -> throw IllegalStateException("NetLogger crash test (debug build)")
+            "java" -> throw IllegalStateException("Manete crash test (debug build)")
             "native" -> Process.sendSignal(Process.myPid(), SIGSEGV)
             // Blocks the main thread past the broadcast timeout (10 s with --receiver-foreground, else 60 s).
             "anr" -> Thread.sleep(ANR_SLEEP_MS)
             "caught" -> try {
-                error("NetLogger caught-error test (debug build)")
+                error("Manete caught-error test (debug build)")
             } catch (e: IllegalStateException) {
                 CaughtErrors.caught("crash test: caught error", e)
             }

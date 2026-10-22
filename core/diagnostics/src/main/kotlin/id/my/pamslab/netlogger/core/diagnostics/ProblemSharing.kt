@@ -15,7 +15,7 @@ class ProblemFileProvider : FileProvider()
 /** Building and sending reports (decision 005). Nothing is sent without the user choosing an app. */
 object ProblemSharing {
 
-    const val SOURCE_URL = "https://github.com/mppamungkas/netlogger"
+    const val SOURCE_URL = "https://github.com/mppamungkas/manete"
 
     /** Manifest meta-data written by app/build.gradle.kts. */
     private const val BUILD_COMMIT_KEY = "id.my.pamslab.netlogger.BUILD_COMMIT"
@@ -35,13 +35,13 @@ object ProblemSharing {
     fun shareIntent(context: Context, title: String, report: String, rawTrace: File?): Intent {
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "NetLogger: $title")
+            putExtra(Intent.EXTRA_SUBJECT, "Manete: $title")
             putExtra(Intent.EXTRA_TEXT, report)
         }
         rawTrace?.let { trace ->
             val dir = File(context.cacheDir, "problems").apply { mkdirs() }
             dir.listFiles()?.forEach { it.delete() }
-            val copy = File(dir, "netlogger-tombstone-${trace.parentFile?.name ?: "crash"}.pb")
+            val copy = File(dir, "manete-tombstone-${trace.parentFile?.name ?: "crash"}.pb")
             trace.copyTo(copy, overwrite = true)
             val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.problems", copy)
             send.putExtra(Intent.EXTRA_STREAM, uri)

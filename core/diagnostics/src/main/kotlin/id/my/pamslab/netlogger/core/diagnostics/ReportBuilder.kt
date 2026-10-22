@@ -51,7 +51,7 @@ object ReportBuilder {
         val tombstone = input.trace?.takeIf { p?.kind == ProblemKind.CRASH_NATIVE }?.let(TombstoneSummary::parse)
         val time = java?.timeMs ?: p?.timeMs ?: input.reportedAtMs
         return buildString {
-            appendLine(if (p == null) "NetLogger problem report (reported by the user)" else "NetLogger problem report")
+            appendLine(if (p == null) "Manete problem report (reported by the user)" else "Manete problem report")
             line("App", "${ctx.appVersion} (build ${ctx.buildCommit ?: "unknown"})")
             line("Phone", "${ctx.manufacturer} ${ctx.model}, Android ${ctx.androidRelease} (API ${ctx.sdkInt})")
             time?.let { line("Time", formatTime(it, ctx.timeZone)) }
@@ -83,7 +83,7 @@ object ReportBuilder {
             }
             if (input.caught.isNotEmpty()) {
                 appendLine()
-                appendLine("Caught errors (last 7 days, NetLogger kept running; ${input.caught.size} kinds)")
+                appendLine("Caught errors (last 7 days, Manete kept running; ${input.caught.size} kinds)")
                 CaughtErrorLog.summary(input.caught, ctx.timeZone).forEach { appendLine("  $it") }
             }
             val log = OwnLog.filter(java?.log?.takeIf { it.isNotEmpty() } ?: input.logLines)
@@ -91,7 +91,7 @@ object ReportBuilder {
             if (log.isEmpty()) {
                 appendLine("Log: none readable")
             } else {
-                appendLine("Log (NetLogger's own lines before the end, ${log.size})")
+                appendLine("Log (Manete's own lines before the end, ${log.size})")
                 log.forEach { appendLine("  $it") }
             }
         }

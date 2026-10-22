@@ -238,7 +238,7 @@ private fun SendButtons(title: String, report: String?, rawTrace: File?, onHande
             confirmButton = {
                 TextButton(onClick = {
                     confirmGithub = false
-                    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("NetLogger report", report))
+                    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Manete report", report))
                     if (start(context) { ProblemSharing.githubIssueIntent(title, report) }) onHandedOver()
                 }) { Text(stringResource(R.string.problems_github_continue)) }
             },

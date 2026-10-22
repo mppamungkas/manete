@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "netlogger"
+rootProject.name = "manete"
 
 include(":app")
 

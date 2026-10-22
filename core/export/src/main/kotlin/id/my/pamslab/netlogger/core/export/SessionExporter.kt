@@ -381,7 +381,7 @@ class SessionExporter @Inject constructor(
         /** netlogger_<model>_<start yyyyMMdd-HHmmss>_<label or scenario>_<uuid prefix>.zip, ASCII only. */
         fun fileName(s: SessionEntity, zone: ZoneId): String {
             val start = DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss", Locale.ROOT).withZone(zone).format(Instant.ofEpochMilli(s.startedAt))
-            val parts = listOf("netlogger", s.deviceModel, start, s.label?.takeIf { it.isNotBlank() } ?: s.scenario?.lowercase(), s.uuid.take(8))
+            val parts = listOf("manete", s.deviceModel, start, s.label?.takeIf { it.isNotBlank() } ?: s.scenario?.lowercase(), s.uuid.take(8))
             return parts.filterNotNull().joinToString("_") { safe(it) } + ".zip"
         }
 

@@ -25,9 +25,9 @@ and zdtun's `COPYING` at build time). Update that list when a dependency or copi
 ## zdtun
 
 - **Source:** https://github.com/emanuele-f/zdtun, commit `c2a2674` (2025-02-20), as pinned by PCAPdroid.
-- **License:** GNU LGPL v3 or later (compatible with NetLogger's GPL v3). Copyright 2018-22 Emanuele Faranda.
+- **License:** GNU LGPL v3 or later (compatible with Manete's GPL v3). Copyright 2018-22 Emanuele Faranda.
   Includes `uthash.h` (BSD 1-clause, Copyright 2003-2020 Troy D. Hanson).
 - **Copied into:** `feature/capture/src/main/cpp/third_party/zdtun/` (license file `COPYING` and headers kept,
   see the `README.md` there).
-- **Changes:** none; NetLogger links it into `libnetcapture` as the user-space TCP/UDP/ICMP forwarder of the
+- **Changes:** none; Manete links it into `libnetcapture` as the user-space TCP/UDP/ICMP forwarder of the
   native capture (Phase 3b). See `docs/decisions/002-native-capture.md` (D1, D2).

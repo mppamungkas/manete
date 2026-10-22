@@ -1,7 +1,11 @@
 # Branding
 
-`netlogger-logo.png` is NetLogger's own logo (our design, not third-party material): a cell tower with signal arcs
-and a phone with signal bars on a blue rounded square, with the "NetLogger" wordmark below.
+`manete-logo.png` is Manete's own logo (our design, not third-party material): a cell tower with signal arcs and a
+phone with signal bars, centred on a blue rounded square, without a wordmark. Until the rename (CLAUDE.md 1.8.7) the
+logo carried a "NetLogger" wordmark below the symbol; `tools/symbol-source.png` is that original image with the
+wordmark painted over in the background blue and the symbol in its original place, so the geometry below (logo
+pixels) and `make_icon.py` still apply to it. `manete-logo.png` is the same symbol, unchanged, moved to the centre of a
+rounded square of the original size (1065 px, corner radius 250 px) on a 1255 px canvas.
 
 ## Launcher icon
 
@@ -26,7 +30,7 @@ every size. Only the symbol is used, no wordmark.
 | Phone screen | 15, 61, 127 | `#0F3D7F` |
 | Signal bars | 68, 228, 148 | `#44E494` |
 
-**Geometry** (logo pixels, 1254 × 1254): tower ball circle at (567.5, 351), r 65; arcs centered at (568, 351),
+**Geometry** (pixels of `tools/symbol-source.png`, 1254 × 1254): tower ball circle at (567.5, 351), r 65; arcs centered at (568, 351),
 radii 143.5 and 218, stroke 38, round caps, ±40° and ±41.5° (the right outer arc stops at −35°, where it meets the
 phone); phone frame 653–919 × 497–869, corner radius 50, screen 677–895 × 553–848, radius 10, speaker slot
 757.5–815.5 × 521–535; bars 29 wide at x 706 / 750 / 794 / 838, tops 724 / 695 / 663 / 632, bottom 771, radius 5. The

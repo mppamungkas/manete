@@ -37,7 +37,7 @@ Our minSdk is **31**, so anything NetMonster does for API < 31 doesn't matter to
 - **License.** Apache 2.0. It is compatible with this repo's GPL-3.0 `LICENSE`, and we may port code
   with attribution.
 
-## Problems for NetLogger
+## Problems for Manete
 
 | # | Issue | Evidence | Impact |
 |---|---|---|---|

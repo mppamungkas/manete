@@ -13,11 +13,11 @@ Milestone 10 lost no packets on either phone and did not slow a 10 MB download. 
 
 1. **No second app.** It doesn't need PCAPdroid installed or its consent dialog. It uses the system VPN consent
    dialog instead, which asks once per install.
-2. **Packet timestamps in NetLogger's own time base.** Each packet's timestamp comes from `CLOCK_BOOTTIME`, the
+2. **Packet timestamps in Manete's own time base.** Each packet's timestamp comes from `CLOCK_BOOTTIME`, the
    same clock as `elapsedRealtimeNs`, plus one fixed offset. The capture then aligns exactly with the radio log,
    and changes to the wall clock can't shift it.
 3. **App per connection.** Each connection records which app owns it (UID and package name), in a file
-   NetLogger writes itself.
+   Manete writes itself.
 
 The cost is about 1,500–2,500 lines of new C and Kotlin, plus the NDK toolchain. If those three points don't
 matter for your research, milestone 11 can be dropped and the PCAPdroid bridge kept as the only capture path.
@@ -27,7 +27,7 @@ matter for your research, milestone 11 can be dropped and the PCAPdroid bridge k
 The method is the same one PCAPdroid uses without root:
 
 ```
-app ──IP packets──► tun (VpnService) ──► NetLogger native thread ──► normal sockets (protect()) ──► Internet
+app ──IP packets──► tun (VpnService) ──► Manete native thread ──► normal sockets (protect()) ──► Internet
                                            │
                                            └─► capture.pcap (packets as the app sent and received them)
 ```
@@ -57,12 +57,12 @@ app ──IP packets──► tun (VpnService) ──► NetLogger native thread
 |---|---|---|
 | D1 | **Forwarder:** use zdtun, write our own, or use lwIP | **zdtun as a library, unmodified.** It is the forwarder inside PCAPdroid, written in C, about 2,100 lines in `zdtun.c` plus headers. It is **LGPL v3 or later** (file headers and `COPYING`), which is compatible with our GPL v3. It handles TCP, UDP, ICMP, IPv4 and IPv6, and has been field-tested in PCAPdroid. Writing our own TCP imitation is the riskiest part of the milestone. lwIP is a full TCP/IP stack and more than we need. |
 | D2 | **How zdtun gets into the repo** | **Copy the files we need**, unchanged, to `feature/capture/src/main/cpp/third_party/zdtun/`: `zdtun.c/h`, `utils.c/h`, `third_party/net_headers.h`, `third_party/uthash.h`. Keep the headers and `COPYING`, add a README naming the commit `c2a2674`, and list it in `docs/third-party.md`. A git submodule is the alternative, but it makes every clone and CI run depend on another repo. The client, gateway and pivot files are not needed. (Correction, step 3: `socks5.c/h` are needed after all: `zdtun.c` includes `socks5.c`; the SOCKS5 proxy is never enabled.) `uthash.h` has its own license, BSD 1-clause (checked). `net_headers.h` has no header of its own, so zdtun's `COPYING` covers it. |
-| D3 | **Process:** run the VPN service in its own process (`android:process=":vpn"`) | **Yes.** A crash in native code would otherwise kill `LoggingService` in the middle of a drive. The cost is passing state between processes: packet counts and status through a bound `Messenger`, files under NetLogger's own `files/captures/`. The `:vpn` process writes no database rows; the main process stores the `CAPTURE_*` events as it does today. |
+| D3 | **Process:** run the VPN service in its own process (`android:process=":vpn"`) | **Yes.** A crash in native code would otherwise kill `LoggingService` in the middle of a drive. The cost is passing state between processes: packet counts and status through a bound `Messenger`, files under Manete's own `files/captures/`. The `:vpn` process writes no database rows; the main process stores the `CAPTURE_*` events as it does today. |
 | D4 | **Tun MTU** | **1500.** Captured packets then have realistic sizes for analysis. PCAPdroid uses 10,000, which costs less CPU but produces packets up to 10 kB, which no real link carries. I'll measure the throughput cost on the moto. If it is too high, the MTU becomes a setting. |
 | D5 | **Packet file format** | **pcap with nanosecond timestamps** (magic `0xa1b23c4d`), link type `LINKTYPE_RAW` (101), so Wireshark and tshark open it directly. Timestamp = `CLOCK_BOOTTIME` + (wall clock − boot time), with the offset taken once at capture start, so time never jumps backwards inside a file. `capture_sync.csv` gets the offset at start and stop, as it does now, plus a row every 60 s, so that wall-clock drift can be measured. |
 | D6 | **App per connection:** stored in a file or in Room | **In a file, `connections.csv`**, so there is no schema change. Columns: protocol, the two addresses and ports, uid, package, first and last seen (`elapsedRealtimeNs`), bytes and packets in each direction. The uid comes from `ConnectivityManager.getConnectionOwnerUid()`, a public API, API 29+, that only works for the active VPN app. A Room table could follow later if you want to query it in the app. |
-| D7 | **NetLogger's own traffic** (speed test, map tiles) | **Captured** like every other app's traffic: speed test packets are exactly what you want to see with the radio log. The forwarder's own sockets are excluded with `protect()`, so nothing loops. App filter: the same package list as the PCAPdroid mode, using `addAllowedApplication`. |
-| D8 | **Foreground service type** for the VPN service | **`specialUse`** with the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property, the same as PCAPdroid. `systemExempted` is for system apps and always-on VPNs. This adds the `FOREGROUND_SERVICE_SPECIAL_USE` permission. Google Play reviews `specialUse` and has a VPN policy; that only matters if NetLogger is ever published there. |
+| D7 | **Manete's own traffic** (speed test, map tiles) | **Captured** like every other app's traffic: speed test packets are exactly what you want to see with the radio log. The forwarder's own sockets are excluded with `protect()`, so nothing loops. App filter: the same package list as the PCAPdroid mode, using `addAllowedApplication`. |
+| D8 | **Foreground service type** for the VPN service | **`specialUse`** with the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property, the same as PCAPdroid. `systemExempted` is for system apps and always-on VPNs. This adds the `FOREGROUND_SERVICE_SPECIAL_USE` permission. Google Play reviews `specialUse` and has a VPN policy; that only matters if Manete is ever published there. |
 
 ## New dependencies and toolchain (your approval needed)
 

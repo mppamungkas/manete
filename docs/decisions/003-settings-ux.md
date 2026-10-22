@@ -53,7 +53,7 @@ Settings").
 
 One page, refreshed on open and with a Refresh button. Three parts:
 
-1. **Device:** manufacturer, model, Android version, baseband, NetLogger version; SIMs (operator, MCC-MNC, slot,
+1. **Device:** manufacturer, model, Android version, baseband, Manete version; SIMs (operator, MCC-MNC, slot,
    which is the data SIM).
 2. **Right now:** network type and 5G icon state, IPv4/IPv6 on mobile data, Wi-Fi on/off (blocks speed tests and
    mobile NR), another VPN active (blocks capture), GPS fix, battery optimisation exempt or not.

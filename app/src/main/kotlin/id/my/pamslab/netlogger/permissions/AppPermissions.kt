@@ -14,7 +14,7 @@ enum class PermissionGroup(val title: String, val rationale: String, val require
     PHONE(
         title = "Phone state",
         rationale = "Needed to read the network type, the 5G (NSA) display state, service state " +
-            "and the active SIM. NetLogger never reads call or SMS content.",
+            "and the active SIM. Manete never reads call or SMS content.",
         requiredForLogging = true,
     ),
     NOTIFICATIONS(

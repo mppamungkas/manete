@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Launcher icon foreground: cell tower with signal arcs, phone with signal bars.
-    Generated from docs/branding/netlogger-logo.png (see docs/branding/README.md); 108 dp adaptive icon
+    Generated from docs/branding/tools/symbol-source.png (see docs/branding/README.md); 108 dp adaptive icon
     canvas, symbol within the 66 dp safe zone.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
