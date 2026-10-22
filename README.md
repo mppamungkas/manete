@@ -21,7 +21,7 @@ It is built for research and teaching, for example:
 The design follows three rules: data quality and traceability come before UI polish, it uses **public Android APIs
 only** (no root, no vendor diagnostic interfaces), and it never crashes on missing data.
 
-> **Status:** version 0.4.0, the first published release: download the APK from
+> **Status:** version 0.5.0, the first release named Manete: download the APK from
 > [Releases](https://github.com/mppamungkas/manete/releases/latest) (see [Install](#install)). Still in
 > development. Tested on a Motorola moto g45 5G (Android 15) and a Samsung Galaxy A56 (Android 16).
 
