@@ -146,6 +146,8 @@ There is no emulator support worth using: an emulator has no real radio. All tes
 
 ## Project layout
 
+Diagrams of the system, the database and the per-tick flow: [`docs/architecture.md`](docs/architecture.md).
+
 ```
 app/              Application, activity, navigation, DI wiring
 core/model        Plain Kotlin data classes

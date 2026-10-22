@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 600" width="1180" height="600" role="img" aria-label="Flow of one tick: a timer on elapsedRealtime triggers a radio read, the parser builds a radio snapshot, the engine adds the GPS fix and device context, stores everything in one transaction, then detects events. Location, user actions and speed tests arrive on their own; Live reads the engine's state, the other screens read the database, and the export reads it after the session stops.">
+<style>
+.band { fill: #e8ece9; }
+.frame { fill: none; stroke: #98a49e; stroke-width: 1.2; stroke-dasharray: 6 4; }
+.frame.vpn { stroke: #a86a12; }
+.frame-l { fill: #56635d; font: 600 12px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; letter-spacing: .04em; }
+.frame-l.vpn { fill: #a86a12; }
+.box { fill: #ffffff; stroke: #98a49e; stroke-width: 1; }
+.box.hi { fill: #dcefe8; stroke: #0d7a63; stroke-width: 1.6; }
+.box.vpn { fill: #f8ecd8; stroke: #a86a12; stroke-width: 1.2; }
+.t { fill: #18221e; font: 600 13.5px "Source Sans 3", "Segoe UI", Roboto, sans-serif; }
+.s { fill: #56635d; font: 11.5px "Source Sans 3", "Segoe UI", Roboto, sans-serif; }
+.lbl { fill: #56635d; font: 11px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.lbl.vpn { fill: #a86a12; }
+.lbl.acc { fill: #0d7a63; }
+.edge { fill: none; stroke: #56635d; stroke-width: 1.3; }
+.edge.vpn { stroke: #a86a12; }
+.edge.acc { stroke: #0d7a63; stroke-width: 1.6; }
+.edge.dash { stroke-dasharray: 5 4; }
+.ah { fill: #56635d; }
+.ah.vpn { fill: #a86a12; }
+.ah.acc { fill: #0d7a63; }
+.thead { fill: #dcefe8; stroke: #0d7a63; stroke-width: 1.2; }
+.tname { fill: #18221e; font: 700 13.5px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.col { fill: #18221e; font: 11.5px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.col .k { fill: #0d7a63; font-weight: 600; }
+.col .m { fill: #56635d; }
+.card { fill: #ffffff; stroke: #98a49e; stroke-width: 1; }
+</style>
+<rect width="1180" height="600" fill="#ffffff"/>
+
+          <defs>
+            <marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="f1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- loop back -->
+          <path class="edge acc dash" d="M1095,250 L1095,30 L95,30 L95,248" marker-end="url(#f1a)"/>
+          <text class="lbl acc" x="600" y="24" text-anchor="middle">next tick on the same elapsedRealtime grid · missed slots are counted, never caught up</text>
+
+          <!-- async inputs -->
+          <text class="frame-l" x="200" y="56">ARRIVES ON ITS OWN</text>
+          <rect class="box" x="200" y="66" width="200" height="66" rx="4"/>
+          <text class="t" x="212" y="88">TelephonyCallback</text>
+          <text class="s" x="212" y="106">DisplayInfo · ServiceState ·</text>
+          <text class="s" x="212" y="121">SignalStrength, kept as latest</text>
+          <rect class="box" x="650" y="66" width="180" height="66" rx="4"/>
+          <text class="t" x="662" y="88">Location stream</text>
+          <text class="s" x="662" y="106">about 1 Hz · last 5 fixes</text>
+          <text class="s" x="662" y="121">kept in memory</text>
+          <rect class="box" x="860" y="66" width="150" height="66" rx="4"/>
+          <text class="t" x="872" y="88">User · schedule</text>
+          <text class="s" x="872" y="106">marker · plan tap ·</text>
+          <text class="s" x="872" y="121">speed test (or every N min)</text>
+
+          <!-- steps -->
+          <rect class="box" x="20" y="250" width="150" height="84" rx="4"/>
+          <text class="t" x="32" y="274">Tick timer</text>
+          <text class="s" x="32" y="292">every 500, 1000, 2000</text>
+          <text class="s" x="32" y="307">or 5000 ms, on</text>
+          <text class="s" x="32" y="322">elapsedRealtime</text>
+          <rect class="box" x="200" y="250" width="200" height="84" rx="4"/>
+          <text class="t" x="212" y="274">Read radio</text>
+          <text class="s" x="212" y="292">requestCellInfoUpdate() for</text>
+          <text class="s" x="212" y="307">the active data SIM, plus the</text>
+          <text class="s" x="212" y="322">latest callback state</text>
+          <rect class="box" x="430" y="250" width="190" height="84" rx="4"/>
+          <text class="t" x="442" y="274">Parse</text>
+          <text class="s" x="442" y="292">sentinels become empty · NR</text>
+          <text class="s" x="442" y="307">also from SignalStrength · band</text>
+          <text class="s" x="442" y="322">from API or ARFCN · warnings</text>
+          <rect class="box" x="650" y="250" width="180" height="84" rx="4"/>
+          <text class="t" x="662" y="274">Build tick</text>
+          <text class="s" x="662" y="292">newest fix taken at or</text>
+          <text class="s" x="662" y="307">before the tick · battery,</text>
+          <text class="s" x="662" y="322">traffic, screen, thermal</text>
+          <rect class="box hi" x="860" y="250" width="150" height="84" rx="4"/>
+          <text class="t" x="872" y="274">Store</text>
+          <text class="s" x="872" y="292">one transaction:</text>
+          <text class="s" x="872" y="307">measurement, cells,</text>
+          <text class="s" x="872" y="322">warnings</text>
+          <rect class="box" x="1030" y="250" width="130" height="84" rx="4"/>
+          <text class="t" x="1042" y="274">Detect events</text>
+          <text class="s" x="1042" y="292">compare with the</text>
+          <text class="s" x="1042" y="307">previous tick ·</text>
+          <text class="s" x="1042" y="322">write events</text>
+
+          <!-- step arrows -->
+          <line class="edge acc" x1="170" y1="292" x2="198" y2="292" marker-end="url(#f1a)"/>
+          <line class="edge acc" x1="400" y1="292" x2="428" y2="292" marker-end="url(#f1a)"/>
+          <line class="edge acc" x1="620" y1="292" x2="648" y2="292" marker-end="url(#f1a)"/>
+          <line class="edge acc" x1="830" y1="292" x2="858" y2="292" marker-end="url(#f1a)"/>
+          <line class="edge acc" x1="1010" y1="292" x2="1028" y2="292" marker-end="url(#f1a)"/>
+          <text class="lbl acc" x="415" y="352" text-anchor="middle">raw CellInfo</text>
+          <text class="lbl acc" x="635" y="352" text-anchor="middle">RadioSnapshot</text>
+          <text class="lbl acc" x="845" y="352" text-anchor="middle">Tick</text>
+
+          <!-- async inputs → steps -->
+          <line class="edge" x1="300" y1="132" x2="300" y2="248" marker-end="url(#f1)"/>
+          <text class="lbl" x="308" y="196">latest state</text>
+          <line class="edge" x1="740" y1="132" x2="740" y2="248" marker-end="url(#f1)"/>
+          <text class="lbl" x="748" y="196">fix matched by time</text>
+          <line class="edge" x1="935" y1="132" x2="935" y2="248" marker-end="url(#f1)"/>
+          <text class="lbl" x="943" y="184">markers, taps,</text>
+          <text class="lbl" x="943" y="198">speed test rows</text>
+
+          <!-- outputs -->
+          <text class="frame-l" x="20" y="414">WHO READS IT</text>
+          <rect class="box" x="1000" y="424" width="160" height="76" rx="4"/>
+          <text class="t" x="1012" y="446">Engine state</text>
+          <text class="s" x="1012" y="464">Live, Live › Plan,</text>
+          <text class="s" x="1012" y="479">notification</text>
+          <rect class="box" x="760" y="424" width="210" height="76" rx="4"/>
+          <text class="t" x="772" y="446">Database flows</text>
+          <text class="s" x="772" y="464">Map (also while recording),</text>
+          <text class="s" x="772" y="479">Sessions, charts</text>
+          <rect class="box" x="430" y="424" width="300" height="76" rx="4"/>
+          <text class="t" x="442" y="446">Export, after Stop</text>
+          <text class="s" x="442" y="464">pages of 500 ticks → CSV, GeoJSON, ZIP ·</text>
+          <text class="s" x="442" y="479">floor plan positions derived from the taps</text>
+          <rect class="box" x="20" y="424" width="380" height="76" rx="4"/>
+          <text class="t" x="32" y="446">If Android ends the process</text>
+          <text class="s" x="32" y="464">next start closes the session at its last tick</text>
+          <text class="s" x="32" y="479">(RECOVERED_AFTER_KILL) and keeps a problem report</text>
+
+          <line class="edge" x1="1095" y1="334" x2="1095" y2="422" marker-end="url(#f1)"/>
+          <text class="lbl" x="1103" y="384">state</text>
+          <line class="edge" x1="935" y1="334" x2="935" y2="422" marker-end="url(#f1)"/>
+          <text class="lbl" x="943" y="384">Room flows</text>
+          <line class="edge" x1="760" y1="462" x2="732" y2="462" marker-end="url(#f1)"/>
+
+          <text class="s" x="20" y="540">Speed tests and the traffic capture run beside the tick loop and never delay it.</text>
+          <text class="s" x="20" y="558">Speed test rows and capture events carry the same two timestamps as the ticks, so they line up later.</text>
+        </svg>

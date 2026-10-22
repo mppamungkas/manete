@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" width="1180" height="720" role="img" aria-label="Entity-relationship diagram. A session has many measurements, events, throughput tests, parse warnings and plan waypoints; a measurement has many cells; a floor plan has many plan waypoints. Deleting a session deletes everything below it; a floor plan that has waypoints cannot be deleted.">
+<style>
+.band { fill: #e8ece9; }
+.frame { fill: none; stroke: #98a49e; stroke-width: 1.2; stroke-dasharray: 6 4; }
+.frame.vpn { stroke: #a86a12; }
+.frame-l { fill: #56635d; font: 600 12px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; letter-spacing: .04em; }
+.frame-l.vpn { fill: #a86a12; }
+.box { fill: #ffffff; stroke: #98a49e; stroke-width: 1; }
+.box.hi { fill: #dcefe8; stroke: #0d7a63; stroke-width: 1.6; }
+.box.vpn { fill: #f8ecd8; stroke: #a86a12; stroke-width: 1.2; }
+.t { fill: #18221e; font: 600 13.5px "Source Sans 3", "Segoe UI", Roboto, sans-serif; }
+.s { fill: #56635d; font: 11.5px "Source Sans 3", "Segoe UI", Roboto, sans-serif; }
+.lbl { fill: #56635d; font: 11px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.lbl.vpn { fill: #a86a12; }
+.lbl.acc { fill: #0d7a63; }
+.edge { fill: none; stroke: #56635d; stroke-width: 1.3; }
+.edge.vpn { stroke: #a86a12; }
+.edge.acc { stroke: #0d7a63; stroke-width: 1.6; }
+.edge.dash { stroke-dasharray: 5 4; }
+.ah { fill: #56635d; }
+.ah.vpn { fill: #a86a12; }
+.ah.acc { fill: #0d7a63; }
+.thead { fill: #dcefe8; stroke: #0d7a63; stroke-width: 1.2; }
+.tname { fill: #18221e; font: 700 13.5px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.col { fill: #18221e; font: 11.5px "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+.col .k { fill: #0d7a63; font-weight: 600; }
+.col .m { fill: #56635d; }
+.card { fill: #ffffff; stroke: #98a49e; stroke-width: 1; }
+</style>
+<rect width="1180" height="720" fill="#ffffff"/>
+
+          <defs>
+            <marker id="e1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="e1a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah acc" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- event -->
+          <rect class="card" x="24" y="24" width="330" height="144" rx="4"/>
+          <rect class="thead" x="24" y="24" width="330" height="28" rx="4"/>
+          <text class="tname" x="36" y="43">event</text>
+          <text class="col" x="36" y="70"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="36" y="88"><tspan class="k">FK </tspan>sessionId</text>
+          <text class="col" x="36" y="106">wallTimeMs · elapsedRealtimeNs</text>
+          <text class="col" x="36" y="124">type <tspan class="m">RAT_CHANGE … FLOOR_CHANGE</tspan></text>
+          <text class="col" x="36" y="142">fromValue · toValue</text>
+          <text class="col" x="36" y="160">lat · lon <tspan class="m">(GPS at the event)</tspan></text>
+
+          <!-- throughput_test -->
+          <rect class="card" x="24" y="230" width="330" height="198" rx="4"/>
+          <rect class="thead" x="24" y="230" width="330" height="28" rx="4"/>
+          <text class="tname" x="36" y="249">throughput_test</text>
+          <text class="col" x="36" y="276"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="36" y="294"><tspan class="k">FK </tspan>sessionId</text>
+          <text class="col" x="36" y="312">startedAtMs · startedElapsedNs</text>
+          <text class="col" x="36" y="330">type <tspan class="m">PING · DOWNLOAD · UPLOAD</tspan></text>
+          <text class="col" x="36" y="348">serverUrl · serverLocation <tspan class="m">v3</tspan></text>
+          <text class="col" x="36" y="366">durationMs · bytes · mbps · streams</text>
+          <text class="col" x="36" y="384">rttMin/Avg/Max · jitter · loss</text>
+          <text class="col" x="36" y="402">captureActive · error</text>
+          <text class="col" x="36" y="420">triggeredBy <tspan class="m">v4: MANUAL · PERIODIC</tspan></text>
+
+          <!-- floor_plan -->
+          <rect class="card" x="24" y="520" width="330" height="162" rx="4"/>
+          <rect class="thead" x="24" y="520" width="330" height="28" rx="4"/>
+          <text class="tname" x="36" y="539">floor_plan <tspan class="m" style="font-weight:400">v5</tspan></text>
+          <text class="col" x="36" y="566"><tspan class="k">PK </tspan>id · uuid <tspan class="m">unique</tspan></text>
+          <text class="col" x="36" y="584">name · floor</text>
+          <text class="col" x="36" y="602">imageFile <tspan class="m">→ files/plans/</tspan></text>
+          <text class="col" x="36" y="620">widthPx · heightPx</text>
+          <text class="col" x="36" y="638">metresPerPx <tspan class="m">optional scale</tspan></text>
+          <text class="col" x="36" y="656">georefJson <tspan class="m">points on the map</tspan></text>
+          <text class="col" x="36" y="674">createdAt</text>
+
+          <!-- session -->
+          <rect class="card" x="420" y="250" width="300" height="198" rx="4" style="stroke: #0d7a63; stroke-width: 1.6"/>
+          <rect class="thead" x="420" y="250" width="300" height="28" rx="4"/>
+          <text class="tname" x="432" y="269">session</text>
+          <text class="col" x="432" y="296"><tspan class="k">PK </tspan>id · uuid <tspan class="m">unique</tspan></text>
+          <text class="col" x="432" y="314">startedAt · startedElapsedNs</text>
+          <text class="col" x="432" y="332">endedAt · endReason</text>
+          <text class="col" x="432" y="350">scenario · label · notes</text>
+          <text class="col" x="432" y="368">intervalMs · schemaVersion</text>
+          <text class="col" x="432" y="386">device · Android · baseband</text>
+          <text class="col" x="432" y="404">operator · mcc · mnc · simSlot</text>
+          <text class="col" x="432" y="422">appVersion</text>
+          <text class="col" x="432" y="440">captureFile <tspan class="m">→ files/captures/</tspan></text>
+
+          <!-- plan_waypoint -->
+          <rect class="card" x="420" y="520" width="300" height="144" rx="4"/>
+          <rect class="thead" x="420" y="520" width="300" height="28" rx="4"/>
+          <text class="tname" x="432" y="539">plan_waypoint <tspan class="m" style="font-weight:400">v5</tspan></text>
+          <text class="col" x="432" y="566"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="432" y="584"><tspan class="k">FK </tspan>sessionId · <tspan class="k">FK </tspan>planId</text>
+          <text class="col" x="432" y="602">wallTimeMs · elapsedRealtimeNs</text>
+          <text class="col" x="432" y="620">x · y <tspan class="m">plan pixels</tspan></text>
+          <text class="col" x="432" y="638">kind <tspan class="m">HERE · STILL</tspan></text>
+          <text class="col" x="432" y="656">removed <tspan class="m">undone, kept</tspan></text>
+
+          <!-- measurement -->
+          <rect class="card" x="820" y="24" width="336" height="234" rx="4"/>
+          <rect class="thead" x="820" y="24" width="336" height="28" rx="4"/>
+          <text class="tname" x="832" y="43">measurement <tspan class="m" style="font-weight:400">one per tick</tspan></text>
+          <text class="col" x="832" y="70"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="832" y="88"><tspan class="k">FK </tspan>sessionId · seq <tspan class="m">unique together</tspan></text>
+          <text class="col" x="832" y="106">wallTimeMs · elapsedRealtimeNs</text>
+          <text class="col" x="832" y="124">lat · lon · speed · accuracy · age</text>
+          <text class="col" x="832" y="142">networkType · overrideNetworkType</text>
+          <text class="col" x="832" y="160">dataState · roaming · bandwidths</text>
+          <text class="col" x="832" y="178">nsa inputs · cellInfoOrigin</text>
+          <text class="col" x="832" y="196">battery · thermal · screenOn</text>
+          <text class="col" x="832" y="214">rx/tx bytes total and app</text>
+          <text class="col" x="832" y="232">parseErrors · warningCount</text>
+          <text class="col" x="832" y="250"><tspan class="m">every radio field nullable</tspan></text>
+
+          <!-- cell -->
+          <rect class="card" x="820" y="300" width="336" height="180" rx="4"/>
+          <rect class="thead" x="820" y="300" width="336" height="28" rx="4"/>
+          <text class="tname" x="832" y="319">cell <tspan class="m" style="font-weight:400">serving and neighbours</tspan></text>
+          <text class="col" x="832" y="346"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="832" y="364"><tspan class="k">FK </tspan>measurementId</text>
+          <text class="col" x="832" y="382">rat · servingInferred · servingSource</text>
+          <text class="col" x="832" y="400">ci/nci · tac · pci · arfcn</text>
+          <text class="col" x="832" y="418">band · bandSource · bandwidthKhz</text>
+          <text class="col" x="832" y="436">rsrp · rsrq · sinr · rssi · cqi · ta</text>
+          <text class="col" x="832" y="454">csiRsrp · csiRsrq · csiSinr</text>
+          <text class="col" x="832" y="472">source · cellInfoAgeMs</text>
+
+          <!-- parse_warning -->
+          <rect class="card" x="820" y="530" width="336" height="162" rx="4"/>
+          <rect class="thead" x="820" y="530" width="336" height="28" rx="4"/>
+          <text class="tname" x="832" y="549">parse_warning</text>
+          <text class="col" x="832" y="576"><tspan class="k">PK </tspan>id</text>
+          <text class="col" x="832" y="594"><tspan class="k">FK </tspan>sessionId</text>
+          <text class="col" x="832" y="612"><tspan class="k">FK </tspan>measurementId <tspan class="m">first seen</tspan></text>
+          <text class="col" x="832" y="630">code · rat · pci · field</text>
+          <text class="col" x="832" y="648">rawValue · lastRawValue</text>
+          <text class="col" x="832" y="666">occurrences <tspan class="m">counted, not repeated</tspan></text>
+          <text class="col" x="832" y="684">firstSeenMs · lastSeenMs</text>
+
+          <!-- relations: session → … (all ON DELETE CASCADE) -->
+          <path class="edge" d="M720,300 L770,300 L770,140 L818,140" marker-end="url(#e1)"/>
+          <text class="lbl" x="726" y="294">1</text><text class="lbl" x="806" y="134">n</text>
+          <line class="edge" x1="988" y1="258" x2="988" y2="298" marker-end="url(#e1)"/>
+          <text class="lbl" x="996" y="272">1</text><text class="lbl" x="996" y="294">n</text>
+          <path class="edge" d="M720,410 L790,410 L790,600 L818,600" marker-end="url(#e1)"/>
+          <text class="lbl" x="726" y="404">1</text><text class="lbl" x="806" y="594">n</text>
+          <path class="edge" d="M1156,200 L1170,200 L1170,620 L1158,620" marker-end="url(#e1)"/>
+          <text class="lbl" x="1164" y="194" text-anchor="end">1</text><text class="lbl" x="1164" y="636" text-anchor="end">n</text>
+          <path class="edge" d="M420,280 L384,280 L384,96 L356,96" marker-end="url(#e1)"/>
+          <text class="lbl" x="412" y="274" text-anchor="end">1</text><text class="lbl" x="366" y="90">n</text>
+          <line class="edge" x1="420" y1="330" x2="356" y2="330" marker-end="url(#e1)"/>
+          <text class="lbl" x="412" y="324" text-anchor="end">1</text><text class="lbl" x="362" y="324">n</text>
+          <line class="edge" x1="570" y1="448" x2="570" y2="518" marker-end="url(#e1)"/>
+          <text class="lbl" x="578" y="462">1</text><text class="lbl" x="578" y="512">n</text>
+          <!-- floor_plan → plan_waypoint: RESTRICT -->
+          <line class="edge acc dash" x1="354" y1="600" x2="418" y2="600" marker-end="url(#e1a)"/>
+          <text class="lbl acc" x="360" y="592">1</text><text class="lbl acc" x="406" y="592">n</text>
+          <text class="lbl acc" x="386" y="620" text-anchor="middle">RESTRICT</text>
+        </svg>

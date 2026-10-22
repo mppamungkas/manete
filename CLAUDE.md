@@ -156,7 +156,8 @@ netlogger/
 └── docs/
     ├── device-quirks.md         # update after every real-device test
     ├── field-test-checklist.md
-    └── columns.md               # export column definitions and units
+    ├── columns.md               # export column definitions and units
+    └── architecture.md          # system, database and tick-flow diagrams (architecture/*.svg); keep in sync
 reference/                       # read-only open-source code for study (gitignored)
 ├── netmonster-core/
 ├── network-survey/
