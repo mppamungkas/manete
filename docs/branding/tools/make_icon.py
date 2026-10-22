@@ -1,4 +1,4 @@
-"""Generates NetLogger's adaptive launcher icon (VectorDrawables) from docs/branding/netlogger-logo.png.
+"""Generates Manete's adaptive launcher icon (VectorDrawables) from docs/branding/tools/symbol-source.png.
 
     python3 docs/branding/tools/make_icon.py        (from the repository root; no dependencies)
 
@@ -14,7 +14,7 @@ import outline
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
 OUT = os.path.join(ROOT, 'app', 'src', 'main', 'res')
-w, h, px = png.read(os.path.join(ROOT, 'docs', 'branding', 'netlogger-logo.png'))
+w, h, px = png.read(os.path.join(ROOT, 'docs', 'branding', 'tools', 'symbol-source.png'))
 grid = [[px(x, y) for x in range(w)] for y in range(h)]
 # The tower (legs, neck, braces) is traced: straight edges, so a few polygon points reproduce it exactly. The rest is
 # geometry measured below. The phone (x >= 642) is not part of the trace.
@@ -79,7 +79,7 @@ def path(data, fill=None, stroke=None, width=None, evenodd=False, name=None):
 
 def vector(comment, body):
     return ('<?xml version="1.0" encoding="utf-8"?>\n'
-            f'<!--\n    {comment}\n    Generated from docs/branding/netlogger-logo.png (see docs/branding/README.md); 108 dp adaptive icon\n'
+            f'<!--\n    {comment}\n    Generated from docs/branding/tools/symbol-source.png (see docs/branding/README.md); 108 dp adaptive icon\n'
             '    canvas, symbol within the 66 dp safe zone.\n-->\n'
             '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
             '    android:width="108dp"\n    android:height="108dp"\n'
@@ -103,7 +103,7 @@ open(f'{OUT}/drawable/ic_launcher_monochrome.xml', 'w').write(vector(
     'Launcher icon, monochrome layer (Android 13+ themed icons): the symbol in one color, screen cut out.', symbol(True)))
 open(f'{OUT}/values/ic_launcher_colors.xml', 'w').write(
     '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-    '    <!-- Launcher icon background: the logo\'s blue (sampled from docs/branding/netlogger-logo.png). -->\n'
+    '    <!-- Launcher icon background: the logo\'s blue (sampled from docs/branding/tools/symbol-source.png). -->\n'
     f'    <color name="ic_launcher_background">{BG}</color>\n</resources>\n')
 adaptive = ('<?xml version="1.0" encoding="utf-8"?>\n'
             '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'

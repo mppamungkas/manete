@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/branding/netlogger-logo.png" alt="Manete logo" width="160">
+  <img src="docs/branding/manete-logo.png" alt="Manete logo" width="160">
 </p>
 
 # Manete
