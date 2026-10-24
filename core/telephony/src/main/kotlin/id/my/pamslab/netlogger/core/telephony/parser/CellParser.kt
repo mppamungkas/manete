@@ -91,7 +91,7 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
         // Always kept next to the CELL_INFO rows, never merged or deduplicated: the two sources arrive at
         // different times and fill different fields (moto g45: RSSNR only in SignalStrength), and their
         // differences are useful for validation. Consumers pick per field (CELL_INFO first).
-        val ssCells = signalStrengthCells(input.signalStrength, ctx, input.device)
+        val ssCells = blankLteCqiZero(signalStrengthCells(input.signalStrength, ctx, input.device), cells, warnings)
         cells = selectNrServing(cells, ssCells.filter { it.rat == Rat.NR }, warnings)
         cells = blankNsaTacZero(cells, warnings)
         val ssCurrent = markStaleLteSignal(markStaleNrSignal(ssCells, cells, input.overrideNetworkType, warnings), warnings)
@@ -280,6 +280,20 @@ class CellParser(private val bandMapper: BandMapper = BandMapper.None) {
             is RawGsmCell -> cell.mcc
         }
         mcc?.takeIf { it.length == 3 && it.all { ch -> ch in '0'..'9' } }
+    }
+
+    /**
+     * SignalStrength's LTE CQI is 0 when the phone measures none (Xiaomi 24094RAD4G, MediaTek: 0 in every tick of two
+     * sessions while CellInfo never had a CQI). A 0 there is kept only when a serving LTE CellInfo cell of the same
+     * tick reports a CQI too; otherwise it becomes null with a warning, `rawValue` = "0".
+     */
+    private fun blankLteCqiZero(ssCells: List<CellSample>, cells: List<CellSample>, warnings: MutableList<ParseWarning>): List<CellSample> {
+        if (cells.any { it.source == CellSource.CELL_INFO && it.rat == Rat.LTE && it.servingInferred && it.cqi != null }) return ssCells
+        return ssCells.map { cell ->
+            if (cell.rat != Rat.LTE || cell.cqi != 0) return@map cell
+            warnings += ParseWarning(WarningCode.LTE_CQI_ZERO_PLACEHOLDER, Rat.LTE, null, "cqi", "0")
+            cell.copy(cqi = null)
+        }
     }
 
     /** An NSA NR secondary (LTE anchor registered) has no TAC of its own; A56 reports 0 there. */

@@ -743,6 +743,37 @@ class CellParserTest {
         bandwidths = listOf(10_000), override = 0, mcc = "510",
     )
 
+    // Xiaomi 24094RAD4G (MediaTek), Telkomsel, walks 2026-10-19 and 10-24: CellInfo LTE never has a CQI, SignalStrength's
+    // LTE CQI is 0 in every tick; in NR-only ticks the CellInfo list has no LTE cell at all.
+    private fun xiaomiLte(cellInfoCqi: Int?, ssCqi: Int?, withLteCell: Boolean = true) = parse(
+        if (withLteCell) cellInfo(lteCell(pci = 101, earfcn = 500, bands = listOf(1), signal = lteSignal(-76, -10, 11, -67, cellInfoCqi, 1))) else cellInfo(),
+        signalStrength(lte = listOf(lteSignal(-77, -10, 11, -67, ssCqi, 1))),
+        device = XIAOMI, bandwidths = listOf(20_000, 20_000, 30_000), override = 3, mcc = "510",
+    )
+
+    private fun ParseResult.lteSs() = cells.single { it.rat == Rat.LTE && it.source == CellSource.SIGNAL_STRENGTH }
+
+    @Test
+    fun `Xiaomi - SignalStrength LTE CQI 0 without a CellInfo CQI becomes null with a warning`() {
+        listOf(true, false).forEach { withLteCell ->
+            val result = xiaomiLte(cellInfoCqi = UNAVAILABLE, ssCqi = 0, withLteCell = withLteCell)
+            assertNull(result.lteSs().cqi)
+            assertEquals("the other values are kept", -77, result.lteSs().rsrpDbm)
+            val w = result.warnings.single { it.code == WarningCode.LTE_CQI_ZERO_PLACEHOLDER }
+            assertEquals("cqi", w.field)
+            assertEquals("0", w.rawValue)
+        }
+    }
+
+    @Test
+    fun `SignalStrength LTE CQI 0 is kept when CellInfo reports a CQI, and a non-zero CQI is always kept`() {
+        listOf(xiaomiLte(cellInfoCqi = 0, ssCqi = 0) to 0, xiaomiLte(cellInfoCqi = 7, ssCqi = 0) to 0, xiaomiLte(cellInfoCqi = UNAVAILABLE, ssCqi = 9) to 9)
+            .forEach { (result, cqi) ->
+                assertEquals(cqi, result.lteSs().cqi)
+                assertTrue(result.warnings.none { it.code == WarningCode.LTE_CQI_ZERO_PLACEHOLDER })
+            }
+    }
+
     @Test
     fun `moto drive - LTE SignalStrength 212 s old is stale, kept as a row but not serving`() {
         val result = motoLte(212_000)

@@ -19,6 +19,7 @@ const val NOW_MS = 1_000_000L
 
 val MOTO = DeviceTraits("motorola", "moto g45 5G", 35)
 val SAMSUNG = DeviceTraits("samsung", "SM-A566B", 36)
+val XIAOMI = DeviceTraits("Xiaomi", "24094RAD4G", 36)
 
 fun lteSignal(rsrp: Int? = -95, rsrq: Int? = -11, rssnr: Int? = 12, rssi: Int? = -65, cqi: Int? = 9, ta: Int? = 3) =
     RawLteSignal(rsrp, rsrq, rssnr, rssi, cqi, ta)
