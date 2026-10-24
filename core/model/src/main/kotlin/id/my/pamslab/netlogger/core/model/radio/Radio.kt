@@ -158,6 +158,12 @@ enum class WarningCode {
     NR_NSA_TAC_ZERO,
 
     /**
+     * SignalStrength's LTE CQI is 0 while no serving LTE CellInfo cell of the tick has a CQI (Xiaomi 24094RAD4G: 0 in
+     * every tick): no CQI was measured. Null, `rawValue` = "0".
+     */
+    LTE_CQI_ZERO_PLACEHOLDER,
+
+    /**
      * getBands() contradicts the band the ARFCN settles: the only band containing it (moto g45: band 1 for LTE EARFCN
      * 1625 right after a handover) or the country's known band (A56: n7 reported for an n41 carrier). The mapped band
      * is used with bandSource MAPPED; `rawValue` holds the reported bands.
