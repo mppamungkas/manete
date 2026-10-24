@@ -751,12 +751,40 @@ First session from a student's phone (release 0.3.0, schema v3), 26 min, screen 
   NR-only ticks the serving LTE row comes from SignalStrength (RSRP, RSRQ, SINR marked SS; no PCI / EARFCN). Unlike
   the moto, the NR cell's own PCI is reported (n40, NR-ARFCN 466850; 11 NR cell changes).
 - **LTE values:** RSRP median -90 dBm, RSRQ median -15 dB, SINR median 1 dB (from CellInfo in 72 % of ticks; LTE
-  CQI and SINR are reported, unlike the moto). Carrier aggregation `[20000,20000,30000]` most of the time.
+  SINR is reported, unlike the moto; LTE CQI only looked reported: it is a constant 0 from SignalStrength, see 2026-10-24). Carrier aggregation `[20000,20000,30000]` most of the time.
   `getBands()` says B1 for three B3 cells (EARFCN 1850): `API_BAND_CONFLICT`, mapped to B3.
 - **Speed tests (Cloudflare, site CGK = Jakarta; the moto on Tri gets SIN):** 68.3 ↓ / 59.4 ↑ Mbps, ping 68 ms
   (standing, NR SS-RSRP -75 dBm, SS-SINR 12 dB; the upload reached the 50 MB cap after 7 s) and 26.2 ↓ / 25.9 ↑ Mbps,
   ping 70 ms (moving up to 20 km/h, NR -82 dBm / 7 dB, LTE SINR -1 dB).
 - Battery 90 → 84 % in 26 min (13.7 %/h, screen on, two speed tests); thermal status 2 (MODERATE) throughout.
+
+### Xiaomi 24094RAD4G (MediaTek modem), Android 16, Telkomsel (510-10), student walk, 2026-10-24 15:07–15:26
+Second session from the same student phone, release 0.5.0 (baseband MOLY.NR15.R3.MP.V167.P70), 19 min, screen on,
+walking (~4 km/h, saved as "drive", no label), unplugged.
+- **Ticks:** 1124 / 1124 (100 %), max spacing 1.01 s; every CellInfo fresh (serving LTE age ≤ 2 s); no parse
+  warnings at all (the moto and A56 always have some).
+- **CellInfo list alternation confirmed:** LTE-only lists in 70 % of the ticks (109 stretches, median 7 s), NR-only in
+  29 % (108 stretches, median 3 s, max 7 s), never both, while the phone stayed NR_NSA (override 3) the whole time.
+  In NR-only ticks the serving LTE values come from SignalStrength; where both exist, CellInfo and SignalStrength agree
+  within ±2 dB (RSRP) and exactly (SINR), so the fallback is sound on this phone.
+- **LTE CQI is a placeholder:** CellInfo's CQI is always unavailable, and SignalStrength's LTE CQI is 0 in every tick
+  (1124 / 1124; the 19 Oct session too, 1577 / 1577). Manete stores and exports it as 0 (`flat.csv` `lteCqi` = 0),
+  which breaks the "never 0 for missing" rule. **Fixed** (after 0.5.0): a SignalStrength LTE CQI of 0 becomes null
+  with `LTE_CQI_ZERO_PLACEHOLDER` unless a serving LTE CellInfo cell of the same tick reports a CQI as well (the A56's
+  SignalStrength CQIs are real, 7–15, and the moto has none, so neither is affected). Exports made with 0.5.0 or
+  earlier still hold the 0.
+- **Placeholder GSM cell:** 6 ticks (4 on 19 Oct) whose CellInfo list holds only one unregistered GSM cell with ARFCN 0
+  and RSSI -113 dBm (the minimum) and no LTE or NR cell; the serving values come from SignalStrength. Not a real
+  neighbour; Manete keeps it as a GSM row without a warning. Possible warning code later.
+- **Bands:** serving LTE EARFCN 500 = B1 from `getBands()` (correct; no `API_BAND_CONFLICT` this time, the B3 cells of
+  19 Oct were not seen); NR n40, NR-ARFCN 466850, with its own PCI (9 NR PCIs, 24 NR cell changes); CA
+  `[20000,20000,30000]` in 58 % of the ticks, a single 20 MHz carrier in 40 %.
+- **Values:** LTE RSRP median -76 dBm, RSRQ -10 dB, SINR 11 dB; NR SS-RSRP -75 dBm, SS-RSRQ -12 dB, SS-SINR 5 dB; NR CSI
+  values never reported.
+- **Speed test (Cloudflare, CGK), walking ~3 km/h:** 131.1 ↓ / 54.3 ↑ Mbps, ping 63 ms (the upload stopped at the
+  50 MB cap after 8.5 s).
+- Battery 89 → 85 % in 19 min (~13 %/h, screen on, one speed test); thermal status 2 (MODERATE) throughout, as on
+  19 Oct.
 
 ## Handled in code (from NetMonster Core, not yet confirmed on our devices)
 
@@ -765,6 +793,7 @@ First session from a student's phone (release 0.3.0, schema v3), 26 min, screen 
 | Serving TAC/LAC bytes swapped in CellInfo | Samsung, Android 12+ | Compared with `getCellLocation()`; swapped back, latched for the session | `SAMSUNG_TAC_BYTE_SWAP` | **Not seen** on A56 / Android 16 (TAC matches moto g45 on the same cell) |
 | Neighbor placeholders RSSI -51, TA 0, Ec/No 0; plus cell ID 0, TAC 0, LTE CQI 0 (ours, from A56 data) | Samsung | Set to null | `SAMSUNG_NEIGHBOR_PLACEHOLDER` | A56 (CI/TAC/CQI/TA 0), 2026-10-13 |
 | LTE RSSNR 0 meaning "not available" | Samsung | Set to null | `SAMSUNG_LTE_SNR_ZERO` | A56 (neighbors), 2026-10-13 |
+| SignalStrength LTE CQI 0 while CellInfo has no CQI (ours) | any manufacturer | Set to null | `LTE_CQI_ZERO_PLACEHOLDER` | Xiaomi 24094RAD4G (MediaTek), 2026-10-19 / 10-24 |
 
 ## Watch for (not handled yet)
 
@@ -805,6 +834,27 @@ half the ticks, native capture all apps (MTU 1500). Analysis in `~/netlogger-ana
   `SecurityException: Password required to access document`; Manete now reports it as protected.
 - The system file picker's Downloads view lists only files in Android's media index: files pushed with `adb push`
   appear only under the phone's storage root (side menu › moto g45 5G › Download). Not an issue for files saved by apps.
+
+### moto g45 + Samsung A56, Tri (510-89), Manete 0.5.0 trial runs, 2026-10-24
+
+- **1 h 11 min screen off, unplugged, on a desk (11:53–13:04):** 100 % ticks on both phones, no gap > 1.5 s, serving
+  LTE CellInfo age median 4.5–5 s, max 10 s. The moto's LTE SignalStrength entry was not refreshed for most of the
+  run (age median ~18 min, max 47 min), so its screen-off LTE SINR comes only from CellInfo (as in October). The A56
+  logged 539 GPS_LOST / GPS_RESTORED pairs indoors with the screen off (fix flickering between WAITING and a fix):
+  GPS events are not debounced, so count GPS outages by duration, not by event count.
+- **Force stop:** clearing recent apps does not stop a recording on either phone; Settings › Apps › Force stop does.
+  After reopening, the session was closed at its last tick (endedAt − last tick = 0 s) on both phones, and no
+  problem-report card appeared: as designed (decision 005, a force stop is the user's action, never reported).
+- **A56 data stall (13:25–13:32, indoors, NR_NSA, data state CONNECTED):** Manete's speed tests failed with connect
+  timeouts to the own server and `Unable to resolve host` for Cloudflare, G-NetTrack Pro's data test on the same
+  phone at 13:25 got 9 Mbit/s with 50 % ping loss, while the moto beside it was fine. It ended with a 1-s
+  NO_SERVICE at 13:32:46; the next test worked. A phone/network stall, not a Manete fault.
+- **A56 slower than the moto beside it, in both apps:** G-NetTrack 86 vs. 168 Mbit/s (13:14), Manete median ~62 vs.
+  ~140 Mbit/s over the session, same LTE cell and NR PCI 440. The periodic tests of both phones ran at the same
+  time (sessions started 4 s apart, slots counted from the start), so they shared the cell; A56 tests alone were
+  53–89 Mbit/s.
+- **G-NetTrack Pro 35.1 logged only ~130 rows in 30 min** on each phone (1-s rows in bursts, gaps of 20–250 s while
+  static), so only ~125 seconds could be paired with Manete.
 
 ## Not available by design
 
